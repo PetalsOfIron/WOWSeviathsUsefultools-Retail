@@ -496,7 +496,17 @@ local buildDelve = simplePage("Delve Planner",
                     local b = mkButton(c, cu[1], 156, function()
                         SFP:DelveSet("curio", (SFP:DelveGet("curio", slot) == cu[1]) and false or cu[1], slot)
                         pane.refresh()
-                    end, cu[3])
+                    end, cu[3] .. "\n\nRight-click: mark that you own this curio (the suggestion then picks the best of yours).")
+                    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+                    b:SetScript("OnClick", function(self, btn)
+                        if btn == "RightButton" then
+                            SFP.db.curiosOwned = SFP.db.curiosOwned or {}
+                            SFP.db.curiosOwned[cu[1]] = (not SFP.db.curiosOwned[cu[1]]) or nil
+                        else
+                            SFP:DelveSet("curio", (SFP:DelveGet("curio", slot) == cu[1]) and false or cu[1], slot)
+                        end
+                        pane.refresh()
+                    end)
                     b:SetPoint("TOPLEFT", ((n - 1) % 3) * 160, topY - 22 - math.floor((n - 1) / 3) * 26)
                     b.curio = cu[1]
                     b.slot = slot
@@ -511,7 +521,7 @@ local buildDelve = simplePage("Delve Planner",
         for i, sl in ipairs(SFP:CurioSlots()) do
             local rows = 0
             for _, cu in ipairs(SFP.CURIOS or {}) do if cu[2] == sl.key then rows = rows + 1 end end
-            curioBlock(sl.key, ("Slot %d - %s (pick one, hover for the bonus)"):format(i, sl.label), nextY)
+            curioBlock(sl.key, ("Slot %d - %s (left-click pick, right-click = I have it)"):format(i, sl.label), nextY)
             nextY = nextY - (22 + math.max(1, math.ceil(rows / 3)) * 26 + 56)
             if rows == 0 then
                 mkText(c, "|cff808080No verified curios for this slot yet.|r", 0, nextY + 56 + 26 - 8, 480, "GameFontHighlightSmall")
@@ -570,7 +580,9 @@ local buildDelve = simplePage("Delve Planner",
             advice:SetText(SFP:DelveAdvice() .. "\n\n" .. table.concat(SFP:DelveBestSetup().lines, "\n"))
             local chosen = setmetatable({}, { __index = function(_, slot) return SFP:DelveGet("curio", slot) or nil end })
             for _, b in ipairs(curioBtns) do
-                b.text:SetText((chosen[b.slot] == b.curio and "|cff40ff40" or "") .. b.curio)
+                local best = SFP:BestCurio(b.slot) == b.curio
+                local own = SFP.db.curiosOwned and SFP.db.curiosOwned[b.curio]
+                b.text:SetText((chosen[b.slot] == b.curio and "|cff40ff40" or "") .. b.curio .. (own and " |cffffd100(have)|r" or "") .. (best and " |cff40ff40*best|r" or ""))
             end
             for slot, t in pairs(curioText) do
                 local name = chosen[slot]
