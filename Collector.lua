@@ -489,6 +489,16 @@ local function unitTip(tt, data)
     end
     tt:AddLine("|c" .. SFP.CYAN_HEX .. "Seviaths|r  |cff808080NPC " .. id .. "|r" ..
         (rec and rec.k and rec.k > 0 and ("  |cff808080" .. rec.k .. " kills seen|r") or ""))
+    -- history from before the addon: gear you already own from this monster (your transmog collection)
+    do
+        local nm = rec and rec.n
+        if not nm and unit then local okn, n = pcall(UnitName, unit); if okn then nm = n end end
+        local past = SFP.HistoryFor and SFP:HistoryFor(nm)
+        if past then
+            tt:AddLine(("|cff80ff80You already own %d item%s from this monster%s (transmog collection)|r"):format(
+                past.c, past.c == 1 and "" or "s", past.i and (" in " .. past.i) or ""))
+        end
+    end
     local list = {}
     for itemID, c in pairs(rec and rec.d or {}) do list[#list + 1] = { itemID, c } end
     table.sort(list, function(a, b) return a[2] > b[2] end)
