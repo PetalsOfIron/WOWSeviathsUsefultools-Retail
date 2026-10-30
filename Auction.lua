@@ -158,6 +158,11 @@ local function catFinish()
     SFP:Print(("Auction scan done: prices for %d items, %d new item IDs%s, %d item names saved%s."):format(found, catNewIDs,
         catLearned > 0 and (", " .. catLearned .. " new materials") or "", saved, namesLeft > 0 and (" (" .. namesLeft .. " more loading in the background)") or ""))
     SFP:RefreshAll()
+    if SFP.db.longScan then
+        -- long scan: after the sections, search every tracked item one by one like the old scan (slow, but exact)
+        SFP:Print("Long scan: now scanning each item...")
+        C_Timer.After(1, function() SFP:StartScan(true, true) end)
+    end
 end
 
 local function catRead()
