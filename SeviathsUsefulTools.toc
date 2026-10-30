@@ -33,6 +33,8 @@ Instances.lua
 Learn.lua
 Collector.lua
 TransmogHistory.lua
+Extras.lua
+Tools.lua
 ItemInfo.lua
 MinimapPins.lua
 Guides.lua

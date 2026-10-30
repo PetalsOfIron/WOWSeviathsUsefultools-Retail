@@ -160,13 +160,20 @@ end
 local seenGuid = {}
 local function onLoot()
     if not SFP.db then return end
+    if SFP.SessionLootOpened then SFP:SessionLootOpened() end
     local map, px, py = playerPos()
     local skin = lastCast.name and skinNames[lastCast.name] and GetTime() - lastCast.t < 8
     for slot = 1, GetNumLootItems() do
         local link = GetLootSlotLink and GetLootSlotLink(slot)
         if link and issecretvalue and issecretvalue(link) then link = nil end
         local itemID = link and tonumber(link:match("item:(%d+)"))
-        if itemID then recordItem(itemID) end
+        if itemID then
+            recordItem(itemID)
+            if SFP.SessionItem then
+                local _, _, qty = GetLootSlotInfo(slot)
+                SFP:SessionItem(itemID, qty)
+            end
+        end
         local sources = { GetLootSourceInfo(slot) }
         for i = 1, #sources, 2 do
             local guid, qty = sources[i], sources[i + 1] or 1
@@ -176,7 +183,7 @@ local function onLoot()
                 local rec = ensureNpc(id, name)
                 if not seenGuid[guid .. (skin and "s" or "")] then
                     seenGuid[guid .. (skin and "s" or "")] = true
-                    if skin then rec.sk = (rec.sk or 0) + 1 else rec.k = (rec.k or 0) + 1 end
+                    if skin then rec.sk = (rec.sk or 0) + 1 else rec.k = (rec.k or 0) + 1; if SFP.NoteKill then SFP:NoteKill(id) end end
                     if map then addPoint(rec, map, px, py) end
                 end
                 if itemID then
