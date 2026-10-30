@@ -112,3 +112,20 @@
 - Menu: "Show the farm route on the map" switch (Farm & Map page).
 
 - Menu: two new pages - "Rares & Alerts" (rare alerts, alert sound, grey killed rares, farm route, spot list, read my collections, forget today's kills) and "Tools" (a button for every tool: farm session, what to farm next, weekly checklist, BoE deals, shopping list, route, export / import). Moved there from the Farm & Map page; the Settings page points to them.
+
+- All addon windows (menu, farm browser, Codex, Dungeons & Raids, Guild Helper, tool windows) share one layer and come to the front when they open or are clicked, so a window is never hidden behind another one.
+
+- Settings page: the rare alert, killed-today and farm route switches, the collection buttons and every tool button are now right on the Settings page too (they are also on the Rares & Alerts and Tools pages).
+
+- Menu: every tool has its own entry in the list on the left (Rare Alerts, Killed Today, Farm Route, Farm Session, What To Farm Next, Weekly Checklist, BoE Deals, Shopping List, My Collections, Share Data), each with a short explanation and its buttons. The switches (rare alerts, sound, killed today, route) stay on the Settings page. The menu window is taller and the list is compact.
+
+- New tools, each with its own page in the menu list: Delve Planner (companion role and curio hint for your spec, comfortable tier), Delve Keys (keys, weekly earned, bountiful delves), Achievement Planner (what is left, where, what first), Zone Check (one line about what you still miss when you enter a zone; switch on Settings), Housing Decor (craftable Midnight decor recipes and which you know), Alt Overview (level, item level, gold, professions, weekly for all characters). The menu list scrolls.
+- Weekly checklist: every raid with the bosses done and still to do (per difficulty), and the current raids you have not started.
+- BoE deals: uses Auctionator or TradeSkillMaster prices when there is no scan of your own, TradeSkillMaster's long-term price as the typical price, and lists BoE prices even without a price history.
+- What To Farm Next: a list of rares, each with its own Waypoint button; looks up mount, pet and toy ownership in more ways.
+- Farm Session page: separate Start and Stop buttons and the list of commands.
+
+- Farm Route page: a searchable list of every zone with farm spots (newest expansion first); click one to open its map and draw the route.
+- Killed Today page: lists everything you killed today per character, with the zone and the time.
+
+- The collection history reads by itself on the first start after the install (about 20 seconds after login, with one chat line saying so) and again when your mount or pet count changes; the My Collections page says so.

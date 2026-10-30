@@ -208,9 +208,24 @@ end
 function SFP:OwnedStatus(itemID)
     local info = self.Items and self.Items[itemID]
     local kind = info and info.kind
-    if kind == "mount" and C_MountJournal and C_MountJournal.GetMountFromItem then
-        local ok, mountID = pcall(C_MountJournal.GetMountFromItem, itemID)
-        if ok and mountID then
+    if C_Item and C_Item.RequestLoadItemDataByID and (kind == "mount" or kind == "pet" or kind == "toy") then
+        pcall(C_Item.RequestLoadItemDataByID, itemID)   -- the game answers a moment later; the lists refresh
+    end
+    if kind == "mount" and C_MountJournal then
+        local mountID
+        if C_MountJournal.GetMountFromItem then
+            local ok, id = pcall(C_MountJournal.GetMountFromItem, itemID)
+            if ok then mountID = id end
+        end
+        -- some mount items are only known through the spell they teach
+        if not mountID and C_MountJournal.GetMountFromSpell and C_Item and C_Item.GetItemSpell then
+            local okS, _, spellID = pcall(C_Item.GetItemSpell, itemID)
+            if okS and spellID then
+                local okM, id = pcall(C_MountJournal.GetMountFromSpell, spellID)
+                if okM then mountID = id end
+            end
+        end
+        if mountID then
             local ok2, _, _, _, _, _, _, _, _, _, _, collected = pcall(C_MountJournal.GetMountInfoByID, mountID)
             if ok2 then return collected and true or false end
         end
@@ -245,8 +260,18 @@ function SFP:HistoryText(rec)
 end
 
 SFP:OnLogin(function()
+    local first = not (SFP.db.history and SFP.db.history.t and SFP.db.history.t > 0)
+    if first then
+        -- first start after the install: read everything automatically, and say so once
+        C_Timer.After(12, function()
+            SFP:Print("First start: reading your transmog, mount and pet collections in the background (this happens by itself, nothing to do).")
+        end)
+    end
     -- wait until the game is settled, then read in the background (only what is new or changed)
-    C_Timer.After(40, function() SFP:Safe("collection history", SFP.ScanTransmogHistory, SFP) end)
+    C_Timer.After(first and 20 or 40, function()
+        if first then SFP.db.historyReport = true end
+        SFP:Safe("collection history", SFP.ScanTransmogHistory, SFP)
+    end)
 end)
 
 -- keep it current while you play: new appearances, mounts and pets are added the moment you get them

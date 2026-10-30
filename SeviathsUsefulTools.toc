@@ -35,6 +35,7 @@ Collector.lua
 TransmogHistory.lua
 Extras.lua
 Tools.lua
+Tools2.lua
 ItemInfo.lua
 MinimapPins.lua
 Guides.lua

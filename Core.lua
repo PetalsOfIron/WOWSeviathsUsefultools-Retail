@@ -69,6 +69,7 @@ local defaults = {
     showSpecial  = true,   -- magenta spots for special materials (rare hides, lures, special cloth)
     showGatherList = true, -- side list on zone maps: the expansion's ores/herbs + their best zone
     showRoute = true,      -- draw the farm route (spot list: Route button) on the map
+    zoneCheck = true,      -- one line about what you still miss when you enter a zone
     greyKilled = true,     -- grey out rares you killed today on the map
     rareAlerts = true,     -- chat line when a rare you still miss something from appears nearby
     rareAlertSound = true, -- and a sound with it
@@ -108,6 +109,16 @@ local function copyDefaults(src, dst)
             dst[k] = v
         end
     end
+end
+
+-- every window of the addon lives in one layer and comes to the front when it opens or is clicked
+function SFP.RegisterWindow(f)
+    if not f or f.SeviathsFront or not f.HookScript then return end
+    f.SeviathsFront = true
+    f:SetFrameStrata("DIALOG")
+    if f.SetToplevel then f:SetToplevel(true) end
+    f:HookScript("OnShow", function(self) self:Raise() end)
+    f:HookScript("OnMouseDown", function(self) self:Raise() end)
 end
 
 function SFP:Print(msg)
@@ -828,6 +839,18 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         if SFP.ToggleIncomeMessages then SFP:ToggleIncomeMessages() end
     elseif cmd == "sold" then
         if SFP.ToggleAuctionSold then SFP:ToggleAuctionSold() end
+    elseif cmd == "alts" then
+        SFP:ShowAlts()
+    elseif cmd == "keys" then
+        SFP:ShowKeys()
+    elseif cmd == "delve" then
+        SFP:Print((SFP:DelveAdvice():gsub("\n\n", "  ")))
+    elseif cmd == "ach" then
+        SFP:ShowAchPlanner()
+    elseif cmd == "zone" then
+        SFP:ZoneCheck(false)
+    elseif cmd == "decor" then
+        SFP:ShowDecor()
     elseif cmd == "weekly" then
         SFP:ShowWeekly()
     elseif cmd == "flip" or cmd == "deals" then
@@ -904,6 +927,12 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:Print("/sfp min <gold> - only light zones worth at least this much")
         SFP:Print("/sfp tooltip - toggle the item tooltip lines")
         SFP:Print("/sfp history - what your transmog, mount and pet collections say you already looted (rescan to refresh)")
+        SFP:Print("/sfp alts - every character: level, item level, gold, professions, weekly")
+        SFP:Print("/sfp keys - delve keys and the bountiful delves today")
+        SFP:Print("/sfp delve - companion role and curio hint for your spec")
+        SFP:Print("/sfp ach - achievement planner")
+        SFP:Print("/sfp zone - what you still miss in this zone or instance")
+        SFP:Print("/sfp decor - Midnight housing decor recipes")
         SFP:Print("/sfp weekly - Great Vault, raid lockouts and rare kills of all your characters")
         SFP:Print("/sfp flip - BoE items now against their typical price")
         SFP:Print("/sfp shop - crafting shopping list: reagents, prices, where to farm them")

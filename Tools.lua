@@ -22,6 +22,7 @@ local function makeWindow(name, title, w, h)
     f:SetSize(w, h)
     f:SetPoint("CENTER")
     f:SetFrameStrata("DIALOG")
+    SFP.RegisterWindow(f)
     f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
     f:SetBackdropColor(0.03, 0.05, 0.07, 0.95)
     f:SetBackdropBorderColor(0, 0.9, 1, 0.8)
@@ -103,6 +104,28 @@ function SFP:BuildRoute(mapID)
     if route[1] and self.SetWaypoint then self:SetWaypoint(mapID, route[1].x, route[1].y, route[1].name) end
 end
 
+-- every zone that has farm spots, in expansion order: { map, name, exp, count }
+function SFP:RouteZones()
+    local out = {}
+    local order = {}
+    for i, exp in ipairs(self.Expansions or {}) do order[exp.key] = i end
+    for mapID, zone in pairs(self.zoneByMap or {}) do
+        local n = 0
+        for _, sp in ipairs(zone.spawns or {}) do
+            if sp.hx and sp.hy then n = n + 1 end
+        end
+        if n >= 2 then
+            local exp = self.zoneExp and self.zoneExp[mapID]
+            out[#out + 1] = { map = mapID, name = self:ZoneName(mapID), exp = exp and exp.name or "", expOrder = exp and order[exp.key] or 99, count = n }
+        end
+    end
+    table.sort(out, function(a, b)
+        if a.expOrder ~= b.expOrder then return a.expOrder > b.expOrder end   -- newest expansion first
+        return a.name < b.name
+    end)
+    return out
+end
+
 function SFP:ClearRoute()
     if self.SetRoute then self.SetRoute(nil, nil) end
 end
@@ -132,12 +155,42 @@ function SFP:UpdateWeekly()
             end
         end
     end
+    rec.raids, rec.fresh = {}, {}
+    local locked = {}
     if GetNumSavedInstances then
         for i = 1, GetNumSavedInstances() do
-            local name, _, reset, _, locked, _, _, isRaid, _, diffName, numEnc, encProg = GetSavedInstanceInfo(i)
-            if locked and isRaid and type(name) == "string" and not secret(name) then
+            local name, _, reset, _, isLocked, _, _, isRaid, _, diffName, numEnc, encProg = GetSavedInstanceInfo(i)
+            if isLocked and isRaid and type(name) == "string" and not secret(name) then
                 rec.locks[#rec.locks + 1] = ("%s (%s) %s/%s"):format(name, tostring(diffName or "?"), tostring(encProg or "?"), tostring(numEnc or "?"))
+                locked[name] = true
+                local done, left = {}, {}
+                for j = 1, tonumber(numEnc) or 0 do
+                    local okE, bossName, _, killed = pcall(GetSavedInstanceEncounterInfo, i, j)
+                    if okE and type(bossName) == "string" then
+                        if killed then done[#done + 1] = bossName else left[#left + 1] = bossName end
+                    end
+                end
+                rec.raids[#rec.raids + 1] = { name = name, diff = tostring(diffName or "?"), done = done, left = left }
             end
+        end
+    end
+    -- the raids of the newest expansion that you have not entered this week
+    local newest
+    for _, exp in ipairs(self.Expansions or {}) do
+        for _, inst in ipairs(exp.instances or {}) do
+            if inst.kind == "raid" then newest = exp; break end
+        end
+    end
+    for _, inst in ipairs(newest and newest.instances or {}) do
+        if inst.kind == "raid" and not locked[inst.name] then
+            local bosses, seen = {}, {}
+            for _, list in pairs(self.lootIndex or {}) do
+                for _, e in ipairs(list) do
+                    if e[1] == inst.name and e[2] and not seen[e[2]] then seen[e[2]] = true; bosses[#bosses + 1] = e[2] end
+                end
+            end
+            table.sort(bosses)
+            rec.fresh[#rec.fresh + 1] = { name = inst.name, bosses = bosses }
         end
     end
     local kills = 0
@@ -161,8 +214,19 @@ function SFP:ShowWeekly()
         local age = math.floor((time() - (r.t or 0)) / 3600)
         lines[#lines + 1] = "|cff00e5ff" .. key .. "|r  |cff808080(" .. (age < 1 and "now" or (age .. " h ago")) .. ")|r"
         lines[#lines + 1] = "  Great Vault: " .. (#r.vault > 0 and table.concat(r.vault, "   ") or "no data")
-        lines[#lines + 1] = "  Raid lockouts: " .. (#r.locks > 0 and table.concat(r.locks, ", ") or "none")
         lines[#lines + 1] = "  Rares killed today: " .. (r.rares or 0)
+        lines[#lines + 1] = "  |cffffd100Raids this week|r"
+        for _, raid in ipairs(r.raids or {}) do
+            local total = #raid.done + #raid.left
+            lines[#lines + 1] = ("    %s (%s)  %d/%d  %s"):format(raid.name, raid.diff, #raid.done, total,
+                #raid.left == 0 and "|cff40ff40all done|r" or "|cffff6060to do:|r " .. table.concat(raid.left, ", "))
+            if #raid.done > 0 then lines[#lines + 1] = "      |cff40ff40done:|r " .. table.concat(raid.done, ", ") end
+        end
+        for _, raid in ipairs(r.fresh or {}) do
+            lines[#lines + 1] = ("    %s  |cffff6060not started|r%s"):format(raid.name,
+                #raid.bosses > 0 and (" - " .. #raid.bosses .. " bosses: " .. table.concat(raid.bosses, ", ")) or "")
+        end
+        if #(r.raids or {}) == 0 and #(r.fresh or {}) == 0 then lines[#lines + 1] = "    no raid data yet (log in with this character again)" end
         lines[#lines + 1] = ""
     end
     if #lines == 0 then lines[1] = "No data yet." end
@@ -195,44 +259,68 @@ end
 function SFP:TypicalPrice(itemID)
     local ph = self.db.priceHist and self.db.priceHist[self:RealmKey()]
     local samples = ph and ph[itemID]
-    if not samples or #samples < 3 then return nil end
-    local vals = {}
-    -- the newest sample is "now"; the typical price is what came before
-    for i = 1, #samples - 1 do vals[#vals + 1] = samples[i].p end
-    return median(vals), #samples - 1
+    if samples and #samples >= 3 then
+        local vals = {}
+        -- the newest sample is "now"; the typical price is what came before
+        for i = 1, #samples - 1 do vals[#vals + 1] = samples[i].p end
+        return median(vals), #samples - 1, "your scans"
+    end
+    -- no history of our own: TradeSkillMaster keeps a long-term price (Auctionator has no history to read)
+    if TSM_API and TSM_API.GetCustomPriceValue then
+        for _, src in ipairs({ "DBHistorical", "DBMarket", "DBRegionMarketAvg" }) do
+            local ok, v = pcall(TSM_API.GetCustomPriceValue, src, "i:" .. itemID)
+            if ok and type(v) == "number" and v > 0 then return v, 0, "TradeSkillMaster " .. src end
+        end
+    end
 end
 
 function SFP:BoeDeals()
-    local out = {}
+    local out, nohist = {}, {}
     for id, info in pairs(self.Items or {}) do
         if info.kind == "boe" then
+            -- now: our own scan, else Auctionator / TradeSkillMaster
             local now = self:GetPrice(id)
-            local typical, n = self:TypicalPrice(id)
-            if now and now > 0 and typical and typical > 0 then
-                out[#out + 1] = { id = id, now = now, typical = typical, n = n, cut = 1 - now / typical }
+            if now and now > 0 then
+                local typical, n, src = self:TypicalPrice(id)
+                if typical and typical > 0 then
+                    out[#out + 1] = { id = id, now = now, typical = typical, n = n, src = src, cut = 1 - now / typical }
+                else
+                    nohist[#nohist + 1] = { id = id, now = now }
+                end
             end
         end
     end
     table.sort(out, function(a, b) return a.cut > b.cut end)
-    return out
+    table.sort(nohist, function(a, b) return a.now > b.now end)
+    return out, nohist
 end
 
 local dealWin
 function SFP:ShowDeals()
     dealWin = dealWin or makeWindow("SeviathsUsefulToolsDeals", "BoE deals - now against the typical price", 480, 360)
-    local list = self:BoeDeals()
+    local list, nohist = self:BoeDeals()
     local lines = {}
     for i, d in ipairs(list) do
         if i > 40 then break end
         local pct = math.floor(d.cut * 100 + 0.5)
         local color = pct >= 20 and "|cff40ff40" or (pct <= -20 and "|cffff6060" or "|cffffffff")
-        lines[#lines + 1] = ("%s%s%d%%|r  %s   now %s   typical %s  |cff808080(%d samples)|r"):format(
-            color, pct >= 0 and "-" or "+", math.abs(pct), self:ItemName(d.id), money(d.now), money(d.typical), d.n)
+        lines[#lines + 1] = ("%s%s%d%%|r  %s   now %s   typical %s  |cff808080(%s)|r"):format(
+            color, pct >= 0 and "-" or "+", math.abs(pct), self:ItemName(d.id), money(d.now), money(d.typical),
+            d.src == "your scans" and (d.n .. " scans") or d.src)
+    end
+    if #lines > 0 then
+        table.insert(lines, 1, "|cff808080Green = cheaper than usual. Prices: your own scans, else Auctionator or TradeSkillMaster.|r\n")
+    end
+    -- items that have a price now but nothing to compare with yet
+    if #nohist > 0 then
+        lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cff00e5ffBoE prices now|r  |cff808080(no price history yet - scan on a few different days, or use TradeSkillMaster)|r"
+        for i, d in ipairs(nohist) do
+            if i > 30 then break end
+            lines[#lines + 1] = ("  %s   %s"):format(self:ItemName(d.id), money(d.now))
+        end
     end
     if #lines == 0 then
-        lines[1] = "No BoE items with a price history yet. Scan the auction house on a few different days: the addon remembers each scan and compares the next one with the usual price."
-    else
-        table.insert(lines, 1, "|cff808080Green = cheaper than usual. Prices come from your own auction house scans on this realm.|r\n")
+        lines[1] = "No BoE prices known yet. Scan the auction house (button below its window), or install Auctionator or TradeSkillMaster and scan there. Then open this list again."
     end
     dealWin:SetContent(table.concat(lines, "\n"))
     dealWin:Show()
