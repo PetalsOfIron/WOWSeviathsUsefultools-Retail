@@ -90,8 +90,9 @@ local function processReplicate()
     local best, i, found, nextPct = {}, 0, 0, 25
     SFP:Print(("Full scan: the auction house answered, reading %d auctions..."):format(n))
     local function chunk()
-        local stop = math.min(n, i + 600)
-        while i < stop do
+        -- work for about 25 ms per frame instead of a fixed small batch: the same data is read much faster
+        local t0 = debugprofilestop and debugprofilestop() or 0
+        while i < n and (not debugprofilestop or debugprofilestop() - t0 < 25) do
             local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = C_AuctionHouse.GetReplicateItemInfo(i)
             i = i + 1
             if itemID and buyout and buyout > 0 and SFP.trackedIDs[itemID] then
@@ -136,12 +137,12 @@ function SFP:TryFullScan()
     fullTick = C_Timer.NewTicker(5, function(t)
         waited = waited + 5
         if fullWaiting then
-            SFP:Print(("Full scan: waiting for the auction house answer... %d s (gives up after 45 s)"):format(waited))
+            SFP:Print(("Full scan: waiting for the auction house answer... %d s (gives up after 25 s)"):format(waited))
         else
             t:Cancel()
         end
     end)
-    fullTimer = C_Timer.NewTimer(45, function()
+    fullTimer = C_Timer.NewTimer(25, function()
         if fullWaiting then
             -- no answer (scan cooldown?): fall back to searching the items one by one
             fullWaiting, scanning = false, false
@@ -197,6 +198,11 @@ f:SetScript("OnEvent", function(_, event, arg1)
         if fullWaiting then
             fullWaiting = false
             if fullTimer then fullTimer:Cancel(); fullTimer = nil end
+            SFP:Safe("full scan", processReplicate)
+        elseif ahOpen and not scanning then
+            -- another addon (Auctionator, TSM) asked the server for the whole auction house: use that answer too, no extra waiting
+            scanning = true
+            setProgress("wait")
             SFP:Safe("full scan", processReplicate)
         end
     elseif event == "AUCTION_HOUSE_CLOSED" then
