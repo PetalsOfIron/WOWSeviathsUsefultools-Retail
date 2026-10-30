@@ -897,7 +897,8 @@ local function catalogEntries()
         local okI, info = pcall(H.GetCatalogEntryInfo, entryID)
         if okI and type(info) == "table" and type(info.name) == "string" and not secret(info.name) then
             local qty = (tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0)
-            out[#out + 1] = { name = info.name, owned = qty > 0, source = plainText(info.sourceText), itemID = tonumber(info.itemID) }
+            local eid = type(entryID) == "table" and entryID.recordID or nil
+            out[#out + 1] = { name = info.name, owned = qty > 0, source = plainText(info.sourceText), itemID = tonumber(info.itemID), decorID = tonumber(eid) }
         end
     end
     return out
@@ -923,18 +924,33 @@ local function decorEntries()
         list[#list + 1] = e
         byName[name:lower()] = e
     end
+    for _, d in ipairs(SFP.DecorLearned or {}) do
+        local name = d[3] ~= "" and d[3] or ("Decor item " .. d[1])
+        if not byName[name:lower()] then
+            local e = { name = name, itemID = d[1] > 0 and d[1] or nil, decorID = d[2] > 0 and d[2] or nil, source = d[4], unknownOwned = true }
+            list[#list + 1] = e
+            byName[name:lower()] = e
+        end
+    end
     -- what the game's catalog lists on top (decor newer than the addon's data), and its owned state
     local cat = catalogEntries()
     if cat then
         fromGame = true
         for _, c in ipairs(cat) do
             local e = byName[c.name:lower()]
+            local hadID = e and e.decorID
             if e then
                 e.owned, e.unknownOwned = c.owned, false
                 if (e.source or "") == "" then e.source = c.source end
+                if not e.decorID and c.decorID then e.decorID = c.decorID end
             else
-                c.itemID = c.itemID
                 list[#list + 1] = c
+            end
+            -- learn what the addon's data lacks (new decor, missing decor IDs); saved with the account data
+            if SFP.db and (not e or (c.decorID and not hadID)) then
+                SFP.db.learnedDecor = SFP.db.learnedDecor or {}
+                local key = c.itemID and tostring(c.itemID) or c.name
+                SFP.db.learnedDecor[key] = SFP.db.learnedDecor[key] or { item = c.itemID, decor = c.decorID, name = c.name, source = c.source }
             end
         end
     end

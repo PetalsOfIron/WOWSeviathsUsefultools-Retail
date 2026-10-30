@@ -26,6 +26,7 @@ Data\GatherZones.lua
 Data\Seed.lua
 Data\DecorData.lua
 Data\CuriosLearned.lua
+Data\DecorLearned.lua
 Auction.lua
 AuctionBar.lua
 AuctionSold.lua
