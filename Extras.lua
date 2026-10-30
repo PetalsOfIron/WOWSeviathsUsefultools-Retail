@@ -41,6 +41,38 @@ function SFP:NoteKill(npcID)
     if self.session then self.session.kills = self.session.kills + 1 end
 end
 
+-- every rare killed today (since the daily reset), per character: { char, name, zone, t }
+function SFP:KilledTodayList()
+    local out = {}
+    local reset = lastDailyReset()
+    local byNpc = {}
+    for mapID, list in pairs(self.Rares or {}) do
+        for _, sp in ipairs(type(list) == "table" and list or {}) do
+            if sp.npc and sp.npc > 0 then byNpc[sp.npc] = { name = sp.name, map = mapID } end
+        end
+    end
+    for char, kills in pairs(self.db and self.db.killed or {}) do
+        for npcID, t in pairs(kills) do
+            if t >= reset then
+                local known = byNpc[npcID]
+                local rec = self.db.npcs and self.db.npcs[npcID]
+                local map = known and known.map or (rec and rec.m and next(rec.m))
+                out[#out + 1] = {
+                    char = char, npc = npcID, t = t,
+                    name = (known and known.name) or (rec and rec.n) or ("NPC " .. npcID),
+                    zone = map and self:ZoneName(map) or "",
+                    rare = known ~= nil,
+                }
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        if a.char ~= b.char then return a.char < b.char end
+        return a.t > b.t
+    end)
+    return out
+end
+
 -- forget what this character killed today (the greyed rares come back)
 function SFP:ClearKilled()
     if self.db and self.db.killed then self.db.killed[charKey()] = nil end
@@ -75,11 +107,13 @@ end
 
 local function sessionText()
     local s = SFP.session
-    if not s then return "No session. /sfp session starts one." end
+    if not s then return "No session yet. /sfp session starts one, /sfp session stop ends it." end
     local secs, total, perHour = sessionTotals()
     return ("Farm session %s%s\nKills: %d   Items: %d\nGold looted: %s\nLoot worth: %s\nTotal: %s   (%s / hour)"):format(
         fmtTime(secs), s.stop and "  (stopped)" or "", s.kills, s.items, money(s.gold), money(s.itemValue), money(total), money(perHour))
 end
+
+function SFP:SessionSummary() return sessionText() end
 
 local function buildFrame()
     if frame then return end
@@ -114,7 +148,7 @@ function SFP:SessionStart()
     buildFrame()
     frame:Show()
     text:SetText(sessionText())
-    self:Print("Farm session started. /sfp session stop ends it.")
+    self:Print("Farm session started. Stop it with /sfp session stop (or the Stop button in the menu, page Farm Session).")
 end
 
 function SFP:SessionStop()
@@ -126,6 +160,10 @@ function SFP:SessionStop()
 end
 
 function SFP:SessionToggle(arg)
+    if arg == "window" then
+        buildFrame(); frame:SetShown(not frame:IsShown()); text:SetText(sessionText())
+        return
+    end
     if arg == "stop" then return self:SessionStop() end
     if arg == "hide" then if frame then frame:Hide() end return end
     if arg == "show" then buildFrame(); frame:Show(); text:SetText(sessionText()); return end
@@ -460,6 +498,7 @@ local function buildIO()
     ioFrame:SetSize(520, 300)
     ioFrame:SetPoint("CENTER")
     ioFrame:SetFrameStrata("DIALOG")
+    SFP.RegisterWindow(ioFrame)
     ioFrame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
     ioFrame:SetBackdropColor(0.03, 0.05, 0.07, 0.95)
     ioFrame:SetBackdropBorderColor(0, 0.9, 1, 0.8)

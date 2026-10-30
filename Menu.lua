@@ -12,8 +12,22 @@ local navButtons, panes, current = {}, {}, nil
 local SECTIONS = {
     { key = "home",     label = "Home" },
     { key = "farm",     label = "Farm & Map" },
-    { key = "rares",    label = "Rares & Alerts" },
-    { key = "tools",    label = "Tools" },
+    { key = "alerts",   label = "Rare Alerts" },
+    { key = "killed",   label = "Killed Today" },
+    { key = "route",    label = "Farm Route" },
+    { key = "session",  label = "Farm Session" },
+    { key = "next",     label = "What To Farm Next" },
+    { key = "weekly",   label = "Weekly Checklist" },
+    { key = "deals",    label = "BoE Deals" },
+    { key = "shop",     label = "Shopping List" },
+    { key = "collect",  label = "My Collections" },
+    { key = "share",    label = "Share Data" },
+    { key = "delve",    label = "Delve Planner" },
+    { key = "keys",     label = "Delve Keys" },
+    { key = "ach",      label = "Achievement Planner" },
+    { key = "zone",     label = "Zone Check" },
+    { key = "decor",    label = "Housing Decor" },
+    { key = "alts",     label = "Alt Overview" },
     { key = "guides",   label = "Guides (Codex)" },
     { key = "groups",   label = "Groups" },
     { key = "guild",    label = "Guild" },
@@ -82,8 +96,6 @@ local function buildHome(pane)
     local list = {
         { "Farm & Map", "farm", "Glowing farm spots, rares and gathering routes on the world map, prices, layers." },
         { "Guides (Codex)", "guides", "How to do things: dungeons, raids, bosses, quests, mounts, pets, entrances, materials, gold." },
-        { "Rares & Alerts", "rares", "Rare alerts, killed-today marks, the farm route and what you already own." },
-        { "Tools", "tools", "Farm session, what to farm next, weekly checklist, BoE deals, shopping list, export / import." },
         { "Groups", "groups", "Raid buffs, tier tokens, player tags and notes for dungeons and raids." },
         { "Guild", "guild", "Find and invite players for your guild, charter signatures." },
         { "Learned data", "know", "Every monster, item, node and recipe the addon has learned from your play." },
@@ -127,83 +139,278 @@ local function buildFarm(pane)
     pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
 end
 
--- the collections read: a button, a "forget today's kills" button and a status line
-local function collectionControls(pane, x, y)
-    local histText = mkText(pane, "", x, y - 30, 470, "GameFontHighlightSmall")
-    local function histStatus()
-        local h = SFP.db.history
-        if not h or not h.t or h.t == 0 then return "Not read yet. It also reads by itself about 40 seconds after you log in." end
-        local items, mons, mnt, pets = 0, 0, 0, 0
-        for _ in pairs(h.items or {}) do items = items + 1 end
-        for _, r in pairs(h.by or {}) do
-            mons = mons + 1
-            mnt = mnt + (r.mounts and #r.mounts or 0)
-            pets = pets + (r.pets and #r.pets or 0)
+-- a simple page: title, a short explanation, then whatever the page adds
+local function pageHead(pane, title, desc)
+    mkText(pane, CYHEX .. title .. "|r", 12, -10, 480, "GameFontNormalLarge")
+    local fs = mkText(pane, desc, 12, -38, 500, "GameFontHighlightSmall")
+    fs:SetTextColor(0.85, 0.85, 0.85)
+    fs:SetSpacing(2)
+    return -38 - math.max(30, fs:GetStringHeight() or 30) - 14
+end
+
+local function simplePage(title, desc, fill)
+    return function(pane)
+        local y = pageHead(pane, title, desc)
+        local refresh = fill(pane, y) or function() end
+        pane.refresh = function() refresh() end
+    end
+end
+
+local buildAlerts = simplePage("Rare Alerts",
+    "When a rare you still miss a mount, pet or toy from shows up near you, the addon plays a sound and prints a chat line with a clickable [set waypoint]. " ..
+    "It uses the game's map markers for rares. It only alerts for rares you do not own everything from and have not killed today. " ..
+    "The switches for this are on the Settings page.",
+    function(pane, y)
+        mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 12, y)
+    end)
+
+local buildKilled = simplePage("Killed Today",
+    "Everything you killed today (since the daily reset) that gave loot, per character. Rares are greyed out on the map and marked [killed today] until the reset. " ..
+    "The switch for this is on the Settings page.",
+    function(pane, y)
+        mkButton(pane, "Forget today's kills", 170, function() SFP:ClearKilled(); pane.refresh() end,
+            "Shows the rares you killed today on the map again."):SetPoint("TOPLEFT", 12, y)
+        mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 192, y)
+        local scroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 12, y - 34)
+        scroll:SetPoint("BOTTOMRIGHT", -30, 10)
+        local child = CreateFrame("Frame", nil, scroll)
+        child:SetSize(480, 10)
+        scroll:SetScrollChild(child)
+        local txt = child:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        txt:SetPoint("TOPLEFT")
+        txt:SetWidth(470)
+        txt:SetJustifyH("LEFT")
+        txt:SetSpacing(3)
+        return function()
+            local list = SFP:KilledTodayList()
+            local lines, last = {}, nil
+            for _, k in ipairs(list) do
+                if k.char ~= last then
+                    lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cff00e5ff" .. k.char .. "|r"
+                    last = k.char
+                end
+                lines[#lines + 1] = ("  %s%s  |cff808080%s  -  %s|r"):format(k.name, k.rare and "  |cffff9933[rare]|r" or "", k.zone, date("%H:%M", k.t))
+            end
+            if #lines == 0 then lines[1] = "Nothing killed today yet that gave loot." end
+            txt:SetText(table.concat(lines, "\n"))
+            child:SetHeight(txt:GetStringHeight() + 10)
         end
-        local mins = math.floor((time() - h.t) / 60)
-        return ("Last read %s: %d transmog items, %d mounts and %d pets from %d monsters and bosses."):format(
-            mins < 1 and "just now" or (mins < 120 and (mins .. " min ago") or (math.floor(mins / 60) .. " h ago")), items, mnt, pets, mons)
-    end
-    mkButton(pane, "Read my collections", 190, function()
-        SFP.db.historyReport = true
-        SFP:Print("Reading your transmog, mount and pet collections (in the background)...")
-        SFP:ScanTransmogHistory(true)
-        C_Timer.After(1, function() histText:SetText(histStatus()) end)
-    end, "Reads what the game says you already own - transmog, mounts and battle pets - so monster tooltips and the Codex can show it. Runs in the background."):SetPoint("TOPLEFT", x, y)
-    histText:SetText(histStatus())
-    return function() histText:SetText(histStatus()) end
-end
+    end)
 
--- Rares & Alerts page
-local function buildRares(pane)
-    mkText(pane, CYHEX .. "Rares & Alerts|r", 12, -10, 480, "GameFontNormalLarge")
-    mkText(pane, "Rare alerts, daily kills, the farm route and what you already own.", 12, -34, 500, "GameFontHighlightSmall")
-    pane.checks = {
-        mkCheck(pane, "Rare alerts: chat line when a rare you still miss something from is nearby", function() return SFP.db.rareAlerts ~= false end, function(v) SFP.db.rareAlerts = v end, 12, -64),
-        mkCheck(pane, "Rare alert sound", function() return SFP.db.rareAlertSound ~= false end, function(v) SFP.db.rareAlertSound = v end, 12, -90),
-        mkCheck(pane, "Grey out rares killed today (until the daily reset)", function() return SFP.db.greyKilled ~= false end,
-            function(v) SFP.db.greyKilled = v; SFP:RefreshAll() end, 12, -116),
-        mkCheck(pane, "Show the farm route on the map", function() return SFP.db.showRoute ~= false end,
-            function(v) SFP.db.showRoute = v; SFP:RefreshAll() end, 12, -142),
-        mkCheck(pane, "Farm spot list on zone maps", function() return SFP.db.showSpotList ~= false end,
-            function(v) SFP.db.showSpotList = v; SFP:RefreshAll() end, 12, -168),
-    }
-    mkButton(pane, "Forget today's kills", 160, function() SFP:ClearKilled() end,
-        "The rares you killed today are greyed out on the map until the daily reset. This shows them all again."):SetPoint("TOPLEFT", 12, -204)
-    mkText(pane, "What you already own (transmog, mounts, pets):", 12, -246, 480)
-    local histRefresh = collectionControls(pane, 12, -270)
-    pane.refresh = function()
-        for _, cb in ipairs(pane.checks) do cb.refresh() end
-        histRefresh()
-    end
-end
-
--- Tools page: every tool as a button
-local function buildTools(pane)
-    mkText(pane, CYHEX .. "Tools|r", 12, -10, 480, "GameFontNormalLarge")
-    mkText(pane, "Everything here also works as a /sfp command.", 12, -34, 500, "GameFontHighlightSmall")
-    local tools = {
-        { "Farm session", function() SFP:SessionToggle() end, "Start or stop a farm session: kills, gold, loot worth and per hour (/sfp session)" },
-        { "What to farm next", function() SFP:PrintFarmNext() end, "The nearest rare that still has a mount, pet or toy you miss (/sfp next)" },
-        { "Weekly checklist", function() SFP:ShowWeekly() end, "Great Vault, raid lockouts and rare kills of all your characters (/sfp weekly)" },
-        { "BoE deals", function() SFP:ShowDeals() end, "BoE items now against their typical price (/sfp flip)" },
-        { "Shopping list", function() SFP:ShowShop() end, "Pick recipes, get the reagents, prices and where to farm them (/sfp shop)" },
-        { "Farm route", function()
+local buildRoute = simplePage("Farm Route",
+    "Pick a zone from the list: the addon orders its farm spots into a short loop, opens the map there, draws the route as a yellow line and sets a waypoint to the first stop. " ..
+    "Spots you switched off in the spot list on the map are left out. The switch to show or hide the line is on the Settings page.",
+    function(pane, y)
+        mkButton(pane, "Route for the open map / this zone", 250, function()
             local m = WorldMapFrame and WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() or C_Map.GetBestMapForUnit("player")
             if m then SFP:BuildRoute(m) end
-        end, "Loop through the ticked spots of this map (/sfp route). Tick spots in the list on the map first." },
-        { "Clear farm route", function() SFP:ClearRoute() end, "Remove the route line from the map (/sfp route clear)" },
-        { "Export learned data", function() SFP:ShowExport() end, "A copy-paste string with what the addon learned, to share or move (/sfp export)" },
-        { "Import learned data", function() SFP:ShowImport() end, "Paste a string from /sfp export; it is merged, nothing is lowered (/sfp import)" },
-    }
-    for i, t in ipairs(tools) do
-        local col = (i - 1) % 2
-        local row = math.floor((i - 1) / 2)
-        local x, y = 12 + col * 330, -66 - row * 40
-        mkButton(pane, t[1], 150, t[2], t[3]):SetPoint("TOPLEFT", x, y)
-    end
-    mkText(pane, "Hover a button to see what it does.", 12, -66 - 5 * 40, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
-end
+        end, "Uses the zone map that is open, or the zone you are in."):SetPoint("TOPLEFT", 12, y)
+        mkButton(pane, "Clear route", 130, function() SFP:ClearRoute() end):SetPoint("TOPLEFT", 270, y)
+        mkText(pane, "Search a zone:", 12, y - 38, 120, "GameFontHighlightSmall")
+        local filter = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
+        filter:SetSize(220, 22)
+        filter:SetPoint("TOPLEFT", 110, y - 34)
+        filter:SetAutoFocus(false)
+        filter:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        local scroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 12, y - 66)
+        scroll:SetPoint("BOTTOMRIGHT", -30, 10)
+        local child = CreateFrame("Frame", nil, scroll)
+        child:SetSize(470, 10)
+        scroll:SetScrollChild(child)
+        local rows = {}
+        local function fill()
+            local text = (filter:GetText() or ""):lower()
+            local n = 0
+            for _, z in ipairs(SFP:RouteZones()) do
+                if text == "" or z.name:lower():find(text, 1, true) or z.exp:lower():find(text, 1, true) then
+                    n = n + 1
+                    local b = rows[n]
+                    if not b then
+                        b = mkButton(child, "", 460, function(self)
+                            local zone = self.zone
+                            if not zone then return end
+                            if SFP.OpenMapTo then SFP:OpenMapTo(zone.map) end
+                            SFP:BuildRoute(zone.map)
+                        end)
+                        b.text:ClearAllPoints()
+                        b.text:SetPoint("LEFT", 8, 0)
+                        rows[n] = b
+                    end
+                    b:ClearAllPoints()
+                    b:SetPoint("TOPLEFT", child, "TOPLEFT", 0, -(n - 1) * 24)
+                    b.zone = z
+                    b.text:SetText(("%s  |cff808080%s  -  %d spots|r"):format(z.name, z.exp, z.count))
+                    b:Show()
+                end
+            end
+            for i = n + 1, #rows do rows[i]:Hide() end
+            child:SetHeight(n * 24 + 6)
+        end
+        filter:SetScript("OnTextChanged", fill)
+        return fill
+    end)
+
+local buildSession = simplePage("Farm Session",
+    "Start a session before you farm: it counts your kills, the gold you loot and what the loot is worth at auction prices, and shows the total and the gold per hour in a small window you can move. Stop it when you are done: the result is printed in chat.",
+    function(pane, y)
+        local state = mkText(pane, "", 12, y - 4, 500, "GameFontNormal")
+        mkButton(pane, "Start session", 130, function() SFP:SessionStart(); pane.refresh() end):SetPoint("TOPLEFT", 12, y - 26)
+        mkButton(pane, "Stop session", 130, function() SFP:SessionStop(); pane.refresh() end):SetPoint("TOPLEFT", 150, y - 26)
+        mkButton(pane, "Show / hide window", 160, function() SFP:SessionToggle("window") end):SetPoint("TOPLEFT", 288, y - 26)
+        local txt = mkText(pane, "", 12, y - 64, 500, "GameFontHighlightSmall")
+        local cmds = mkText(pane, "Commands:\n/sfp session  -  start a session (or show the window)\n/sfp session stop  -  stop it and print the result\n" ..
+            "/sfp session hide  -  hide the window     /sfp session show  -  show it again", 12, y - 150, 500, "GameFontHighlightSmall")
+        cmds:SetTextColor(0.7, 0.7, 0.7)
+        return function()
+            local s = SFP.session
+            state:SetText(not s and "No session running" or (s.stop and "Session stopped" or "|cff40ff40Session running|r"))
+            txt:SetText(SFP.SessionSummary and SFP:SessionSummary() or "")
+        end
+    end)
+
+local buildNext = simplePage("What To Farm Next",
+    "Rares that still drop a mount, pet or toy you do not own, nearest first (killed today come last). Press Waypoint on the one you want. It needs your collections to be read (see My Collections).",
+    function(pane, y)
+        local rows = {}
+        for i = 1, 9 do
+            local btn = mkButton(pane, "Waypoint", 80, function() end)
+            btn:SetPoint("TOPLEFT", 12, y - 28 - (i - 1) * 36)
+            local fs = mkText(pane, "", 100, y - 30 - (i - 1) * 36, 410, "GameFontHighlightSmall")
+            rows[i] = { btn = btn, fs = fs }
+        end
+        local head = mkText(pane, "", 12, y, 500, "GameFontNormal")
+        local retry
+        local function fill()
+            local top, total = SFP:FarmNext(9)
+            head:SetText(total > 0 and (total .. " rares have something you miss") or "Nothing to suggest (or your collections are not read yet)")
+            for i, r in ipairs(rows) do
+                local c = top[i]
+                if c then
+                    local names = {}
+                    for _, id in ipairs(c.missing) do names[#names + 1] = SFP:ItemName(id) end
+                    local where = c.sp.hx and ("%.1f, %.1f"):format(c.sp.hx * 100, c.sp.hy * 100) or ""
+                    r.fs:SetText(("|cffffd100%s|r  %s %s%s\nmissing: %s"):format(c.sp.name, SFP:ZoneName(c.map), where,
+                        c.killed and "  |cff808080killed today|r" or "", table.concat(names, ", ")))
+                    r.btn:SetScript("OnClick", function()
+                        if c.sp.hx then SFP:SetWaypoint(c.map, c.sp.hx, c.sp.hy, c.sp.name) end
+                    end)
+                    r.btn:Show(); r.fs:Show()
+                else
+                    r.btn:Hide(); r.fs:Hide()
+                end
+            end
+        end
+        return function()
+            fill()
+            -- item names and ownership arrive a moment after the first request: look again
+            if not retry then
+                retry = true
+                C_Timer.After(1.5, function() retry = nil; if pane:IsShown() then fill() end end)
+            end
+        end
+    end)
+
+local buildWeekly = simplePage("Weekly Checklist",
+    "One window for all your characters: Great Vault progress, raid lockouts and the rares each one killed today. A character appears after you log in with it.",
+    function(pane, y)
+        mkButton(pane, "Open weekly checklist", 190, function() SFP:ShowWeekly() end):SetPoint("TOPLEFT", 12, y)
+    end)
+
+local buildDeals = simplePage("BoE Deals",
+    "Bind-on-equip items that are cheaper than usual right now. The addon remembers every auction house scan, so the list gets better after a few scans on different days. " ..
+    "The same list opens from the BoE deals button below the auction house window.",
+    function(pane, y)
+        mkButton(pane, "Open BoE deals", 170, function() SFP:ShowDeals() end):SetPoint("TOPLEFT", 12, y)
+    end)
+
+local buildShop = simplePage("Shopping List",
+    "Pick the recipes you want to craft: you get the total reagents, their auction prices, the profit and, for each reagent, a place to farm it. " ..
+    "To decide farm or buy, compare with your gold per hour from a Farm Session.",
+    function(pane, y)
+        mkButton(pane, "Open shopping list", 170, function() SFP:ShowShop() end):SetPoint("TOPLEFT", 12, y)
+    end)
+
+local buildCollect = simplePage("My Collections",
+    "The game remembers your transmog, mounts and battle pets, also from before this addon was installed. The addon reads them by itself in the background: on the first start after the install, and again when the number of mounts or pets changes, so you never have to press anything. Monster tooltips and the Codex " ..
+    "(tab My Collection History) can say what you already own from a monster, and so What To Farm Next knows what you miss.",
+    function(pane, y)
+        local txt = mkText(pane, "", 12, y - 40, 500, "GameFontHighlightSmall")
+        local function status()
+            local h = SFP.db.history
+            if not h or not h.t or h.t == 0 then return "Not read yet - it starts by itself about 20 seconds after you log in." end
+            local items, mons, mnt, pets = 0, 0, 0, 0
+            for _ in pairs(h.items or {}) do items = items + 1 end
+            for _, r in pairs(h.by or {}) do
+                mons = mons + 1
+                mnt = mnt + (r.mounts and #r.mounts or 0)
+                pets = pets + (r.pets and #r.pets or 0)
+            end
+            local mins = math.floor((time() - h.t) / 60)
+            return ("Last read %s: %d transmog items, %d mounts and %d pets from %d monsters and bosses."):format(
+                mins < 1 and "just now" or (mins < 120 and (mins .. " min ago") or (math.floor(mins / 60) .. " h ago")), items, mnt, pets, mons)
+        end
+        mkButton(pane, "Read my collections", 190, function()
+            SFP.db.historyReport = true
+            SFP:Print("Reading your transmog, mount and pet collections (in the background)...")
+            SFP:ScanTransmogHistory(true)
+            C_Timer.After(1, function() txt:SetText(status()) end)
+        end):SetPoint("TOPLEFT", 12, y)
+        return function() txt:SetText(status()) end
+    end)
+
+local buildShare = simplePage("Share Data",
+    "Export what the addon learned (monsters, drops, items, nodes, recipes, learned spots) as a copy-paste text, to give to a friend or to move to another account. " ..
+    "Import merges a string into your data and never lowers your counts, so importing it twice changes nothing.",
+    function(pane, y)
+        mkButton(pane, "Export learned data", 190, function() SFP:ShowExport() end):SetPoint("TOPLEFT", 12, y)
+        mkButton(pane, "Import learned data", 190, function() SFP:ShowImport() end):SetPoint("TOPLEFT", 214, y)
+    end)
+
+local buildDelve = simplePage("Delve Planner",
+    "Suggests the role for your delve companion and curio hints from your specialization, and remembers the delve tier you can do safely. The suggestions follow the Codex delve guides.",
+    function(pane, y)
+        local txt = mkText(pane, "", 12, y - 40, 500, "GameFontHighlightSmall")
+        local tierText = mkText(pane, "", 150, y - 4, 200, "GameFontNormal")
+        mkButton(pane, "Tier -", 60, function() SFP:SetDelveTier(-1); pane.refresh() end):SetPoint("TOPLEFT", 12, y)
+        mkButton(pane, "Tier +", 60, function() SFP:SetDelveTier(1); pane.refresh() end):SetPoint("TOPLEFT", 80, y)
+        return function()
+            tierText:SetText("Comfortable tier: " .. (SFP.db.delveTier or "not set"))
+            txt:SetText(SFP:DelveAdvice())
+        end
+    end)
+
+local buildKeys = simplePage("Delve Keys",
+    "Your delve keys and key shards, how many you earned this week, and the delves that are bountiful today. A bountiful delve needs a key and gives an extra chest, so save keys for your best tier.",
+    function(pane, y)
+        mkButton(pane, "Open delve keys", 170, function() SFP:ShowKeys() end):SetPoint("TOPLEFT", 12, y)
+    end)
+
+local buildAch = simplePage("Achievement Planner",
+    "Pick an achievement and see what is left, where each step is when the addon knows the place, and what to do first. A button sets a waypoint to the first step with a known place.",
+    function(pane, y)
+        mkButton(pane, "Open achievement planner", 210, function() SFP:ShowAchPlanner() end):SetPoint("TOPLEFT", 12, y)
+    end)
+
+local buildZone = simplePage("Zone Check",
+    "When you enter a zone or an instance, one chat line says how many mounts, pets and toys of its rares and bosses you still miss, with the first few names. The switch is on the Settings page.",
+    function(pane, y)
+        mkButton(pane, "Check this zone now", 190, function() SFP:ZoneCheck(false) end):SetPoint("TOPLEFT", 12, y)
+        mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 214, y)
+    end)
+
+local buildDecor = simplePage("Housing Decor",
+    "Midnight housing decor that you craft: where each recipe drops and whether you know it. The game does not tell addons which decor you own in your house, so only the recipes are checked.",
+    function(pane, y)
+        mkButton(pane, "Open decor list", 170, function() SFP:ShowDecor() end):SetPoint("TOPLEFT", 12, y)
+    end)
+
+local buildAlts = simplePage("Alt Overview",
+    "One window with every character you logged in with: level, item level, gold, professions and the weekly activities. Profession cooldowns are not shown.",
+    function(pane, y)
+        mkButton(pane, "Open alt overview", 170, function() SFP:ShowAlts() end):SetPoint("TOPLEFT", 12, y)
+    end)
 
 local GUIDE_CATS = {
     { "guide", "New Player Guide", "Start here: classes, gear, professions, travel, gold" },
@@ -280,121 +487,25 @@ local function buildSettings(pane)
         mkCheck(pane, "Chat message: mailbox / vendor gold", function() return SFP.db.incomeMessages ~= false end,
             function(v) SFP.db.incomeMessages = v end, 260, -66),
     }
-    mkButton(pane, "Show internal errors", 160, function() SFP:Print("see /sfp errors"); SFP:RunModule("SEVIATHSUSEFULTOOLS", "errors") end):SetPoint("TOPLEFT", 12, -210)
-    mkButton(pane, "Reload UI", 160, function() ReloadUI() end):SetPoint("TOPLEFT", 12, -240)
-    mkButton(pane, "About / options page", 160, function() SFP:OpenAbout() end):SetPoint("TOPLEFT", 12, -270)
-    mkText(pane, "More switches: the Rares & Alerts page (alerts, killed today, route) and the Tools page.", 12, -306, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
+    mkButton(pane, "Show internal errors", 160, function() SFP:Print("see /sfp errors"); SFP:RunModule("SEVIATHSUSEFULTOOLS", "errors") end):SetPoint("TOPLEFT", 12, -190)
+    mkButton(pane, "Reload UI", 160, function() ReloadUI() end):SetPoint("TOPLEFT", 180, -190)
+    mkButton(pane, "About / options page", 160, function() SFP:OpenAbout() end):SetPoint("TOPLEFT", 348, -190)
+    -- rares, alerts and the farm route
+    mkText(pane, CYHEX .. "Rares & alerts|r", 12, -220, 400, "GameFontNormal")
+    local more = {
+        mkCheck(pane, "Rare alerts (chat line)", function() return SFP.db.rareAlerts ~= false end, function(v) SFP.db.rareAlerts = v end, 12, -244),
+        mkCheck(pane, "Rare alert sound", function() return SFP.db.rareAlertSound ~= false end, function(v) SFP.db.rareAlertSound = v end, 12, -270),
+        mkCheck(pane, "Grey out rares killed today", function() return SFP.db.greyKilled ~= false end,
+            function(v) SFP.db.greyKilled = v; SFP:RefreshAll() end, 260, -244),
+        mkCheck(pane, "Show the farm route on the map", function() return SFP.db.showRoute ~= false end,
+            function(v) SFP.db.showRoute = v; SFP:RefreshAll() end, 260, -270),
+    }
+    for _, cb in ipairs(more) do pane.checks[#pane.checks + 1] = cb end
+    local zc = mkCheck(pane, "Zone check: say what I still miss when I enter a zone", function() return SFP.db.zoneCheck ~= false end,
+        function(v) SFP.db.zoneCheck = v end, 12, -306)
+    pane.checks[#pane.checks + 1] = zc
+    mkText(pane, "Each tool has its own page in the list on the left.", 12, -336, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
     pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
-end
-
----------------------------------------------------------------------------
--- Learned data browser
----------------------------------------------------------------------------
-local know = { mode = "npc", offset = 0, list = {}, sel = nil }
-local ROWS = 16
-
-local function zoneNames(rec)
-    local out = {}
-    for map in pairs(rec.m or {}) do out[#out + 1] = SFP:ZoneName(map) end
-    table.sort(out)
-    return table.concat(out, ", ")
-end
-
-local function dropLines(tbl, kills)
-    local list = {}
-    for id, n in pairs(tbl or {}) do list[#list + 1] = { id, n } end
-    table.sort(list, function(a, b) return a[2] > b[2] end)
-    local out = {}
-    for i = 1, math.min(14, #list) do
-        local pct = kills and kills > 0 and (" " .. math.min(100, math.floor(list[i][2] * 100 / kills + 0.5)) .. "%") or (" x" .. list[i][2])
-        out[#out + 1] = "  " .. SFP:ItemName(list[i][1]) .. "|cff909090" .. pct .. "|r"
-    end
-    if #list > 14 then out[#out + 1] = "  |cff808080+" .. (#list - 14) .. " more|r" end
-    return table.concat(out, "\n")
-end
-
-local function detailText(mode, key)
-    local db = SFP.db
-    if mode == "npc" then
-        local r = db.npcs[key]
-        if not r then return "" end
-        local lvl = r.lmin and (r.lmin == r.lmax and tostring(r.lmin) or (r.lmin .. "-" .. r.lmax)) or "?"
-        local t = CYHEX .. r.n .. "|r  |cff808080NPC ID " .. key .. "|r\n"
-        t = t .. "Level " .. lvl .. (r.t and ("  " .. r.t) or "") .. (r.f and ("  " .. r.f) or "") .. (r.c and ("  " .. r.c) or "") .. "\n"
-        local z = zoneNames(r)
-        if z ~= "" then t = t .. "Seen in: " .. z .. "\n" end
-        if r.a then
-            local al = {}
-            for n in pairs(r.a) do al[#al + 1] = n end
-            t = t .. "|cff808080Also seen as: " .. table.concat(al, ", ") .. "|r\n"
-        end
-        t = t .. "\n" .. (r.k or 0) .. " kills seen"
-        if r.d and next(r.d) then t = t .. "\n\nDrops:\n" .. dropLines(r.d, r.k) end
-        if r.s and next(r.s) then t = t .. "\n\nSkinning:\n" .. dropLines(r.s, r.sk) end
-        return t
-    elseif mode == "obj" then
-        local r = db.objects[key]
-        if not r then return "" end
-        local t = CYHEX .. r.n .. "|r  |cff808080object ID " .. key .. "|r\n"
-        local z = zoneNames(r)
-        if z ~= "" then t = t .. "Seen in: " .. z .. "\n" end
-        t = t .. "\n" .. (r.k or 0) .. " times gathered"
-        if r.d and next(r.d) then t = t .. "\n\nGave:\n" .. dropLines(r.d, r.k) end
-        return t
-    elseif mode == "item" then
-        local r = db.knownItems[key]
-        if not r then return "" end
-        local t = SFP:ItemName(key) .. "  |cff808080item ID " .. key .. "|r\n"
-        t = t .. (r.t or "") .. (r.st and (" - " .. r.st) or "") .. (r.i and r.i > 0 and ("  item level " .. r.i) or "") .. "\n"
-        for _, l in ipairs(SFP:ItemTipLines(key)) do t = t .. "\n" .. l[1] end
-        return t
-    elseif mode == "recipe" then
-        local r = db.recipes[key]
-        if not r then return "" end
-        local t = CYHEX .. r.n .. "|r  |cff808080" .. (r.p or "") .. "|r\n"
-        if r.o then t = t .. "Makes: " .. SFP:ItemName(r.o) .. "\n" end
-        t = t .. "\nReagents:\n"
-        for _, rg in ipairs(r.r or {}) do t = t .. "  " .. rg[2] .. "x " .. SFP:ItemName(rg[1]) .. "\n" end
-        return t
-    end
-    return ""
-end
-
-local function knowRebuild(pane)
-    local db = SFP.db
-    local q = (pane.search:GetText() or ""):lower()
-    local list = {}
-    local src, nameOf
-    if know.mode == "npc" then src = db.npcs
-    elseif know.mode == "obj" then src = db.objects
-    elseif know.mode == "item" then src = db.knownItems
-    else src = db.recipes end
-    for key, r in pairs(src) do
-        local name = r.n or ""
-        if q == "" or name:lower():find(q, 1, true) or tostring(key):find(q, 1, true) then
-            list[#list + 1] = { key = key, name = name }
-        end
-    end
-    table.sort(list, function(a, b) return a.name < b.name end)
-    know.list = list
-    know.offset = 0
-    pane.count:SetText(#list .. " found")
-end
-
-local function knowRefresh(pane)
-    for i = 1, ROWS do
-        local row = pane.rows[i]
-        local e = know.list[know.offset + i]
-        if e then
-            row.key = e.key
-            row.text:SetText(e.name)
-            row.hl:SetShown(know.sel == e.key)
-            row:Show()
-        else
-            row:Hide()
-        end
-    end
-    pane.detail:SetText(know.sel and detailText(know.mode, know.sel) or "|cff808080Pick an entry on the left. Everything here was learned while you played, and is saved for all your characters.|r")
 end
 
 local function buildKnow(pane)
@@ -447,8 +558,10 @@ local function buildKnow(pane)
 end
 
 local BUILDERS = {
-    home = buildHome, farm = buildFarm, rares = buildRares, tools = buildTools, guides = buildGuides, groups = buildGroups,
-    guild = buildGuild, know = buildKnow, settings = buildSettings,
+    home = buildHome, farm = buildFarm, alerts = buildAlerts, killed = buildKilled, route = buildRoute, session = buildSession,
+    next = buildNext, weekly = buildWeekly, deals = buildDeals, shop = buildShop, collect = buildCollect, share = buildShare,
+    delve = buildDelve, keys = buildKeys, ach = buildAch, zone = buildZone, decor = buildDecor, alts = buildAlts,
+    guides = buildGuides, groups = buildGroups, guild = buildGuild, know = buildKnow, settings = buildSettings,
 }
 
 ---------------------------------------------------------------------------
@@ -456,6 +569,7 @@ local BUILDERS = {
 ---------------------------------------------------------------------------
 function SFP:ShowMenuSection(key)
     if not frame then return end
+    frame:Raise()
     current = key
     for _, s in ipairs(SECTIONS) do
         local b = navButtons[s.key]
@@ -475,10 +589,11 @@ end
 
 local function build()
     frame = CreateFrame("Frame", "SeviathsUsefulToolsMenu", UIParent, "BackdropTemplate")
-    frame:SetSize(710, 470)
+    frame:SetSize(710, 540)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
+    SFP.RegisterWindow(frame)
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -501,10 +616,22 @@ local function build()
     close:SetScript("OnClick", function() frame:Hide() end)
     frame.close = close
 
+    local navScroll = CreateFrame("ScrollFrame", nil, frame)
+    navScroll:SetPoint("TOPLEFT", 4, -34)
+    navScroll:SetPoint("BOTTOMLEFT", 4, 8)
+    navScroll:SetWidth(150)
+    local navChild = CreateFrame("Frame", nil, navScroll)
+    navChild:SetSize(150, #SECTIONS * 25 + 8)
+    navScroll:SetScrollChild(navChild)
+    navScroll:EnableMouseWheel(true)
+    navScroll:SetScript("OnMouseWheel", function(self, delta)
+        local maxScroll = math.max(0, navChild:GetHeight() - self:GetHeight())
+        self:SetVerticalScroll(math.min(maxScroll, math.max(0, self:GetVerticalScroll() - delta * 50)))
+    end)
     for i, s in ipairs(SECTIONS) do
-        local b = mkButton(frame, s.label, 138, function() SFP:ShowMenuSection(s.key) end)
-        b:SetHeight(28)
-        b:SetPoint("TOPLEFT", 10, -36 - (i - 1) * 32)
+        local b = mkButton(navChild, s.label, 138, function() SFP:ShowMenuSection(s.key) end)
+        b:SetHeight(22)
+        b:SetPoint("TOPLEFT", 6, -2 - (i - 1) * 25)
         navButtons[s.key] = b
     end
     frame.content = CreateFrame("Frame", nil, frame, "BackdropTemplate")
@@ -517,6 +644,7 @@ function SFP:ToggleMenu(section)
     if not frame then build() end
     if frame:IsShown() and not section then frame:Hide(); return end
     frame:Show()
+    frame:Raise()
     self:ShowMenuSection(section or current or "home")
 end
 

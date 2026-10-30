@@ -824,7 +824,8 @@ UI:EnableMouse(true)
 UI:RegisterForDrag("LeftButton")
 UI:SetScript("OnDragStart", UI.StartMoving)
 UI:SetScript("OnDragStop", UI.StopMovingOrSizing)
-UI:SetFrameStrata("HIGH")
+UI:SetFrameStrata("DIALOG")
+if _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.RegisterWindow then _G.SeviathsUsefulTools.RegisterWindow(UI) end
 UI:Hide()
 tinsert(UISpecialFrames, "SeviathsGuildHelperUI")  -- ESC closes
 

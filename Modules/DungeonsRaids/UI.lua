@@ -714,6 +714,7 @@ function UI:Build()
   f:SetSize(580, 520)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
+  if _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.RegisterWindow then _G.SeviathsUsefulTools.RegisterWindow(f) end
   UI.Skin(f)
   UI.Movable(f)
   -- Dragging a docked window frees it for the rest of the session
