@@ -879,6 +879,18 @@ local function detailText(mode, key)
         t = t .. (r.t or "") .. (r.st and (" - " .. r.st) or "") .. (r.i and r.i > 0 and ("  item level " .. r.i) or "") .. "\n"
         for _, l in ipairs(SFP:ItemTipLines(key)) do t = t .. "\n" .. l[1] end
         return t
+    elseif mode == "ah" then
+        local cls = db.ahItems and db.ahItems[key]
+        local className = cls and GetItemClassInfo and GetItemClassInfo(cls) or "?"
+        local t = SFP:ItemName(key) .. "  |cff808080item ID " .. key .. "|r
+Section: " .. tostring(className) .. "
+"
+        local price = SFP:GetPrice(key)
+        t = t .. "Auction price: " .. (price and SFP:FormatPrice(price) or "|cff808080none saved|r") .. "
+"
+        for _, l in ipairs(SFP:ItemTipLines(key)) do t = t .. "
+" .. l[1] end
+        return t
     elseif mode == "recipe" then
         local r = db.recipes[key]
         if not r then return "" end
@@ -899,6 +911,14 @@ local function knowRebuild(pane)
     if know.mode == "npc" then src = db.npcs
     elseif know.mode == "obj" then src = db.objects
     elseif know.mode == "item" then src = db.knownItems
+    elseif know.mode == "ah" then src = {}
+        -- every item ID the auction house scan saw, grouped by its auction section
+        for id, cls in pairs(db.ahItems or {}) do
+            local nm = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+            if not nm and C_Item and C_Item.RequestLoadItemDataByID and #src < 200 then pcall(C_Item.RequestLoadItemDataByID, id) end
+            local cn = GetItemClassInfo and GetItemClassInfo(cls) or tostring(cls)
+            src[id] = { n = (cn or "?") .. ": " .. (nm or ("item " .. id)) }
+        end
     else src = db.recipes end
     for key, r in pairs(src) do
         local name = r.n or ""
@@ -931,7 +951,7 @@ end
 local function buildKnow(pane)
     mkText(pane, CYHEX .. "Learned data|r", 12, -10, 400, "GameFontNormalLarge")
     pane.rows = {}
-    local modes = { { "npc", "Monsters" }, { "obj", "Nodes" }, { "item", "Items" }, { "recipe", "Recipes" } }
+    local modes = { { "npc", "Monsters" }, { "obj", "Nodes" }, { "item", "Items" }, { "ah", "Auction" }, { "recipe", "Recipes" } }
     pane.tabs = {}
     for i, m in ipairs(modes) do
         local b = mkButton(pane, m[2], 70, function()
