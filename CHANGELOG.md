@@ -56,3 +56,5 @@
 - NPC IDs filled in for 159 rares (Siren Isle, Isle of Dorn, Ringing Deeps, Hallowfall, Azj-Kahet, Undermine, Eversong, Voidstorm, Harandar, Zul'Aman, Coiled Isle ...); checked against Wowhead spawn maps. Blightpaw the Depraved added on the Ohn'ahran Plains.
 
 - Rares: S.A.L., Tally Doublespeak, Voltstrike the Charged, Ephemeral Agent Lathyd and Ash'an the Empowered now have their Wowhead NPC IDs and names; Kereke, Rotfist and Zovex are separate entries; three Siren Isle storm-phase rares (Tempest Talon, Brinebough, Slaughtershell) and Zek'ul the Shipbreaker added with spawn points.
+
+- Court of Rats (Ratspit) and Big Mon now have NPC IDs (checked against Wowhead spawn points).
