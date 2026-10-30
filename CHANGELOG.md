@@ -58,3 +58,5 @@
 - Rares: S.A.L., Tally Doublespeak, Voltstrike the Charged, Ephemeral Agent Lathyd and Ash'an the Empowered now have their Wowhead NPC IDs and names; Kereke, Rotfist and Zovex are separate entries; three Siren Isle storm-phase rares (Tempest Talon, Brinebough, Slaughtershell) and Zek'ul the Shipbreaker added with spawn points.
 
 - Court of Rats (Ratspit) and Big Mon now have NPC IDs (checked against Wowhead spawn points).
+
+- Gorgrond rare elites (8) and Vyragosa added; 152 rares that had a single map dot now show their full spawn areas from Wowhead.
