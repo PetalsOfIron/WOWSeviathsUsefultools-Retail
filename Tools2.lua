@@ -866,37 +866,83 @@ local function decorEntries()
         if ok and has then have[d[2]:lower()] = true end
     end
     for _, e in ipairs(list) do e.recipeKnown = have[e.name:lower()] end
+    for _, e in ipairs(list) do
+        local src = e.source or ""
+        local kind = src:match("^(.-)[:%(]") or src
+        kind = strtrim(kind)
+        if kind == "" then kind = "Unknown" end
+        e.kind = kind:sub(1, 1):upper() .. kind:sub(2)
+        -- place: the zone or instance after the last " - ", or the profession of a crafted decor
+        local place = src:match(".* %- (.-)$")
+        if e.kind == "Crafted" then place = src:match("^Crafted %(([^,%)]+)") end
+        e.place = (place and place ~= "") and place or "Unknown"
+    end
     table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
     decorCache, decorAt = { list = list, fromGame = fromGame }, GetTime()
     return list, fromGame
+end
+
+local decorKind, decorPlace
+local decorFilterBox
+
+local function decorList(counts, order, current, onPick, total)
+    local items = { { text = "", buttons = { { (current == nil and "|cff40ff40" or "") .. "All (" .. total .. ")", 168, function() onPick(nil) end } } } }
+    for _, k in ipairs(order) do
+        items[#items + 1] = { text = "", buttons = { { (current == k and "|cff40ff40" or "") .. k .. " (" .. counts[k] .. ")", 168, function() onPick(k) end } } }
+    end
+    return items
 end
 
 local function decorRefresh()
     if not decorWin or not decorWin:IsShown() then return end
     local list, fromGame = decorEntries()
     local filter = (decorBox:GetText() or ""):lower()
-    local lines, shown, own = {}, 0, 0
-    for _, e in ipairs(list) do if e.owned then own = own + 1 end end
-    lines[1] = ("|cff808080%d decor items. %s Where to get them: the source text; 'farm:' in green is added when the addon knows a place.|r"):format(#list,
+    local own = 0
+    local kc, korder, pc, porder = {}, {}, {}, {}
+    for _, e in ipairs(list) do
+        if e.owned then own = own + 1 end
+        if not kc[e.kind] then kc[e.kind] = 0; korder[#korder + 1] = e.kind end
+        kc[e.kind] = kc[e.kind] + 1
+    end
+    table.sort(korder, function(x, y) return kc[x] > kc[y] end)
+    -- the places depend on the chosen type
+    for _, e in ipairs(list) do
+        if not decorKind or e.kind == decorKind then
+            if not pc[e.place] then pc[e.place] = 0; porder[#porder + 1] = e.place end
+            pc[e.place] = pc[e.place] + 1
+        end
+    end
+    table.sort(porder, function(x, y) if pc[x] ~= pc[y] then return pc[x] > pc[y] end return x < y end)
+    decorWin.kinds:Set(decorList(kc, korder, decorKind, function(k) decorKind = k; decorPlace = nil; decorRefresh() end, #list))
+    local ptotal = 0
+    for _, n in pairs(pc) do ptotal = ptotal + n end
+    decorWin.places:Set(decorList(pc, porder, decorPlace, function(k) decorPlace = k; decorRefresh() end, ptotal))
+
+    local lines, shown = {}, 0
+    lines[1] = ("|cff808080%d decor items. %s|r"):format(#list,
         fromGame and ("You own " .. own .. " (read from the game).") or "The game's housing catalog could not be read, so owned or not is unknown (owned? = unknown).")
     lines[2] = ""
     for _, e in ipairs(list) do
         local pass = (decorMode == "all") or (decorMode == "missing" and not e.owned and not e.unknownOwned) or (decorMode == "owned" and e.owned)
+        if pass and decorKind and e.kind ~= decorKind then pass = false end
+        if pass and decorPlace and e.place ~= decorPlace then pass = false end
         if pass and filter ~= "" then
             pass = e.name:lower():find(filter, 1, true) or (e.source or ""):lower():find(filter, 1, true)
         end
         if pass then
             shown = shown + 1
-            if shown <= 200 then
+            if shown <= 250 then
                 local farm = ""
                 local src = e.itemID and SFP.itemSources and SFP.itemSources[e.itemID]
                 if src and src[1] then farm = "  |cff80ff80farm: " .. src[1] .. "|r" end
-                lines[#lines + 1] = ("%s %s%s%s"):format(e.unknownOwned and "|cff808080owned?|r" or (e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r"), e.name .. (e.recipeKnown and "  |cff40ff40recipe known|r" or ""),
-                    (e.source and e.source ~= "") and ("  |cff808080- " .. e.source .. "|r") or "", farm)
+                lines[#lines + 1] = ("%s %s%s%s"):format(e.unknownOwned and "|cff808080owned?|r" or (e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r"),
+                    e.name .. (e.recipeKnown and "  |cff40ff40recipe known|r" or ""),
+                    (e.source and e.source ~= "") and ("\n      |cff808080" .. e.source .. "|r") or "", farm)
             end
         end
     end
-    if shown > 200 then lines[#lines + 1] = ("|cff808080+%d more - use the search box to narrow it down|r"):format(shown - 200) end
+    lines[2] = ("|cffffd100%d shown|r"):format(shown) .. (decorKind and ("  type: " .. decorKind) or "") .. (decorPlace and ("  place: " .. decorPlace) or "")
+    if shown > 250 then lines[#lines + 1] = ("|cff808080+%d more - pick a type or place, or search|r"):format(shown - 250) end
     if shown == 0 then lines[#lines + 1] = "Nothing matches." end
     for _, bt in ipairs(decorBtns) do bt:SetText((bt.mode == decorMode and "|cff40ff40" or "") .. bt.label) end
     decorWin:SetContent(table.concat(lines, "\n"))
@@ -904,21 +950,24 @@ end
 
 function SFP:ShowDecor()
     if not decorWin then
-        decorWin = window("SeviathsUsefulToolsDecor", "Housing decor - all of it, and where to get it", 640, 520)
-        decorWin.scroll:SetPoint("TOPLEFT", 12, -66)
-        decorWin.child:SetWidth(590)
-        decorWin.text:SetWidth(586)
+        decorWin = window("SeviathsUsefulToolsDecor", "Housing decor - all of it, and where to get it", 820, 580)
+        decorWin.scroll:ClearAllPoints()
+        decorWin.scroll:SetPoint("TOPLEFT", 214, -66)
+        decorWin.scroll:SetPoint("BOTTOMRIGHT", -30, 12)
+        decorWin.child:SetWidth(570)
+        decorWin.text:SetWidth(566)
         local sl = decorWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        sl:SetPoint("TOPLEFT", 14, -40)
+        sl:SetPoint("TOPLEFT", 216, -40)
         sl:SetText("Search:")
         decorBox = CreateFrame("EditBox", nil, decorWin, "InputBoxTemplate")
-        decorBox:SetSize(220, 20)
-        decorBox:SetPoint("TOPLEFT", 64, -37)
+        decorBox:SetSize(230, 20)
+        decorBox:SetPoint("TOPLEFT", 270, -37)
         decorBox:SetAutoFocus(false)
         decorBox:SetScript("OnTextChanged", function() decorRefresh() end)
+        decorBox:SetScript("OnEnterPressed", function(self) self:ClearFocus(); decorRefresh() end)
         decorBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-        local x = 300
-        for _, m in ipairs({ { "all", "All", 60 }, { "missing", "Missing", 70 }, { "owned", "Owned", 70 } }) do
+        local x = 520
+        for _, m in ipairs({ { "all", "All", 50 }, { "missing", "Missing", 70 }, { "owned", "Owned", 60 } }) do
             local bt = CreateFrame("Button", nil, decorWin, "UIPanelButtonTemplate")
             bt:SetSize(m[3], 22)
             bt:SetPoint("TOPLEFT", x, -36)
@@ -928,10 +977,18 @@ function SFP:ShowDecor()
             decorBtns[#decorBtns + 1] = bt
             x = x + m[3] + 4
         end
+        local l1 = decorWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        l1:SetPoint("TOPLEFT", 14, -36)
+        l1:SetText("Type (quest, crafted, drop ...):")
+        decorWin.kinds = SFP.MakeRowList(decorWin, 10, -52, 196, 190, 22)
+        local l2 = decorWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        l2:SetPoint("TOPLEFT", 14, -252)
+        l2:SetText("Place (zone, instance, profession):")
+        decorWin.places = SFP.MakeRowList(decorWin, 10, -268, 196, 300, 22)
         local acc = 0
         decorWin:SetScript("OnUpdate", function(_, dt)
             acc = acc + dt
-            if acc < 3 then return end
+            if acc < 5 then return end
             acc = 0
             SFP:Safe("decor", decorRefresh)
         end)
