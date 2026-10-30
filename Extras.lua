@@ -366,7 +366,7 @@ local function parse(str)
     return value
 end
 
-local EXPORT_KEYS = { "npcs", "objects", "knownItems", "recipes", "learned", "itemZones", "learnedCurios" }
+local EXPORT_KEYS = { "npcs", "objects", "knownItems", "recipes", "learned", "itemZones", "learnedCurios", "learnedDecor" }
 
 function SFP:BuildExport()
     local pack = { v = 1 }
