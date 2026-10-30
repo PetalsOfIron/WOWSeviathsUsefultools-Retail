@@ -64,3 +64,5 @@
 - Gathering: Stranglekelp, Arthas' Tears and Osmenite Deposit added with best zones and node counts; Grime and Grease (Court of Rats) added; The Dreamrift is listed as a raid (its two recipes); the old quest-marker commands now say they are not in this edition, and the help text lists every command.
 
 - Fixed a Lua error on monster tooltips (the game hides the unit of some tooltips as a secret value, which UnitGUID refused); all GUID lookups now tolerate that.
+
+- Fixed a Lua error when looting (the game hides the target of your last gathering / skinning cast as a secret value); loot, cast and position values are checked before they are compared.
