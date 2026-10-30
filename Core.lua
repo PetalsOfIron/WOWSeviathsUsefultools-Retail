@@ -427,7 +427,7 @@ function SFP:StorePrice(itemID, copper, fromOtherAddon)
     -- a price from this addon's own scan stays until the next scan; one copied from Auctionator / TSM is marked and may be refreshed
     local rec = { p = copper, t = time(), ext = fromOtherAddon or nil }
     self:RealmPrices()[itemID] = rec
-    self.db.prices[itemID] = { p = copper, t = rec.t }
+    self.db.prices[itemID] = { p = copper, t = rec.t, ext = fromOtherAddon or nil }
     -- remember how the price moves (for "typical price" in the BoE deals list): a sample when it changed or every 6 h
     local all = self.db.priceHist
     if not all then all = {}; self.db.priceHist = all end
@@ -443,12 +443,19 @@ function SFP:StorePrice(itemID, copper, fromOtherAddon)
 end
 
 -- a price from Auctionator or TradeSkillMaster, whichever has one (nil when neither is installed / knows the item)
+-- the Settings page can switch Auctionator and TradeSkillMaster prices off
+function SFP:ExternalOn(src)
+    if src == "Auctionator" then return self.db.useAuctionator ~= false end
+    if src == "TradeSkillMaster" then return self.db.useTSM ~= false end
+    return self.db.useAuctionator ~= false or self.db.useTSM ~= false   -- older saved prices without a name
+end
+
 function SFP:ExternalPrice(id)
-    if Auctionator and Auctionator.API and Auctionator.API.v1 then
+    if self.db.useAuctionator ~= false and Auctionator and Auctionator.API and Auctionator.API.v1 then
         local ok, v = pcall(Auctionator.API.v1.GetAuctionPriceByItemID, ADDON, id)
         if ok and type(v) == "number" and v > 0 then return v, "Auctionator" end
     end
-    if TSM_API and TSM_API.GetCustomPriceValue then
+    if self.db.useTSM ~= false and TSM_API and TSM_API.GetCustomPriceValue then
         for _, src in ipairs({ "DBMinBuyout", "DBMarket", "DBRegionMarketAvg" }) do
             local ok, v = pcall(TSM_API.GetCustomPriceValue, src, "i:" .. id)
             if ok and type(v) == "number" and v > 0 then return v, "TradeSkillMaster" end
@@ -462,14 +469,16 @@ function SFP:GetPrice(itemID)
     local function consider(id)
         -- this realm's own price first; else the newest price any character saw
         local rec = here[id]
+        if rec and rec.ext and not self:ExternalOn(rec.ext) then rec = nil end   -- a copied price of a source you switched off
         if not rec or (rec.ext and time() - (rec.t or 0) > 3600) then
-            local v = self:ExternalPrice(id)
+            local v, src = self:ExternalPrice(id)
             if v then
-                self:StorePrice(id, v, true) -- their data only covers the realm they were scanned on: keep it for the other characters
+                self:StorePrice(id, v, src or true)
                 rec = here[id]
             end
         end
         rec = rec or self.db.prices[id]
+        if rec and rec.ext and not self:ExternalOn(rec.ext) then rec = nil end
         local p = rec and rec.p
         if p and (not best or p < best) then best = p end
     end
