@@ -49,7 +49,7 @@ end
 local function build()
     if bar or not AuctionHouseFrame then return end
     bar = CreateFrame("Frame", "SeviathsUsefulToolsScanBar", AuctionHouseFrame)
-    bar:SetSize(380, 22)
+    bar:SetSize(466, 22)
     bar:SetPoint("TOPLEFT", AuctionHouseFrame, "BOTTOMLEFT", 6, 2)
     bar:SetFrameStrata("HIGH")
 
@@ -77,6 +77,12 @@ local function build()
     bg:SetColorTexture(0, 0, 0, 0.6)
     label = status:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("CENTER")
+
+    local deals = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
+    deals:SetSize(80, 22)
+    deals:SetPoint("LEFT", status, "RIGHT", 6, 0)
+    deals:SetText("BoE deals")
+    deals:SetScript("OnClick", function() SFP:ShowDeals() end)
 
     local acc = 0
     bar:SetScript("OnUpdate", function(_, dt)

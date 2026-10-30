@@ -395,6 +395,18 @@ function SFP:StorePrice(itemID, copper)
     local rec = { p = copper, t = time() }
     self:RealmPrices()[itemID] = rec
     self.db.prices[itemID] = { p = copper, t = rec.t }
+    -- remember how the price moves (for "typical price" in the BoE deals list): a sample when it changed or every 6 h
+    local all = self.db.priceHist
+    if not all then all = {}; self.db.priceHist = all end
+    local realm = self:RealmKey()
+    all[realm] = all[realm] or {}
+    local list = all[realm][itemID]
+    if not list then list = {}; all[realm][itemID] = list end
+    local last = list[#list]
+    if not last or math.abs(last.p - copper) > last.p * 0.02 or rec.t - last.t > 21600 then
+        list[#list + 1] = { p = copper, t = rec.t }
+        if #list > 14 then table.remove(list, 1) end
+    end
 end
 
 -- a price from Auctionator or TradeSkillMaster, whichever has one (nil when neither is installed / knows the item)
@@ -812,6 +824,28 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         if SFP.ToggleIncomeMessages then SFP:ToggleIncomeMessages() end
     elseif cmd == "sold" then
         if SFP.ToggleAuctionSold then SFP:ToggleAuctionSold() end
+    elseif cmd == "weekly" then
+        SFP:ShowWeekly()
+    elseif cmd == "flip" or cmd == "deals" then
+        SFP:ShowDeals()
+    elseif cmd == "shop" then
+        SFP:ShowShop()
+    elseif cmd == "route" then
+        if rest == "clear" then SFP:ClearRoute() else
+            local m = WorldMapFrame and WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() or C_Map.GetBestMapForUnit("player")
+            if m then SFP:BuildRoute(m) end
+        end
+    elseif cmd == "session" then
+        SFP:SessionToggle(rest)
+    elseif cmd == "next" then
+        SFP:PrintFarmNext()
+    elseif cmd == "export" then
+        SFP:ShowExport()
+    elseif cmd == "import" then
+        SFP:ShowImport()
+    elseif cmd == "alerts" then
+        SFP.db.rareAlerts = (SFP.db.rareAlerts == false)
+        SFP:Print("Rare alerts " .. (SFP.db.rareAlerts ~= false and "ON" or "OFF"))
     elseif cmd == "history" then
         if rest == "rescan" then
             SFP.db.historyReport = true
@@ -866,6 +900,14 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:Print("/sfp min <gold> - only light zones worth at least this much")
         SFP:Print("/sfp tooltip - toggle the item tooltip lines")
         SFP:Print("/sfp history - what your transmog, mount and pet collections say you already looted (rescan to refresh)")
+        SFP:Print("/sfp weekly - Great Vault, raid lockouts and rare kills of all your characters")
+        SFP:Print("/sfp flip - BoE items now against their typical price")
+        SFP:Print("/sfp shop - crafting shopping list: reagents, prices, where to farm them")
+        SFP:Print("/sfp route [clear] - loop through the ticked spots of this map")
+        SFP:Print("/sfp session - start / stop a farm session (kills, gold, loot, per hour); /sfp session hide")
+        SFP:Print("/sfp next - which rare to farm next (missing mounts, pets, toys; nearest first)")
+        SFP:Print("/sfp alerts - sound and chat line when a rare you still miss something from appears nearby")
+        SFP:Print("/sfp export | import - share what the addon learned as a copy-paste string")
         SFP:Print("/sfp craft - the most profitable recipes you know")
         SFP:Print("/sfp income - toggle the gold messages (vendor, mail, quests)")
         SFP:Print("/sfp sold - toggle the chat message when an auction sells")

@@ -419,6 +419,7 @@ local function spotText(s, px, py, more)
     -- BoE farm mobs get a purple "BoE" tag so they stand out on the map
     local tag, hex = "", SFP.CYAN_HEX
     if s.rare then tag, hex = " |cffff8000[Rare]|r", "ffff9933"
+        if s.npc and s.npc > 0 and SFP.RareKilledToday and SFP:RareKilledToday(s.npc) then tag = tag .. " |cff808080[killed today]|r" end
     elseif s.special then tag, hex = " |cffff4dd9[Special]|r", "ffff66e0" end
     if s.gather then
         local hx2 = s.gather == "ore" and "ffffb366" or "ff4dff8c"
@@ -533,6 +534,11 @@ local function drawAreas(zoneID, rect, unit, withLabels)
         placePin(p, x, y, (SFP.db.exactSpots and 12 or 16 * big) / sc, 0.55, (SFP.db.exactSpots and 5 or 6 * big) / sc,
             { spawn = main, spawns = c.order, zoneID = zoneID, zx = c.x, zy = c.y, continent = rect ~= nil })
         markSymbol(p, c.order, sc)
+        -- a rare you killed today: grey until the daily reset
+        if main.rare and main.npc and main.npc > 0 and SFP.RareKilledToday and SFP:RareKilledToday(main.npc) then
+            p.outer:SetVertexColor(0.55, 0.55, 0.55, 0.3)
+            p.inner:SetVertexColor(0.6, 0.6, 0.6, 0.5)
+        end
         if withLabels and SFP.db.showLabels then
             local shift = 0
             for _, q in ipairs(placed) do
@@ -746,6 +752,24 @@ end
 local function releaseAll()
     for i = 1, #pool do pool[i]:Hide() end
     poolUsed = 0
+end
+
+-- the farm route (SFP:BuildRoute): a yellow line from spot to spot
+local routeLines = {}
+local function drawRoute(mapID)
+    for _, l in ipairs(routeLines) do l:Hide() end
+    local r = SFP.route
+    if not r or r.map ~= mapID or #r.pts < 2 or not spawnLayer then return end
+    local w, h = spawnLayer:GetWidth(), spawnLayer:GetHeight()
+    for i = 1, #r.pts - 1 do
+        local l = routeLines[i]
+        if not l then l = spawnLayer:CreateLine(nil, "OVERLAY"); routeLines[i] = l end
+        l:SetThickness(2)
+        l:SetColorTexture(1, 0.9, 0.2, 0.9)
+        l:SetStartPoint("TOPLEFT", spawnLayer, r.pts[i].x * w, -r.pts[i].y * h)
+        l:SetEndPoint("TOPLEFT", spawnLayer, r.pts[i + 1].x * w, -r.pts[i + 1].y * h)
+        l:Show()
+    end
 end
 
 local function pointInZone(parentMap, zoneID, l, r, t, b)
@@ -1118,6 +1142,8 @@ local function buildSpotPanel()
     end
     f.allOn = link("Show all", nil, 8)
     f.allOff = link("Hide all", nil, 70)
+    f.route = link("Route", nil, 132)
+    f.routeClear = link("Clear route", nil, 176)
     f.rows = {}
     return f
 end
@@ -1191,6 +1217,10 @@ drawSpotList = function(mapID)
     spotPanel.toggle:SetText(SFP.db.spotsCollapsed and "[+]" or "[-]")
     spotPanel.allOn:SetScript("OnClick", function() setSpotsHidden(zone, keys, false) end)
     spotPanel.allOff:SetScript("OnClick", function() setSpotsHidden(zone, keys, true) end)
+    spotPanel.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)
+    spotPanel.routeClear:SetScript("OnClick", function() SFP:ClearRoute() end)
+    spotPanel.route:SetShown(not SFP.db.spotsCollapsed)
+    spotPanel.routeClear:SetShown(not SFP.db.spotsCollapsed)
     spotPanel.allOn:SetShown(not SFP.db.spotsCollapsed)
     spotPanel.allOff:SetShown(not SFP.db.spotsCollapsed)
 
@@ -1345,6 +1375,7 @@ refresh = function()
     end
     if SFP.db.showSpotList and SFP.zoneByMap[mapID] then SFP:Safe("spot list", drawSpotList, mapID) end
 
+    drawRoute(mapID)
     if SFP.zoneByMap[mapID] then
         -- inside a farm zone
         if SFP:IsValuableZone(mapID) then
@@ -1368,6 +1399,11 @@ refresh = function()
     end
 end
 SFP.RefreshWorldMap = refresh
+
+function SFP.SetRoute(mapID, pts)
+    SFP.route = (mapID and pts) and { map = mapID, pts = pts } or nil
+    refresh()
+end
 
 ---------------------------------------------------------------------------
 -- Setup

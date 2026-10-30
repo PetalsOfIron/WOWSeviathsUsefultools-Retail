@@ -10,6 +10,8 @@ One addon with everything Seviath made for retail:
 
 Open it with `/sfp` or the minimap button. Other commands: `/sfp craft`, `/sfp sold`, `/sfp income`, `/sfp comparelevel`, `/sfp errors`, `/codex`, `/sdr`, `/gi`.
 
+**More tools:** `/sfp session` (farm session tracker), `/sfp next` (which rare to farm next), `/sfp alerts` (rare alerts), `/sfp route` (loop through ticked spots), `/sfp weekly` (all characters), `/sfp flip` (BoE deals), `/sfp shop` (crafting shopping list), `/sfp export` and `/sfp import` (share what the addon learned), `/sfp history` (your collections).
+
 **Disable** SeviathsFarmPack, SeviathsCodex, SeviathsDungeonsRaids and SeviathsGuildHelper: they are inside this addon now.
 The Codex, Dungeons & Raids and Guild Helper saved data carries over (same saved-variable names).
 

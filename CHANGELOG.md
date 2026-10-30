@@ -91,3 +91,14 @@
 - My Collection History is grouped into Bosses (by instance), Rares and Monsters.
 
 - Not only what you own: every rare with a mount, pet or toy is listed in My Collection History with "owned" or "not collected yet", and rare tooltips show the same for each collectible.
+
+- Rares you killed today are greyed out on the map and marked "[killed today]" until the daily reset.
+- /sfp session: a farm session tracker (kills, gold looted, loot worth, per hour) with a small window.
+- /sfp next: which rare to farm next - missing mounts, pets and toys, nearest first, killed-today ones last; sets a waypoint to the first.
+- /sfp alerts: a sound and a chat line (with a clickable waypoint) when a rare you still miss something from appears nearby.
+- /sfp export and /sfp import: share what the addon learned as a copy-paste string; importing merges and never lowers your counts.
+
+- Farm route: the spot list has a "Route" button that orders the ticked spots of the zone into a loop, draws it on the map and sets a waypoint to the first stop (/sfp route, /sfp route clear).
+- /sfp weekly: Great Vault, raid lockouts and rares killed today for all your characters.
+- /sfp flip and a "BoE deals" button at the auction house: BoE items now against their typical price (the addon remembers each scan).
+- /sfp shop: crafting shopping list - pick recipes, get the reagent totals, prices, the profit and where to farm each reagent.
