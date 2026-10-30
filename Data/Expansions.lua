@@ -273,6 +273,8 @@ SFP.Expansions = {
             { name = "Windrunner Spire",   map = 2395, kind = "dungeon", items = { 262914 } },
             { name = "March on Quel'Danas", map = 2424, kind = "raid",   items = { 246590, 260370, 260371, 260372, 260373, 260374, 260375, 260376, 260377 },
               note = "Trash at the start of the raid can drop Myth-track BoEs (one per character per week)." },
+            { name = "The Dreamrift",       map = 2413, kind = "raid",   items = { 256750, 256656 },
+              note = "One boss (Chimaerus): enchanting formula and leatherworking pattern drop as bonus loot." },
             { name = "The Voidspire",       map = 2405, kind = "raid",   items = { 260370, 260371, 260372, 260373, 260374, 260375, 260376, 260377 },
               note = "BoEs drop from Lieutenant enemies (Myth track on Mythic) - no boss kill needed." },
             { name = "The Venomous Abyss",  map = 2512, kind = "raid",   items = { 271638, 271445, 271444, 271440, 271441, 271436, 271438, 271435, 271434 } },
