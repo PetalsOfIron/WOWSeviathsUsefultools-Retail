@@ -798,10 +798,8 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
             local pct, mats = SFP:ScanProgress()
             SFP:Print(("Item scan: %d%% of the item IDs asked, %d crafting materials known."):format(pct, mats))
         end
-    elseif cmd == "questdebug" then
-        if SFP.QuestMarkers then SFP.QuestMarkers:Debug() end
-    elseif cmd == "questcompare" then
-        if SFP.QuestMarkers and SFP.QuestMarkers.Compare then SFP.QuestMarkers:Compare() end
+    elseif cmd == "questdebug" or cmd == "questcompare" or cmd == "plates" or cmd == "quests" or cmd == "questie" or cmd == "log" then
+        SFP:Print("Quest markers and the quest log window are not part of the retail edition (the game has its own).")
     elseif cmd == "learnall" then
         SFP.db.learnAll = (SFP.db.learnAll == false)
         SFP:Print("Learning everything constantly " .. (SFP.db.learnAll and "ON" or "OFF") .. " (kept in the addon's saved data)")
@@ -814,13 +812,6 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         if SFP.ToggleIncomeMessages then SFP:ToggleIncomeMessages() end
     elseif cmd == "sold" then
         if SFP.ToggleAuctionSold then SFP:ToggleAuctionSold() end
-    elseif cmd == "plates" then
-        if SFP.QuestMarkers and SFP.QuestMarkers.PlateDebug then SFP.QuestMarkers:PlateDebug() end
-    elseif cmd == "quests" then
-        if SFP.QuestMarkers then
-            SFP.QuestMarkers:SetEnabled(not (SFP.db.questMarkers ~= false))
-            SFP:Print("Quest markers " .. (SFP.db.questMarkers and "ON" or "OFF"))
-        end
     elseif cmd == "tipdebug" then
         SFP.tipDebug = not SFP.tipDebug
         SFP:Print("Tooltip debug " .. (SFP.tipDebug and "ON - hover a monster" or "OFF"))
@@ -857,6 +848,11 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:Print("/sfp scan - rescan AH prices (auction house must be open)")
         SFP:Print("/sfp min <gold> - only light zones worth at least this much")
         SFP:Print("/sfp tooltip - toggle the item tooltip lines")
+        SFP:Print("/sfp craft - the most profitable recipes you know")
+        SFP:Print("/sfp income - toggle the gold messages (vendor, mail, quests)")
+        SFP:Print("/sfp sold - toggle the chat message when an auction sells")
+        SFP:Print("/sfp learnall - learn everything constantly on/off")
+        SFP:Print("/sfp comparelevel - compare monsters at my level and below / all levels")
         SFP:Print("/sfp menu - the main menu with everything")
         SFP:Print("/sfp know - everything the addon has learned (monsters, items, recipes)")
         SFP:Print("/sfp errors - show internal errors")

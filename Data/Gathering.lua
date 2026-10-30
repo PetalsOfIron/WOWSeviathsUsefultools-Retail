@@ -269,6 +269,12 @@ SFP.Gather = {
       pts = "32.8,49.6;34.7,42.4;36.3,9.1;38.3,19.3;39.6,19.4;41,68.6;42.3,41.7;43.3,59.4;44.5,67.7;46.5,61.9;48.7,39.2;50.9,59;53.3,36.5;55.5,39.8;56.5,77.1;57.3,77.7;58.4,47;59.2,59.7;60.1,65.6;64.2,16.5" },
     { exp = "midnight", map = nil, kind = "ore", item = 237366, listOnly = true, how = "rare bonus drop while mining any Midnight ore" },
     { exp = "midnight", map = nil, kind = "herb", item = 236780, listOnly = true, how = "rare bonus drop while gathering any Midnight herb" },
+    { exp = "classic", map = 64, kind = "herb", object = 2045, name = 'Stranglekelp', item = 3820, nodes = 484,
+      pts = "8.6,13.8;12.5,27.1;18.4,36.5;22,22.7;25.4,23.7;29.4,28.8;32.1,50.5;34.5,29.5;36.9,40.5;41.1,57.4;45,54.4;49,56.4;53.2,44.6;59.3,52.5;63.5,61;69.5,53.4;73.3,70.4;77,57.1;80.8,80.3;83.8,61.5" },
+    { exp = "classic", map = 22, kind = "herb", object = 142141, name = "Arthas' Tears", item = 8836, nodes = 35,
+      pts = "30.3,60.4;30.3,60.5;32.9,63.1;38,65.8;39.5,69.6;40.2,62.5;41.8,52.8;44.2,50.5;44.8,36.2;45.3,17.1;46.1,12.9;46.5,47.4;46.8,59.1;46.8,66.6;49.6,33;50.9,63.2;53,79.2;53.2,44.3;56.5,63.6;62.9,49.2" },
+    { exp = "bfa", map = 1355, kind = "ore", object = 325875, name = 'Osmenite Deposit', item = 168185, nodes = 652,
+      pts = "25.7,41.6;28.5,35.3;31.3,32.4;35.3,42.5;36.4,79.4;37.3,74.4;38.3,16.2;39.8,18.8;40.9,58.9;42.8,73.4;45.1,69.1;46.6,51.4;48.5,39.1;49.7,50.4;52.4,37.1;55.1,42.4;57.5,25.4;59.6,55.4;61.8,56.6;66.9,27.5" },
 }
 
 -- the ores and herbs above (names/icons come from the game client)
@@ -406,3 +412,6 @@ SFP.Items[236778] = SFP.Items[236778] or { kind = "herb" }
 SFP.Items[237366] = SFP.Items[237366] or { kind = "ore" }
 SFP.Items[236780] = SFP.Items[236780] or { kind = "herb" }
 SFP.Items[236770] = SFP.Items[236770] or { kind = "herb" }
+SFP.Items[3820] = SFP.Items[3820] or { kind = "herb" }
+SFP.Items[8836] = SFP.Items[8836] or { kind = "herb" }
+SFP.Items[168185] = SFP.Items[168185] or { kind = "ore" }
