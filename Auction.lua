@@ -199,7 +199,7 @@ local function catSend()
         itemClassFilters = { { classID = cid } },
     })
     if catTimer then catTimer:Cancel() end
-    catTimer = C_Timer.NewTimer(10, function() catNext() end)   -- an empty category sends no answer: go on
+    catTimer = C_Timer.NewTimer(4, function() catNext() end)   -- an empty category sends no answer: go on
 end
 
 catNext = function()
@@ -213,10 +213,19 @@ function SFP:StartCategoryScan()
     local AH = C_AuctionHouse
     if not (AH and AH.SendBrowseQuery and AH.GetBrowseResults and Enum and Enum.ItemClass) then return false end
     wipe(catQueue)
-    for _, name in ipairs({ "Weapon", "Armor", "Container", "Gem", "ItemEnhancement", "Consumable", "Glyph", "Tradegoods", "Recipe",
-        "Profession", "Battlepet", "Questitem", "Miscellaneous", "Housing" }) do
-        local v = Enum.ItemClass[name]
-        if v then catQueue[#catQueue + 1] = v end
+    local seen = {}
+    -- the sections the auction house window shows on the left (the game's own category list)
+    for _, cat in ipairs(_G.AuctionCategories or {}) do
+        local f = cat.filters and cat.filters[1]
+        local cid = f and f.classID
+        if cid and not seen[cid] then seen[cid] = true; catQueue[#catQueue + 1] = cid end
+    end
+    -- fallback: every item class the game knows
+    if #catQueue == 0 then
+        local all = {}
+        for _, v in pairs(Enum.ItemClass) do if type(v) == "number" then all[#all + 1] = v end end
+        table.sort(all)
+        for _, v in ipairs(all) do catQueue[#catQueue + 1] = v end
     end
     if #catQueue == 0 then return false end
     catIndex, catSeen, catBusy = 0, 0, true
