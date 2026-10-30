@@ -50,3 +50,5 @@
 - Recipe tooltips now say where they really drop: the Zaralek Cavern and Emerald Dream crest formulas (rares, elites, chests, Small Somnuts) and Feast of the Divine Day (Radiant Cache).
 
 - 20 Outland rares (Hellfire, Zangarmarsh, Nagrand, Terokkar, Blade's Edge, Netherstorm, Shadowmoon) with NPC IDs and spawn points; Topaz Skyfang added to the Coiled Isle rare drops; Satchel of Pilfered Recipes (Aberrus) added.
+
+- 21 more Northrend rares (Frostbitten / Northern Exposure) and 21 Thaldraszus rares with NPC IDs and spawn points from Wowhead.
