@@ -951,7 +951,7 @@ local function detailText(mode, key)
         for _, l in ipairs(SFP:ItemTipLines(key)) do t = t .. "\n" .. l[1] end
         return t
     elseif mode == "ah" then
-        local cls = db.ahItems and db.ahItems[key]
+        local cls = (db.ahItems and db.ahItems[key]) or (SFP.AuctionItems and SFP.AuctionItems[key] and SFP.AuctionItems[key][1])
         local className = cls and GetItemClassInfo and GetItemClassInfo(cls) or "?"
         local t = SFP:ItemName(key) .. "  |cff808080item ID " .. key .. "|r\nSection: " .. tostring(className) .. "\n"
         local price = SFP:GetPrice(key)
@@ -980,8 +980,13 @@ local function knowRebuild(pane)
     elseif know.mode == "item" then src = db.knownItems
     elseif know.mode == "ah" then src = {}
         -- every item ID the auction house scan saw, grouped by its auction section
-        for id, cls in pairs(db.ahItems or {}) do
-            local nm = (db.ahNames and db.ahNames[id]) or (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id))
+        -- the items shipped with the addon plus the ones this account learned
+        local all = {}
+        for id, r in pairs(SFP.AuctionItems or {}) do all[id] = r[1] end
+        for id, cls in pairs(db.ahItems or {}) do all[id] = cls end
+        for id, cls in pairs(all) do
+            local shipped = SFP.AuctionItems and SFP.AuctionItems[id]
+            local nm = (db.ahNames and db.ahNames[id]) or (shipped and shipped[2] ~= "" and shipped[2]) or (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id))
             if not nm and C_Item and C_Item.RequestLoadItemDataByID and #src < 200 then pcall(C_Item.RequestLoadItemDataByID, id) end
             local cn = GetItemClassInfo and GetItemClassInfo(cls) or tostring(cls)
             src[id] = { n = (cn or "?") .. ": " .. (nm or ("item " .. id)) }

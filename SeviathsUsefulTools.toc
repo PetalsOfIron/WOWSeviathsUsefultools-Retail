@@ -27,6 +27,7 @@ Data\Seed.lua
 Data\DecorData.lua
 Data\CuriosLearned.lua
 Data\DecorLearned.lua
+Data\AuctionItems.lua
 Auction.lua
 AuctionBar.lua
 AuctionSold.lua
