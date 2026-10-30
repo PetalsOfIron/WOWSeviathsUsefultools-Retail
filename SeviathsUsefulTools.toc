@@ -60,6 +60,7 @@ Modules\Codex\AchievementTips.lua
 Modules\Codex\Explain.lua
 Modules\Codex\Farming.lua
 Modules\Codex\Grind.lua
+Modules\Codex\History.lua
 Modules\Codex\Materials.lua
 Modules\Codex\DelveGuides.lua
 Modules\Codex\Delves.lua

@@ -252,11 +252,16 @@ local function DetailText(e)
         if e.grind and ns.GrindText then return ns:GrindText(e) end
         return e.body or ""
     end
+    if c == "history" then
+        return ns.HistoryEntryText and ns:HistoryEntryText(e) or ""
+    end
     if c == "guide" or c == "mats" then
         return e.body or ""
     end
     if c == "quest" then
-        t = e.collected and "|cff40ff40Completed on this character|r" or "|cffaaaaaaNot completed on this character|r"
+        t = e.collected and "|cff40ff40Completed on this character|r"
+            or (e.acctDone and "|cff40ff40Completed on another character of your account|r")
+            or "|cffaaaaaaNot completed on this character|r"
     elseif e.collected ~= nil then
         t = t .. (e.collected and "|cff40ff40Collected / completed|r" or "|cffff7070Not collected yet|r")
     end
@@ -340,6 +345,17 @@ local function DetailText(e)
     elseif c == "tset" then
         t = t .. section("Info", e.sub)
         t = t .. section("Pieces", ns:SetItems(e))
+    end
+    -- what your own collections already say (transmog, mounts, pets), also from before the addon was installed
+    do
+        local S = _G.SeviathsUsefulTools
+        if S and S.HistoryFor and (c == "boss" or c == "creature") then
+            local past = S:HistoryFor(e.name)
+            if past then t = t .. section("Your collection", S:HistoryText(past)) end
+        elseif S and S.db and S.db.history and c == "item" then
+            local iid = e.itemID or tonumber(e.id)
+            if iid and S.db.history.items[iid] then t = t .. section("Your collection", "You already own this appearance (transmog collection).") end
+        end
     end
     return (t:gsub("^\n+", ""))
 end
