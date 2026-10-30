@@ -878,6 +878,8 @@ end
 -- every decor the game's own housing catalog lists, with the source the game gives for it
 local function catalogEntries()
     local H = C_HousingCatalog
+    local probe = { api = H ~= nil, searchFn = H and H.CreateCatalogSearcher ~= nil, infoFn = H and H.GetCatalogEntryInfo ~= nil, t = time() }
+    if SFP.db then SFP.db.decorProbe = probe end   -- what the game answered, for diagnosis
     if not (H and H.CreateCatalogSearcher and H.GetCatalogEntryInfo) then return nil end
     if not decorSearcher then
         local ok, srch = pcall(H.CreateCatalogSearcher)
@@ -889,9 +891,15 @@ local function catalogEntries()
         if type(srch.RunSearch) == "function" then pcall(srch.RunSearch, srch) end
         decorSearcher = srch
     end
+    probe.searcher = true
     if type(decorSearcher.GetCatalogSearchResults) ~= "function" then return nil end
     local ok, ids = pcall(decorSearcher.GetCatalogSearchResults, decorSearcher)
-    if not ok or type(ids) ~= "table" or #ids == 0 then return nil end
+    probe.results = (ok and type(ids) == "table") and #ids or -1
+    if not ok or type(ids) ~= "table" or #ids == 0 then
+        -- the catalog fills in a moment after the first search: ask again
+        if type(decorSearcher.RunSearch) == "function" then pcall(decorSearcher.RunSearch, decorSearcher) end
+        return nil
+    end
     local out = {}
     for _, entryID in ipairs(ids) do
         local okI, info = pcall(H.GetCatalogEntryInfo, entryID)
@@ -994,6 +1002,26 @@ function SFP:LearnDecor()
     decorCache = nil
     decorEntries()
 end
+
+-- the game's housing dashboard (the decor catalog window) has the data loaded: learn from it whenever it opens
+local dashHooked
+local function hookDashboard()
+    if dashHooked then return end
+    local f = _G.HousingDashboardFrame or _G.HousingFrame
+    if f and f.HookScript then
+        dashHooked = true
+        f:HookScript("OnShow", function()
+            C_Timer.After(1.5, function() SFP:Safe("decor learning", SFP.LearnDecor, SFP) end)
+            C_Timer.After(6, function() SFP:Safe("decor learning", SFP.LearnDecor, SFP) end)
+        end)
+        if f:IsShown() then SFP:Safe("decor learning", SFP.LearnDecor, SFP) end
+    end
+end
+local dashFrame = CreateFrame("Frame")
+pcall(dashFrame.RegisterEvent, dashFrame, "ADDON_LOADED")
+pcall(dashFrame.RegisterEvent, dashFrame, "PLAYER_ENTERING_WORLD")
+dashFrame:SetScript("OnEvent", function() C_Timer.After(1, hookDashboard) end)
+C_Timer.NewTicker(10, hookDashboard)
 
 local decorKind, decorPlace
 local decorFilterBox
