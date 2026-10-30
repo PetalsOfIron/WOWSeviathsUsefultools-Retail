@@ -12,6 +12,8 @@ local navButtons, panes, current = {}, {}, nil
 local SECTIONS = {
     { key = "home",     label = "Home" },
     { key = "farm",     label = "Farm & Map" },
+    { key = "rares",    label = "Rares & Alerts" },
+    { key = "tools",    label = "Tools" },
     { key = "guides",   label = "Guides (Codex)" },
     { key = "groups",   label = "Groups" },
     { key = "guild",    label = "Guild" },
@@ -80,6 +82,8 @@ local function buildHome(pane)
     local list = {
         { "Farm & Map", "farm", "Glowing farm spots, rares and gathering routes on the world map, prices, layers." },
         { "Guides (Codex)", "guides", "How to do things: dungeons, raids, bosses, quests, mounts, pets, entrances, materials, gold." },
+        { "Rares & Alerts", "rares", "Rare alerts, killed-today marks, the farm route and what you already own." },
+        { "Tools", "tools", "Farm session, what to farm next, weekly checklist, BoE deals, shopping list, export / import." },
         { "Groups", "groups", "Raid buffs, tier tokens, player tags and notes for dungeons and raids." },
         { "Guild", "guild", "Find and invite players for your guild, charter signatures." },
         { "Learned data", "know", "Every monster, item, node and recipe the addon has learned from your play." },
@@ -90,7 +94,7 @@ local function buildHome(pane)
         mkButton(pane, e[1], 130, function() SFP:ShowMenuSection(e[2]) end):SetPoint("TOPLEFT", 12, y)
         mkText(pane, e[3], 152, y - 2, 360, "GameFontHighlightSmall"):SetTextColor(0.8, 0.8, 0.8)
     end
-    pane.stats = mkText(pane, "", 12, -340, 500, "GameFontHighlightSmall")
+    pane.stats = mkText(pane, "", 12, -420, 500, "GameFontHighlightSmall")
     pane.refresh = function()
         local db = SFP.db
         pane.stats:SetText(("|cff808080Learned so far: %d monsters, %d items, %d gathering nodes, %d recipes. Saved for all your characters.|r")
@@ -109,7 +113,7 @@ local function buildFarm(pane)
         { "mapOverlay", "Show farm layer" }, { "showSpawns", "Monster farm spots" }, { "showRares", "Rares (mounts, pets)" },
         { "showHunter", "Hunter tames" }, { "showMining", "Mining zones" }, { "showHerbs", "Herb zones" },
         { "showDungeons", "Dungeon entrances" }, { "showRaids", "Raid entrances" }, { "showSpecial", "Special materials" },
-        { "showGatherList", "Gathering list" }, { "showSpotList", "Farm spot list (switch single spots off)" }, { "greyKilled", "Grey out rares killed today" }, { "rareAlerts", "Rare alerts (chat line)" }, { "rareAlertSound", "Rare alert sound" }, { "showLabels", "Names on the map" }, { "learn", "Learn farm spots from my loot" },
+        { "showGatherList", "Gathering list" }, { "showSpotList", "Farm spot list (switch single spots off)" }, { "showLabels", "Names on the map" }, { "learn", "Learn farm spots from my loot" },
         { "exactSpots", "Exact spot markers (not areas)" }, { "continentSpots", "Also on continent maps (crowded)" }, { "minimapSpots", "Also show spots on the minimap" },
     }
     pane.checks = {}
@@ -120,10 +124,12 @@ local function buildFarm(pane)
             12 + col * 250, -116 - row * 26)
         pane.checks[#pane.checks + 1] = cb
     end
-    -- read the game's own collections (transmog, mounts, pets): what you already own, from before the addon
-    local rows = math.ceil(#checks / 2)
-    local histY = -116 - rows * 26 - 14
-    local histText = mkText(pane, "", 12, histY - 30, 470, "GameFontHighlightSmall")
+    pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
+end
+
+-- the collections read: a button, a "forget today's kills" button and a status line
+local function collectionControls(pane, x, y)
+    local histText = mkText(pane, "", x, y - 30, 470, "GameFontHighlightSmall")
     local function histStatus()
         local h = SFP.db.history
         if not h or not h.t or h.t == 0 then return "Not read yet. It also reads by itself about 40 seconds after you log in." end
@@ -143,14 +149,60 @@ local function buildFarm(pane)
         SFP:Print("Reading your transmog, mount and pet collections (in the background)...")
         SFP:ScanTransmogHistory(true)
         C_Timer.After(1, function() histText:SetText(histStatus()) end)
-    end, "Reads what the game says you already own - transmog, mounts and battle pets - so monster tooltips and the Codex can show it. Runs in the background."):SetPoint("TOPLEFT", 12, histY)
-    mkButton(pane, "Forget today's kills", 150, function() SFP:ClearKilled() end,
-        "The rares you killed today are greyed out on the map until the daily reset. This shows them all again."):SetPoint("TOPLEFT", 210, histY)
+    end, "Reads what the game says you already own - transmog, mounts and battle pets - so monster tooltips and the Codex can show it. Runs in the background."):SetPoint("TOPLEFT", x, y)
     histText:SetText(histStatus())
+    return function() histText:SetText(histStatus()) end
+end
+
+-- Rares & Alerts page
+local function buildRares(pane)
+    mkText(pane, CYHEX .. "Rares & Alerts|r", 12, -10, 480, "GameFontNormalLarge")
+    mkText(pane, "Rare alerts, daily kills, the farm route and what you already own.", 12, -34, 500, "GameFontHighlightSmall")
+    pane.checks = {
+        mkCheck(pane, "Rare alerts: chat line when a rare you still miss something from is nearby", function() return SFP.db.rareAlerts ~= false end, function(v) SFP.db.rareAlerts = v end, 12, -64),
+        mkCheck(pane, "Rare alert sound", function() return SFP.db.rareAlertSound ~= false end, function(v) SFP.db.rareAlertSound = v end, 12, -90),
+        mkCheck(pane, "Grey out rares killed today (until the daily reset)", function() return SFP.db.greyKilled ~= false end,
+            function(v) SFP.db.greyKilled = v; SFP:RefreshAll() end, 12, -116),
+        mkCheck(pane, "Show the farm route on the map", function() return SFP.db.showRoute ~= false end,
+            function(v) SFP.db.showRoute = v; SFP:RefreshAll() end, 12, -142),
+        mkCheck(pane, "Farm spot list on zone maps", function() return SFP.db.showSpotList ~= false end,
+            function(v) SFP.db.showSpotList = v; SFP:RefreshAll() end, 12, -168),
+    }
+    mkButton(pane, "Forget today's kills", 160, function() SFP:ClearKilled() end,
+        "The rares you killed today are greyed out on the map until the daily reset. This shows them all again."):SetPoint("TOPLEFT", 12, -204)
+    mkText(pane, "What you already own (transmog, mounts, pets):", 12, -246, 480)
+    local histRefresh = collectionControls(pane, 12, -270)
     pane.refresh = function()
         for _, cb in ipairs(pane.checks) do cb.refresh() end
-        histText:SetText(histStatus())
+        histRefresh()
     end
+end
+
+-- Tools page: every tool as a button
+local function buildTools(pane)
+    mkText(pane, CYHEX .. "Tools|r", 12, -10, 480, "GameFontNormalLarge")
+    mkText(pane, "Everything here also works as a /sfp command.", 12, -34, 500, "GameFontHighlightSmall")
+    local tools = {
+        { "Farm session", function() SFP:SessionToggle() end, "Start or stop a farm session: kills, gold, loot worth and per hour (/sfp session)" },
+        { "What to farm next", function() SFP:PrintFarmNext() end, "The nearest rare that still has a mount, pet or toy you miss (/sfp next)" },
+        { "Weekly checklist", function() SFP:ShowWeekly() end, "Great Vault, raid lockouts and rare kills of all your characters (/sfp weekly)" },
+        { "BoE deals", function() SFP:ShowDeals() end, "BoE items now against their typical price (/sfp flip)" },
+        { "Shopping list", function() SFP:ShowShop() end, "Pick recipes, get the reagents, prices and where to farm them (/sfp shop)" },
+        { "Farm route", function()
+            local m = WorldMapFrame and WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() or C_Map.GetBestMapForUnit("player")
+            if m then SFP:BuildRoute(m) end
+        end, "Loop through the ticked spots of this map (/sfp route). Tick spots in the list on the map first." },
+        { "Clear farm route", function() SFP:ClearRoute() end, "Remove the route line from the map (/sfp route clear)" },
+        { "Export learned data", function() SFP:ShowExport() end, "A copy-paste string with what the addon learned, to share or move (/sfp export)" },
+        { "Import learned data", function() SFP:ShowImport() end, "Paste a string from /sfp export; it is merged, nothing is lowered (/sfp import)" },
+    }
+    for i, t in ipairs(tools) do
+        local col = (i - 1) % 2
+        local row = math.floor((i - 1) / 2)
+        local x, y = 12 + col * 330, -66 - row * 40
+        mkButton(pane, t[1], 150, t[2], t[3]):SetPoint("TOPLEFT", x, y)
+    end
+    mkText(pane, "Hover a button to see what it does.", 12, -66 - 5 * 40, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
 end
 
 local GUIDE_CATS = {
@@ -231,6 +283,7 @@ local function buildSettings(pane)
     mkButton(pane, "Show internal errors", 160, function() SFP:Print("see /sfp errors"); SFP:RunModule("SEVIATHSUSEFULTOOLS", "errors") end):SetPoint("TOPLEFT", 12, -210)
     mkButton(pane, "Reload UI", 160, function() ReloadUI() end):SetPoint("TOPLEFT", 12, -240)
     mkButton(pane, "About / options page", 160, function() SFP:OpenAbout() end):SetPoint("TOPLEFT", 12, -270)
+    mkText(pane, "More switches: the Rares & Alerts page (alerts, killed today, route) and the Tools page.", 12, -306, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
     pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
 end
 
@@ -394,7 +447,7 @@ local function buildKnow(pane)
 end
 
 local BUILDERS = {
-    home = buildHome, farm = buildFarm, guides = buildGuides, groups = buildGroups,
+    home = buildHome, farm = buildFarm, rares = buildRares, tools = buildTools, guides = buildGuides, groups = buildGroups,
     guild = buildGuild, know = buildKnow, settings = buildSettings,
 }
 
