@@ -124,6 +124,11 @@ function SFP:BuildRoute(mapID, only)
             spots[#spots + 1] = { name = sp.name or "?", x = sp.hx, y = sp.hy }
         end
     end
+    return self:RouteFromSpots(mapID, spots)
+end
+
+-- spots = { { name, x, y }, ... } on one map: order them into a loop, draw it, set a waypoint
+function SFP:RouteFromSpots(mapID, spots)
     if #spots < 2 then self:Print("Pick at least two spots first."); return end
     -- start next to you when you are in this zone, else at the first spot
     local cx, cy
@@ -559,6 +564,275 @@ function SFP:ShowShop()
     end
     shopWin:Show()
     shopRefresh()
+end
+
+---------------------------------------------------------------------------
+-- farm routes window: every spot of a zone to tick, any zone, build / clear the route
+---------------------------------------------------------------------------
+local rtWin
+local rt = { map = nil, spots = {}, sel = {} }
+local function rtKind(sp)
+    return sp.gather and (sp.gather == "ore" and "mining" or "herbs") or (sp.rare and "rare") or (sp.hunter and "hunter tame") or (sp.special and "special") or "monsters"
+end
+local function rtTicked()
+    local c = 0
+    for _ in pairs(rt.sel) do c = c + 1 end
+    return c
+end
+local function rtFillSpots()
+    local q = (rtWin.spotBox:GetText() or ""):lower()
+    local n = 0
+    for _, sp in ipairs(rt.spots) do
+        if q == "" or tostring(sp.name):lower():find(q, 1, true) then
+            n = n + 1
+            local r = rtWin.rows[n]
+            if not r then
+                r = CreateFrame("CheckButton", nil, rtWin.spotChild, "UICheckButtonTemplate")
+                r:SetSize(22, 22)
+                r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                r.label:SetPoint("LEFT", r, "RIGHT", 2, 0)
+                r:SetScript("OnClick", function(self)
+                    rt.sel[self.key] = self:GetChecked() and true or nil
+                    rtWin.count:SetText(("%d of %d spots ticked"):format(rtTicked(), #rt.spots))
+                end)
+                rtWin.rows[n] = r
+            end
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", rtWin.spotChild, "TOPLEFT", 0, -(n - 1) * 22)
+            r.key = SFP.SpotKey(sp)
+            r:SetChecked(rt.sel[r.key] and true or false)
+            r.label:SetText(("%s  |cff808080%s|r"):format(sp.name or "?", rtKind(sp)))
+            r:Show()
+        end
+    end
+    for i = n + 1, #rtWin.rows do rtWin.rows[i]:Hide() end
+    rtWin.spotChild:SetHeight(n * 22 + 6)
+    rtWin.count:SetText(("%d of %d spots ticked"):format(rtTicked(), #rt.spots))
+end
+local function rtSetZone(mapID)
+    local zone = mapID and SFP.zoneByMap and SFP.zoneByMap[mapID]
+    rt.map, rt.spots, rt.sel = mapID, {}, {}
+    if zone then
+        for _, sp in ipairs(zone.spawns or {}) do
+            if sp.hx and sp.hy then rt.spots[#rt.spots + 1] = sp; rt.sel[SFP.SpotKey(sp)] = true end
+        end
+        table.sort(rt.spots, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    end
+    rtWin.zoneText:SetText(zone and ("Zone: " .. SFP:ZoneName(mapID) .. "  |cff808080(" .. #rt.spots .. " farm spots)|r") or "No farm spots here - pick a zone below.")
+    rtWin.spotScroll:SetVerticalScroll(0)
+    rtFillSpots()
+end
+local function rtFillZones()
+    local q = (rtWin.zoneBox:GetText() or ""):lower()
+    local n = 0
+    for _, z in ipairs(SFP:RouteZones()) do
+        if q == "" or z.name:lower():find(q, 1, true) or z.exp:lower():find(q, 1, true) then
+            n = n + 1
+            local b = rtWin.zrows[n]
+            if not b then
+                b = CreateFrame("Button", nil, rtWin.zChild, "UIPanelButtonTemplate")
+                b:SetSize(470, 20)
+                b:SetScript("OnClick", function(self) if self.zone then rtSetZone(self.zone.map) end end)
+                rtWin.zrows[n] = b
+            end
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", rtWin.zChild, "TOPLEFT", 0, -(n - 1) * 22)
+            b.zone = z
+            b:SetText(("%s   |cff808080%s - %d spots|r"):format(z.name, z.exp, z.count))
+            b:Show()
+        end
+    end
+    for i = n + 1, #rtWin.zrows do rtWin.zrows[i]:Hide() end
+    rtWin.zChild:SetHeight(n * 22 + 6)
+end
+local function rtButton(text, w, x, y, fn)
+    local b = CreateFrame("Button", nil, rtWin, "UIPanelButtonTemplate")
+    b:SetSize(w, 22)
+    b:SetPoint("TOPLEFT", x, y)
+    b:SetText(text)
+    b:SetScript("OnClick", fn)
+    return b
+end
+local function rtScroll(y, h)
+    local sf = CreateFrame("ScrollFrame", nil, rtWin, "UIPanelScrollFrameTemplate")
+    sf:SetPoint("TOPLEFT", 14, y)
+    sf:SetSize(490, h)
+    local c = CreateFrame("Frame", nil, sf)
+    c:SetSize(480, 10)
+    sf:SetScrollChild(c)
+    return sf, c
+end
+function SFP:ShowRouteWindow()
+    if not rtWin then
+        rtWin = makeWindow("SeviathsUsefulToolsRoutes", "Farm routes", 540, 640)
+        rtWin.scroll:Hide()
+        rtWin.rows, rtWin.zrows = {}, {}
+        rtWin.zoneText = rtWin:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        rtWin.zoneText:SetPoint("TOPLEFT", 14, -34)
+        rtButton("Use the zone I am in", 150, 360, -30, function() rtSetZone(SFP:PlayerFarmZone()) end)
+        local l1 = rtWin:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        l1:SetPoint("TOPLEFT", 14, -62)
+        l1:SetText("Search spots:")
+        rtWin.spotBox = CreateFrame("EditBox", nil, rtWin, "InputBoxTemplate")
+        rtWin.spotBox:SetSize(200, 20)
+        rtWin.spotBox:SetPoint("TOPLEFT", 100, -58)
+        rtWin.spotBox:SetAutoFocus(false)
+        rtWin.spotBox:SetScript("OnTextChanged", rtFillSpots)
+        rtWin.spotBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        rtWin.count = rtWin:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        rtWin.count:SetPoint("TOPLEFT", 320, -62)
+        rtWin.spotScroll, rtWin.spotChild = rtScroll(-84, 290)
+        rtButton("Select all", 100, 14, -382, function()
+            local q = (rtWin.spotBox:GetText() or ""):lower()
+            for _, sp in ipairs(rt.spots) do
+                if q == "" or tostring(sp.name):lower():find(q, 1, true) then rt.sel[SFP.SpotKey(sp)] = true end
+            end
+            rtFillSpots()
+        end)
+        rtButton("Select none", 100, 118, -382, function() wipe(rt.sel); rtFillSpots() end)
+        rtButton("Build route", 120, 222, -382, function()
+            if not rt.map then return end
+            if SFP.OpenMapTo then SFP:OpenMapTo(rt.map) end
+            SFP:BuildRoute(rt.map, rt.sel)
+        end)
+        rtButton("Clear route", 100, 346, -382, function() SFP:ClearRoute() end)
+        local l2 = rtWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        l2:SetPoint("TOPLEFT", 14, -418)
+        l2:SetText("Another zone (any expansion):")
+        rtWin.zoneBox = CreateFrame("EditBox", nil, rtWin, "InputBoxTemplate")
+        rtWin.zoneBox:SetSize(200, 20)
+        rtWin.zoneBox:SetPoint("TOPLEFT", 220, -414)
+        rtWin.zoneBox:SetAutoFocus(false)
+        rtWin.zoneBox:SetScript("OnTextChanged", rtFillZones)
+        rtWin.zoneBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        rtWin.zScroll, rtWin.zChild = rtScroll(-440, 190)
+        rtFillZones()
+        rtSetZone(SFP:PlayerFarmZone())
+    end
+    rtWin:Show()
+end
+
+---------------------------------------------------------------------------
+-- what to farm next: all rares you still miss something from, by zone, tick and route
+---------------------------------------------------------------------------
+local nxWin
+local nx = { zone = nil, list = {}, sel = {} }
+local function nxKey(c) return tostring(c.map) .. ":" .. tostring(c.sp.name) end
+
+local function nxFill()
+    local rows = {}
+    local n = 0
+    for _, c in ipairs(nx.list) do
+        if not nx.zone or c.map == nx.zone then
+            n = n + 1
+            local r = nxWin.rows[n]
+            if not r then
+                r = CreateFrame("Frame", nil, nxWin.child)
+                r:SetSize(400, 36)
+                r.check = CreateFrame("CheckButton", nil, r, "UICheckButtonTemplate")
+                r.check:SetSize(22, 22)
+                r.check:SetPoint("TOPLEFT", 0, -2)
+                r.check:SetScript("OnClick", function(self) nx.sel[r.key] = self:GetChecked() and true or nil end)
+                r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                r.text:SetPoint("TOPLEFT", 26, -2)
+                r.text:SetWidth(300)
+                r.text:SetJustifyH("LEFT")
+                r.btn = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
+                r.btn:SetSize(70, 20)
+                r.btn:SetPoint("TOPRIGHT", 0, -4)
+                r.btn:SetText("Waypoint")
+                nxWin.rows[n] = r
+            end
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", nxWin.child, "TOPLEFT", 0, -(n - 1) * 38)
+            r.key = nxKey(c)
+            r.check:SetChecked(nx.sel[r.key] and true or false)
+            local names = {}
+            for _, id in ipairs(c.missing) do names[#names + 1] = SFP:ItemName(id) end
+            r.text:SetText(("|cffffd100%s|r  %s%s%s\n|cff808080missing:|r %s"):format(c.sp.name, SFP:ZoneName(c.map),
+                c.dist and ("  " .. ("%.0f"):format(c.dist * 100) .. " away") or "", c.killed and "  |cff808080killed today|r" or "", table.concat(names, ", ")))
+            r.btn:SetScript("OnClick", function() if c.sp.hx then SFP:SetWaypoint(c.map, c.sp.hx, c.sp.hy, c.sp.name) end end)
+            r:Show()
+        end
+    end
+    for i = n + 1, #nxWin.rows do nxWin.rows[i]:Hide() end
+    nxWin.child:SetHeight(n * 38 + 6)
+end
+
+local function nxZones()
+    local counts, order = {}, {}
+    for _, c in ipairs(nx.list) do
+        if not counts[c.map] then counts[c.map] = 0; order[#order + 1] = c.map end
+        counts[c.map] = counts[c.map] + 1
+    end
+    table.sort(order, function(a, b) return counts[a] > counts[b] end)
+    local items = { { text = "", buttons = { { (nx.zone == nil and "|cff40ff40" or "") .. "All zones (" .. #nx.list .. ")", 150, function() nx.zone = nil; nxFill() end } } } }
+    for _, m in ipairs(order) do
+        items[#items + 1] = { text = "", buttons = { { (nx.zone == m and "|cff40ff40" or "") .. SFP:ZoneName(m) .. " (" .. counts[m] .. ")", 150, function() nx.zone = m; nxFill() end } } }
+    end
+    nxWin.zones:Set(items)
+end
+
+local function nxReload()
+    local mode = SFP.db.nextSort or "best"
+    nx.list = SFP:FarmNext(100000, mode)
+    nxWin.sortBtn:SetText(mode == "best" and "Sorted: best first" or "Sorted: nearest first")
+    nxZones()
+    nxFill()
+end
+
+function SFP:ShowNextWindow()
+    if not nxWin then
+        nxWin = makeWindow("SeviathsUsefulToolsNext", "What to farm next - all rares you miss something from", 640, 600)
+        nxWin.scroll:Hide()
+        nxWin.rows = {}
+        nxWin.sortBtn = CreateFrame("Button", nil, nxWin, "UIPanelButtonTemplate")
+        nxWin.sortBtn:SetSize(160, 22)
+        nxWin.sortBtn:SetPoint("TOPLEFT", 14, -34)
+        nxWin.sortBtn:SetScript("OnClick", function()
+            SFP.db.nextSort = (SFP.db.nextSort or "best") == "best" and "near" or "best"
+            nxReload()
+        end)
+        local function btn(text, w, x, fn)
+            local b = CreateFrame("Button", nil, nxWin, "UIPanelButtonTemplate")
+            b:SetSize(w, 22)
+            b:SetPoint("TOPLEFT", x, -34)
+            b:SetText(text)
+            b:SetScript("OnClick", fn)
+            return b
+        end
+        btn("Select all shown", 120, 184, function()
+            for _, c in ipairs(nx.list) do if not nx.zone or c.map == nx.zone then nx.sel[nxKey(c)] = true end end
+            nxFill()
+        end)
+        btn("Select none", 90, 308, function() wipe(nx.sel); nxFill() end)
+        btn("Build route", 100, 402, function()
+            local byMap, bestMap, bestN = {}, nil, 0
+            for _, c in ipairs(nx.list) do
+                if nx.sel[nxKey(c)] and c.sp.hx then
+                    byMap[c.map] = byMap[c.map] or {}
+                    table.insert(byMap[c.map], { name = c.sp.name, x = c.sp.hx, y = c.sp.hy })
+                    if #byMap[c.map] > bestN then bestMap, bestN = c.map, #byMap[c.map] end
+                end
+            end
+            if not bestMap then SFP:Print("Tick at least two rares in one zone first."); return end
+            if SFP.OpenMapTo then SFP:OpenMapTo(bestMap) end
+            SFP:RouteFromSpots(bestMap, byMap[bestMap])
+        end)
+        btn("Clear route", 90, 508, function() SFP:ClearRoute() end)
+        local zs = nxWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        zs:SetPoint("TOPLEFT", 14, -66)
+        zs:SetText("Zones (pick one):")
+        nxWin.zones = SFP.MakeRowList(nxWin, 10, -82, 176, 500, 24)
+        local sf = CreateFrame("ScrollFrame", nil, nxWin, "UIPanelScrollFrameTemplate")
+        sf:SetPoint("TOPLEFT", 200, -70)
+        sf:SetSize(400, 512)
+        nxWin.child = CreateFrame("Frame", nil, sf)
+        nxWin.child:SetSize(400, 10)
+        sf:SetScrollChild(nxWin.child)
+    end
+    nxWin:Show()
+    nxReload()
 end
 
 SFP.MakeToolWindow = makeWindow

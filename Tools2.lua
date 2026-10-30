@@ -381,6 +381,13 @@ function SFP:ShowKeys()
     else
         for _, d in ipairs(b) do lines[#lines + 1] = ("  %s - %s"):format(d.name, d.zone) end
     end
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "|cff00e5ffHow to get keys|r"
+    lines[#lines + 1] = "  - A bountiful delve needs a Restored Coffer Key and gives an extra chest."
+    lines[#lines + 1] = "  - Keys are made from Coffer Key Shards: 100 shards make 1 key (that is how it worked in The War Within)."
+    lines[#lines + 1] = "  - Shards come from delve activity (finishing delves, delve bosses and chests) and from the weekly delve quest."
+    lines[#lines + 1] = "  - There is a weekly limit on how many keys you can earn; the currency list above shows how many you earned this week."
+    lines[#lines + 1] = "|cff808080The shard amounts and weekly limits come from the War Within rules and may differ in Midnight; the addon could not verify them against the current game.|r"
     keyWin:SetContent(table.concat(lines, "\n"))
     keyWin:Show()
 end
@@ -403,8 +410,87 @@ SFP.CURIOS = {
     { "Motionless Nulltide", "utility", "Standing still in combat gives a stack every 6 sec (up to 10), each +1% movement speed. Jumping at 10 stacks turns them into 1% haste each for 10 sec and knocks up nearby enemies (once per 20 sec)." },
     { "Overflowing Voidspire", "utility", "After 25 sec of combat you and Valeera deal 18% more damage and healing for 35 sec (35 sec cooldown). Recommended for the Nullaeus fight." },
     { "Time Lost Edict", "utility", "She sometimes makes a zone at an ally: allies get 5% more movement speed, cooldown recharge and cast speed, enemies get the opposite, for 12 sec." },
+    -- Season 2 (patch 12.1), from the Seramate PTR guide, Warcraft Wiki and boostroom/expcarry; the list may still change
+    { "Essence Trap", "combat", "Season 2: she may place a trap in combat. An enemy within 3 yards triggers a 20% slow for 5 sec, then moderate Nature damage and a 1 sec stun." },
+    { "Ouroboric Curse", "combat", "Season 2: when anyone drops below 50% health, nearby enemies are horrified for 8 sec and gain 15% primary damage and 100% Leech, Avoidance and Speed. Once per 2 min; killing Poisoned enemies shortens the cooldown by 12 sec." },
+    { "Corrosive Bilespear", "combat", "Season 2: same trigger as Ouroboric Curse, but weaker: horrified 6 sec, 5% primary damage, 50% Leech, Avoidance and Speed. Once per 2 min." },
+    { "Soul-Cracking Dreamcatcher", "utility", "Season 2: when a party member interrupts or crowd-controls an Elite, it takes 10% more damage for 30 sec, stacking up to 2 times." },
+    { "Dundun's Favor", "utility", "Season 2: a Mislaid Spirit may appear in combat. Walking over a Mislaid Curiosity or Spirit fires 6 Volatile Sprites at random nearby enemies." },
+    { "Venom Infusion", "utility", "Season 2: party members are Poisoned on entering combat (1% of current health as Nature damage per minute) but gain 1% movement speed and Haste per 5% health missing, reversed for the first 6 sec. Guides disagree whether this is a combat or utility curio - check in game." },
 }
 SFP.CURIO_BEST = "Best at the start of Season 1 (Icy Veins): Porcelain Blade Tip (combat) and Mandate of Sacred Death (utility). For the Nullaeus fight take Overflowing Voidspire instead of the Mandate."
+
+-- the companion's curio slots, named by the game's own list (Enum.CompanionConfigSlotTypes), in slot order
+function SFP:CurioSlots()
+    local out, have = {}, {}
+    local E = Enum and Enum.CompanionConfigSlotTypes
+    if type(E) == "table" then
+        local tmp = {}
+        for name, value in pairs(E) do
+            if type(name) == "string" and type(value) == "number" then tmp[#tmp + 1] = { name = name, value = value } end
+        end
+        table.sort(tmp, function(a, b) return a.value < b.value end)
+        for _, e in ipairs(tmp) do
+            local label = e.name:gsub("(%l)(%u)", "%1 %2")
+            out[#out + 1] = { key = e.name:lower(), label = label }
+            have[e.name:lower()] = true
+        end
+    end
+    for _, k in ipairs({ "combat", "utility" }) do
+        if not have[k] then out[#out + 1] = { key = k, label = k:sub(1, 1):upper() .. k:sub(2) } end
+    end
+    return out
+end
+
+-- tier, companion role and curios are saved per delve; "default" is used by every delve without its own choice
+function SFP:DelveCfg()
+    local db = self.db
+    db.delveCfg = db.delveCfg or {}
+    if not db.delveCfg.default then
+        db.delveCfg.default = { tier = db.delveTier, companion = db.delveCompanion, curios = db.delveCurios or {} }
+    end
+    local key = db.delveSel and db.delveSel:lower() or "default"
+    db.delveCfg[key] = db.delveCfg[key] or {}
+    return db.delveCfg[key], db.delveCfg.default, key
+end
+
+function SFP:DelveGet(field, slot)
+    local c, d = self:DelveCfg()
+    if field == "curio" then
+        return (c.curios and c.curios[slot]) or (d.curios and d.curios[slot])
+    end
+    if c[field] ~= nil then return c[field] end
+    return d[field]
+end
+
+function SFP:DelveSet(field, value, slot)
+    local c, d, key = self:DelveCfg()
+    if not c then c = {}; self.db.delveCfg[key] = c end
+    if field == "curio" then
+        c.curios = c.curios or {}
+        c.curios[slot] = value
+    else
+        c[field] = value
+    end
+end
+
+-- what the addon's guide data says about running one delve with Valeera (sentences that mention her)
+function SFP:DelveTips(name)
+    local okM, _, cns = pcall(SFP_Module, "Codex")
+    local g = okM and cns and cns.DELVE_GUIDES and cns.DELVE_GUIDES[(name or ""):lower()]
+    if not g then return nil end
+    local out = { where = g.where, variants = {}, tips = {} }
+    for _, v in ipairs(g.variants or {}) do out.variants[#out.variants + 1] = v[1] end
+    local function scan(label, text)
+        for sentence in tostring(text or ""):gmatch("[^%.]+%.?") do
+            if sentence:find("Valeera", 1, true) then out.tips[#out.tips + 1] = label .. ": " .. strtrim(sentence) end
+        end
+    end
+    for _, v in ipairs(g.variants or {}) do scan(v[1], v[2]) end
+    for _, b in ipairs(g.bosses or {}) do scan(b[1], b[2]) end
+    for _, t in ipairs(g.trash or {}) do scan("Trash", t) end
+    return out
+end
 
 local function recommendCompanion(spec)
     if not spec then return "Healer" end
@@ -431,9 +517,66 @@ function SFP:DelveInfo()
     for _, sp in ipairs(info.specs) do if sp.id == want then info.spec = sp end end
     info.following = db.delveSpec == nil
     info.recommended = recommendCompanion(info.spec)
-    info.chosen = db.delveCompanion
-    info.companion = db.delveCompanion or info.recommended
+    info.chosen = self:DelveGet("companion")
+    info.companion = info.chosen or info.recommended
     return info
+end
+
+-- the setup the guides recommend for the spec selected on the planner (changes when you pick another spec)
+-- Sources: Icy Veins (Season 1), expcarry.com / Seramate (Season 2); only curios the addon lists are suggested
+function SFP:DelveBestSetup()
+    local info = self:DelveInfo()
+    local out = { companion = info.recommended, curios = {}, lines = {} }
+    if not info.spec then return out end
+    -- a delve's own guide can ask for a different companion role (sentences about Valeera)
+    local delveNote
+    if self.db.delveSel then
+        local tips = self:DelveTips(self.db.delveSel)
+        local roles, first = {}, nil
+        for _, t in ipairs(tips and tips.tips or {}) do
+            for _, r in ipairs({ "Healer", "Tank", "Damage" }) do
+                if t:find(r, 1, true) then roles[r] = true; first = first or t end
+            end
+        end
+        local n, only = 0, nil
+        for r in pairs(roles) do n = n + 1; only = r end
+        if n == 1 then out.companion = only; delveNote = first end
+    end
+    local known = {}
+    for _, cu in ipairs(self.CURIOS or {}) do known[cu[1]] = cu[2] end
+    local function pick(slot, ...)
+        for _, name in ipairs({ ... }) do
+            if known[name] == slot then out.curios[slot] = name; return end
+        end
+    end
+    -- Season 2 guide setup (one guide); Season 1 picks as the fallback when those curios are not in the list
+    if out.companion == "Healer" then
+        pick("combat", "Corrosive Bilespear", "Porcelain Blade Tip")
+        pick("utility", "Soul-Cracking Dreamcatcher", "Mandate of Sacred Death")
+    elseif out.companion == "Tank" then
+        pick("combat", "Mantle of Stars", "Corrosive Bilespear", "Porcelain Blade Tip")
+        pick("utility", "Soul-Cracking Dreamcatcher", "Mandate of Sacred Death")
+    else
+        pick("combat", "Corrosive Bilespear", "Porcelain Blade Tip")
+        pick("utility", "Soul-Cracking Dreamcatcher", "Mandate of Sacred Death")
+    end
+    local L = out.lines
+    L[#L + 1] = ("|cff00e5ffSuggested setup for %s|r"):format(info.spec.name)
+    if self.db.delveSel then L[1] = ("|cff00e5ffSuggested setup for %s in %s|r"):format(info.spec.name, self.db.delveSel) end
+    L[#L + 1] = ("  Valeera as |cff40ff40%s|r"):format(out.companion)
+    if delveNote then L[#L + 1] = "  |cff808080Why (guide for this delve): " .. delveNote .. "|r" end
+    for i, sl in ipairs(self:CurioSlots()) do
+        if out.curios[sl.key] then L[#L + 1] = ("  Slot %d %s: |cff40ff40%s|r"):format(i, sl.label, out.curios[sl.key]) end
+    end
+    L[#L + 1] = "  Poison (Season 2): Frostheart Venom"
+    L[#L + 1] = "|cff808080From the Season 2 guides (mostly one guide). Against the Nullaeus fight take Overflowing Voidspire as the utility curio; Mandate of Sacred Death does nothing where there are no profession nodes. Best-in-slot gear is not included: no checked source yet.|r"
+    return out
+end
+
+function SFP:UseBestSetup()
+    local b = self:DelveBestSetup()
+    self:DelveSet("companion", b.companion)
+    for slot, name in pairs(b.curios) do self:DelveSet("curio", name, slot) end
 end
 
 function SFP:DelveAdvice()
@@ -446,11 +589,13 @@ function SFP:DelveAdvice()
             info.chosen and (info.chosen ~= info.recommended and (" - your choice; the best for this spec is " .. info.recommended) or " - your choice, also the best for this spec") or " - the best for this spec")
         lines[#lines + 1] = "Curios: one Combat and one Utility slot. If your class has no crowd control, take a stun or slow curio. Tanks and healers: a damage curio helps the run go faster."
     end
-    local cur = self.db.delveCurios or {}
-    if cur.combat or cur.utility then
-        lines[#lines + 1] = "Your curios: " .. (cur.combat or "no combat curio") .. " + " .. (cur.utility or "no utility curio")
+    local parts = {}
+    for i, sl in ipairs(self:CurioSlots()) do
+        local n = self:DelveGet("curio", sl.key)
+        if n then parts[#parts + 1] = ("Slot %d %s: %s"):format(i, sl.label, n) end
     end
-    local tier = self.db.delveTier
+    if #parts > 0 then lines[#lines + 1] = "Your curios: " .. table.concat(parts, "  |  ") end
+    local tier = self:DelveGet("tier")
     lines[#lines + 1] = tier and ("Comfortable tier (you set it): |cffffd100" .. tier .. "|r. Use bountiful keys at this tier or one above.")
         or "Type the tier you can do safely into the box; the addon remembers it."
     return table.concat(lines, "\n\n")
@@ -460,7 +605,7 @@ end
 function SFP:SetDelveTier(text)
     local n = tonumber(text)
     if n then n = math.max(1, math.min(11, math.floor(n))) end
-    self.db.delveTier = n
+    self:DelveSet("tier", n)
     return n
 end
 
@@ -571,6 +716,38 @@ end)
 ---------------------------------------------------------------------------
 -- 10. housing decor you can craft (Midnight): the recipes the addon knows about
 ---------------------------------------------------------------------------
+-- decor named in the Warcraft Tavern / Warcraft Secrets housing articles (no game IDs known): { name, where to get it }
+local DECOR_NAMED = {
+    { "Jewelcrafter's Tent", "Quest: The Perenolde Tiara (Alliance); Stormwind vendor for gold" },
+    { "Akunda the Tapestry", "Quest: Clearing the Fog (Horde); Zuldazar vendor for War Resources" },
+    { "Shaohao Ceremonial Bell", "Quest in Kun-Lai Summit; Lorewalkers in the Vale of Eternal Blossoms for gold" },
+    { "Head of the Broodmother", "Achievement: More DoTs! (25 Player), Onyxia's Lair" },
+    { "Portal to Damnation", "Achievement: Back from the Beyond; Ve'nari in the Maw" },
+    { "Iron Dragonmaw Gate", "Achievement: The Master of Twin Peaks; capital-city vendors for Marks of Honor" },
+    { "Lorewalker's Bookcase", "Lorewalkers, Revered" },
+    { "Empty Lorewalker's Bookcase", "Lorewalkers, Revered" },
+    { "Zandalari War Torch", "Talanji's Expedition, Honored" },
+    { "Zandalari Sconce", "Talanji's Expedition, Honored" },
+    { "Shadowmoon Greenhouse", "Council of Exarchs, Exalted" },
+    { "Grand Draenethyst Lamp", "Council of Exarchs, Exalted" },
+    { "The Large Razorwind Gazebo", "Neighborhood vendor, Razorwind Shores" },
+    { "Wooden Gazebo", "Neighborhood vendor, Founder's Point" },
+    { "A Wrought Iron Chandelier", "Neighborhood vendor, Founder's Point" },
+    { "Iron Chain Chandelier", "Neighborhood vendor, Razorwind Shores" },
+    { "Thunder Totem Brazier", "Neltharion's Lair, final boss" },
+    { "Gilnean Circular Rug", "Shadowfang Keep, final boss" },
+    { "Fate of All Life Painting", "Waycrest Manor, final boss" },
+    { "Tidesage's Fireplace", "Shrine of the Storm, final boss" },
+    { "Dalaran Display Shelves", "Inscription (Legion)" },
+    { "Draenei Holo-Dais", "Enchanting (Outland)" },
+    { "Draenei Holo-Path", "Enchanting (Outland)" },
+    { "Intense Mogu Brazier", "Enchanting (Pandaria)" },
+    { "Valdrakken Fences", "Jewelcrafting (Dragon Isles)" },
+    { "Valdrakken Fenceposts", "Jewelcrafting (Dragon Isles)" },
+    { "Draenethyst Sconce", "Jewelcrafting (Draenor)" },
+    { "Miniature Replica Dark Portal", "Pre-Launch Event (recipe from a Heavy Junkbox)" },
+}
+
 local DECOR = {
     { 1246939, "Haranir Canopy Bed", "Harandar treasures" },
     { 1246943, "Plush Haranir Leather Pillow", "Heavy Trunk (Delves)" },
@@ -632,6 +809,9 @@ local function decorEntries()
             local ok, has = pcall(function() return IsPlayerSpell and IsPlayerSpell(d[1]) or (IsSpellKnown and IsSpellKnown(d[1])) end)
             list[#list + 1] = { name = d[2], owned = ok and has and true or false, source = d[3], recipe = true }
         end
+        for _, d in ipairs(DECOR_NAMED) do
+            list[#list + 1] = { name = d[1], owned = false, unknownOwned = true, source = d[2] }
+        end
     end
     table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
     decorCache, decorAt = { list = list, fromGame = fromGame }, GetTime()
@@ -658,7 +838,7 @@ local function decorRefresh()
                 local farm = ""
                 local src = e.itemID and SFP.itemSources and SFP.itemSources[e.itemID]
                 if src and src[1] then farm = "  |cff80ff80farm: " .. src[1] .. "|r" end
-                lines[#lines + 1] = ("%s %s%s%s"):format(e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r", e.name,
+                lines[#lines + 1] = ("%s %s%s%s"):format(e.unknownOwned and "|cff808080owned?|r" or (e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r"), e.name,
                     (e.source and e.source ~= "") and ("  |cff808080- " .. e.source .. "|r") or "", farm)
             end
         end
