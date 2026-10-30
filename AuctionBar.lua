@@ -50,7 +50,7 @@ local function build()
     if bar or not AuctionHouseFrame then return end
     bar = CreateFrame("Frame", "SeviathsUsefulToolsScanBar", AuctionHouseFrame)
     bar:SetSize(466, 22)
-    bar:SetPoint("TOPLEFT", AuctionHouseFrame, "BOTTOMLEFT", 6, 2)
+    bar:SetPoint("TOPLEFT", AuctionHouseFrame, "BOTTOMLEFT", 6, -40)   -- below the tab row, where Auctionator, TSM and others put their tabs
     bar:SetFrameStrata("HIGH")
 
     button = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
