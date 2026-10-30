@@ -62,3 +62,5 @@
 - Gorgrond rare elites (8) and Vyragosa added; 152 rares that had a single map dot now show their full spawn areas from Wowhead.
 
 - Gathering: Stranglekelp, Arthas' Tears and Osmenite Deposit added with best zones and node counts; Grime and Grease (Court of Rats) added; The Dreamrift is listed as a raid (its two recipes); the old quest-marker commands now say they are not in this edition, and the help text lists every command.
+
+- Fixed a Lua error on monster tooltips (the game hides the unit of some tooltips as a secret value, which UnitGUID refused); all GUID lookups now tolerate that.

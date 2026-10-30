@@ -121,7 +121,7 @@ local function onLoot()
                     rec = { kills = 0, items = {}, pts = {} }
                     SFP.db.learned[map][npcID] = rec
                 end
-                if UnitGUID("target") == sources[i] then rec.name = UnitName("target") end
+                do local ok, tg = pcall(UnitGUID, "target"); if ok and not (issecretvalue and issecretvalue(tg)) and tg == sources[i] then rec.name = UnitName("target") end end
                 if not rec.name and type(npcID) == "string" and SFP.RecentCastTarget then rec.name = SFP:RecentCastTarget() end
                 if not seenMob[sources[i]] then
                     seenMob[sources[i]] = true

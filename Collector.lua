@@ -13,6 +13,14 @@
 
 local ADDON, SFP = ...
 
+-- UnitGUID of a unit token, nil when the unit is unknown or the game hides the value (secret values)
+local function safeGUID(unit)
+    if type(unit) ~= "string" or (issecretvalue and issecretvalue(unit)) then return nil end
+    local ok, g = pcall(UnitGUID, unit)
+    if ok and type(g) == "string" and not (issecretvalue and issecretvalue(g)) then return g end
+end
+
+
 local floor, min, max = math.floor, math.min, math.max
 
 local function guidInfo(guid)
@@ -161,7 +169,7 @@ local function onLoot()
             local guid, qty = sources[i], sources[i + 1] or 1
             local kind, id = guidInfo(guid)
             if kind == "npc" then
-                local name = (UnitGUID("target") == guid) and UnitName("target") or nil
+                local name = (safeGUID("target") == guid) and UnitName("target") or nil
                 local rec = ensureNpc(id, name)
                 if not seenGuid[guid .. (skin and "s" or "")] then
                     seenGuid[guid .. (skin and "s" or "")] = true
@@ -447,18 +455,20 @@ local function unitTip(tt, data)
     local function dbg(msg) if SFP.tipDebug then SFP:Print("unit tooltip: " .. msg) end end
     if not SFP.db or not SFP.db.tooltip then return dbg("tooltip lines are switched off") end
     local guid = data and data.guid
+    if guid and (type(guid) ~= "string" or (issecretvalue and issecretvalue(guid))) then guid = nil end
     local unit
     if not guid then
-        local _, u = tt:GetUnit()
-        unit = u
-        guid = unit and UnitGUID(unit)
+        local ok, _, u = pcall(tt.GetUnit, tt)
+        if ok and type(u) == "string" and not (issecretvalue and issecretvalue(u)) then unit = u
+        elseif UnitExists("mouseover") then unit = "mouseover" end
+        guid = safeGUID(unit)
     end
     if not guid then return dbg("no unit in the tooltip") end
     local kind, id = guidInfo(guid)
     if kind ~= "npc" then return dbg("not a monster") end
     if unit and (UnitIsPlayer(unit) or UnitPlayerControlled(unit)) then return dbg("player or pet") end
     -- friendly NPCs (guards, vendors, auctioneers) are not farm targets: no drop / worth-grinding lines
-    local who = unit or ((UnitGUID("mouseover") == guid) and "mouseover") or ((UnitGUID("target") == guid) and "target")
+    local who = unit or ((safeGUID("mouseover") == guid) and "mouseover") or ((safeGUID("target") == guid) and "target")
     if who and not UnitCanAttack("player", who) then return dbg("friendly") end
     if hasOurLines(tt) then return end
     dbg("npc " .. id)
@@ -526,7 +536,7 @@ local function unitTip(tt, data)
     -- an error in the verdict must not take the rest of the tooltip with it
     local worth
     if SFP.GatherLines then
-        local u = unit or ((guid and UnitGUID("mouseover") == guid) and "mouseover") or "target"
+        local u = unit or ((guid and safeGUID("mouseover") == guid) and "mouseover") or "target"
         local ok, res = pcall(SFP.GatherLines, SFP, "n", id, UnitCreatureType(u), UnitLevel(u), UnitName(u))
         if ok then worth = res else dbg("worth grinding failed: " .. tostring(res)) end
     end
