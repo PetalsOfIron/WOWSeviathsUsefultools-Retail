@@ -184,6 +184,10 @@ local function catRead()
         if id and price and price > 0 and (tracked or catSeenIDs[id]) and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
     end
     catSeen = #results
+    if catTimer then catTimer:Cancel() end
+    catTimer = C_Timer.NewTimer(6, function() catNext() end)
+    SFP.db.scanLog = SFP.db.scanLog or {}
+    SFP.db.scanLog[catQueue[catIndex] or 0] = #results   -- for diagnosis: results read per section
     if C_AuctionHouse.HasFullBrowseResults and C_AuctionHouse.HasFullBrowseResults() then
         catNext()
     elseif C_AuctionHouse.RequestMoreBrowseResults then
@@ -240,6 +244,7 @@ function SFP:StartCategoryScan()
     catIndex, catSeen, catBusy = 0, 0, true
     wipe(catBest)
     wipe(catSeenIDs)
+    SFP.db.scanLog = {}
     catLearned = 0
     catNewIDs = 0
     scanning = true
