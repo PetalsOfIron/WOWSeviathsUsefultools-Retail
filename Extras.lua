@@ -41,6 +41,13 @@ function SFP:NoteKill(npcID)
     if self.session then self.session.kills = self.session.kills + 1 end
 end
 
+-- forget what this character killed today (the greyed rares come back)
+function SFP:ClearKilled()
+    if self.db and self.db.killed then self.db.killed[charKey()] = nil end
+    if self.RefreshWorldMap then pcall(self.RefreshWorldMap) end
+    self:Print("Today's kills forgotten - the rares are shown again.")
+end
+
 function SFP:RareKilledToday(npcID)
     local k = self.db and self.db.killed and self.db.killed[charKey()]
     local t = k and k[npcID]
@@ -558,7 +565,7 @@ local function checkVignette(vguid)
     x, y = x or rec.sp.hx, y or rec.sp.hy
     local link = (x and y) and (" |cff00e5ff|Haddon:SUT:way:" .. map .. ":" .. x .. ":" .. y .. "|h[set waypoint]|h|r") or ""
     SFP:Print("|cffff9933Rare nearby:|r " .. (rec.sp.name or "?") .. " - you still miss: " .. table.concat(missing, ", ") .. link)
-    if PlaySound and SOUNDKIT and SOUNDKIT.UI_RAID_BOSS_WHISPER_WARNING then PlaySound(SOUNDKIT.UI_RAID_BOSS_WHISPER_WARNING) end
+    if SFP.db.rareAlertSound ~= false and PlaySound and SOUNDKIT and SOUNDKIT.UI_RAID_BOSS_WHISPER_WARNING then PlaySound(SOUNDKIT.UI_RAID_BOSS_WHISPER_WARNING) end
 end
 
 local vf = CreateFrame("Frame")
