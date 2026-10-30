@@ -29,6 +29,9 @@ local function refresh()
         elseif st.phase == "read" then
             value = st.total > 0 and st.done / st.total or 0
             text = ("Reading auctions  %d%%"):format(math.floor(value * 100))
+        elseif st.phase == "section" then
+            value = st.total > 0 and st.done / st.total or 0
+            text = ("Scanning section  %d / %d  (%d%%)"):format(st.done, st.total, math.floor(value * 100))
         elseif st.phase == "items" then
             value = st.total > 0 and st.done / st.total or 0
             text = ("Scanning items  %d / %d  (%d%%)"):format(st.done, st.total, math.floor(value * 100))
