@@ -15,6 +15,16 @@ local function ago(t)
     return math.floor(mins / 60) .. " h ago"
 end
 
+-- scans of other realms: { { realm, time }, ... } newest first (this realm's own scan is not in the list)
+local function otherRealmScans()
+    local out, mine = {}, SFP:RealmKey()
+    for realm, t in pairs(SFP.db.realmScan or {}) do
+        if realm ~= mine and t and t > 0 then out[#out + 1] = { realm, t } end
+    end
+    table.sort(out, function(a, b) return a[2] > b[2] end)
+    return out
+end
+
 local function refresh()
     if not bar then return end
     local scanning = SFP:IsScanning()
@@ -45,7 +55,10 @@ local function refresh()
         local last = SFP.LastScan and SFP:LastScan()
         local when = ago(last)
         local limit = (SFP.db.rescanHours or 12) * 3600
-        if not when or not last or last == 0 then
+        local others = otherRealmScans()
+        if (not last or last == 0) and #others > 0 then
+            text, old = "Prices are from another realm: " .. others[1][1] .. " - scan this realm", true
+        elseif not when or not last or last == 0 then
             text, old = "Prices are old data - scan for current prices", true
         elseif time() - last > limit then
             text, old = "Prices: last scan " .. when .. " - scan for current", true
@@ -87,6 +100,12 @@ local function build()
     status:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Auction prices", 1, 1, 1)
+        local others = otherRealmScans()
+        GameTooltip:AddLine("This realm: " .. SFP:RealmKey() .. "  (" .. ((SFP.LastScan and SFP:LastScan() > 0) and ago(SFP:LastScan()) or "not scanned") .. ")", 0.4, 0.9, 1)
+        for _, o in ipairs(others) do GameTooltip:AddLine("Other realm: " .. o[1] .. "  (" .. (ago(o[2]) or "?") .. ")", 1, 0.8, 0.3) end
+        if #others > 0 and (not SFP.LastScan or SFP:LastScan() == 0) then
+            GameTooltip:AddLine("This realm has no scan, so prices shown come from another realm and may be wrong here.", 1, 0.8, 0.3, true)
+        end
         GameTooltip:AddLine("Prices come from your last scan. If there is none or it is old, press Scan prices for current prices. Until then the addon uses Auctionator or TradeSkillMaster prices when you have them, also data they got from another PC or account.", 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
