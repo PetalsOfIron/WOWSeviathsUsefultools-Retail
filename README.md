@@ -31,3 +31,6 @@ The packaging is set up, nothing is uploaded until you do these once:
 4. Update the version in the `.toc` and `CHANGELOG.md`, commit, then push a tag: `git tag v2.0.1 && git push origin v2.0.1`.
 
 The workflow in `.github/workflows/release.yml` builds the zip (rules in `.pkgmeta`) and uploads it with the changelog.
+
+## Credits
+- Housing decor data: Vamoose's Housing Decor Guide (VamooseAddons/housing-decor-guide, MIT licence), state of 2026-10-26.

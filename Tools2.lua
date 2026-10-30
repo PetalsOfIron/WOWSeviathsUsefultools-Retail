@@ -524,6 +524,23 @@ end
 
 -- the setup the guides recommend for the spec selected on the planner (changes when you pick another spec)
 -- Sources: Icy Veins (Season 1), expcarry.com / Seramate (Season 2); only curios the addon lists are suggested
+-- best curios per slot, in the order the guides give (Season 2 first, then Season 1); other curios are not ranked
+SFP.CURIO_RANK = {
+    combat = { "Corrosive Bilespear", "Porcelain Blade Tip" },
+    utility = { "Soul-Cracking Dreamcatcher", "Mandate of Sacred Death" },
+}
+
+-- the best curio of a slot among the ones you marked as owned (right-click a curio on the planner); none marked = best overall
+function SFP:BestCurio(slot)
+    local owned = self.db.curiosOwned or {}
+    local any = false
+    for _, cu in ipairs(self.CURIOS or {}) do if cu[2] == slot and owned[cu[1]] then any = true end end
+    for _, name in ipairs((self.CURIO_RANK or {})[slot] or {}) do
+        if not any or owned[name] then return name, any end
+    end
+    return nil, any
+end
+
 function SFP:DelveBestSetup()
     local info = self:DelveInfo()
     local out = { companion = info.recommended, curios = {}, lines = {} }
@@ -544,9 +561,17 @@ function SFP:DelveBestSetup()
     end
     local known = {}
     for _, cu in ipairs(self.CURIOS or {}) do known[cu[1]] = cu[2] end
+    local owned = self.db.curiosOwned or {}
     local function pick(slot, ...)
-        for _, name in ipairs({ ... }) do
-            if known[name] == slot then out.curios[slot] = name; return end
+        local list = { ... }
+        local anyOwned = false
+        for _, cu in ipairs(self.CURIOS or {}) do if cu[2] == slot and owned[cu[1]] then anyOwned = true end end
+        for _, name in ipairs(list) do
+            if known[name] == slot and (not anyOwned or owned[name]) then out.curios[slot] = name; return end
+        end
+        -- none of the guide picks owned: the best-ranked one you own, if any
+        for _, name in ipairs((self.CURIO_RANK or {})[slot] or {}) do
+            if owned[name] then out.curios[slot] = name; return end
         end
     end
     -- Season 2 guide setup (one guide); Season 1 picks as the fallback when those curios are not in the list
@@ -799,20 +824,48 @@ local function catalogEntries()
     return out
 end
 
+-- owned count of one decor item from the game's housing catalog (nil = the game would not say)
+local function decorOwned(itemID)
+    local H = C_HousingCatalog
+    if not (H and H.GetCatalogEntryInfoByItem) then return nil end
+    local ok, info = pcall(H.GetCatalogEntryInfoByItem, itemID, true)
+    if not ok or type(info) ~= "table" then return nil end
+    return (tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0)
+end
+
 local function decorEntries()
-    if decorCache and GetTime() - decorAt < 20 then return decorCache.list, decorCache.fromGame end
-    local list = catalogEntries()
-    local fromGame = list ~= nil
-    if not list then
-        list = {}
-        for _, d in ipairs(DECOR) do
-            local ok, has = pcall(function() return IsPlayerSpell and IsPlayerSpell(d[1]) or (IsSpellKnown and IsSpellKnown(d[1])) end)
-            list[#list + 1] = { name = d[2], owned = ok and has and true or false, source = d[3], recipe = true }
-        end
-        for _, d in ipairs(DECOR_NAMED) do
-            list[#list + 1] = { name = d[1], owned = false, unknownOwned = true, source = d[2] }
+    if decorCache and GetTime() - decorAt < 60 then return decorCache.list, decorCache.fromGame end
+    local list, byName, fromGame = {}, {}, false
+    for _, d in ipairs(SFP.DecorData or {}) do
+        local name = d[3] ~= "" and d[3] or ("Decor item " .. d[1])
+        local e = { name = name, itemID = d[1], decorID = d[2] > 0 and d[2] or nil, source = d[4], unknownOwned = true }
+        local own = decorOwned(d[1])
+        if own ~= nil then e.owned, e.unknownOwned, fromGame = own > 0, false, true end
+        list[#list + 1] = e
+        byName[name:lower()] = e
+    end
+    -- what the game's catalog lists on top (decor newer than the addon's data), and its owned state
+    local cat = catalogEntries()
+    if cat then
+        fromGame = true
+        for _, c in ipairs(cat) do
+            local e = byName[c.name:lower()]
+            if e then
+                e.owned, e.unknownOwned = c.owned, false
+                if (e.source or "") == "" then e.source = c.source end
+            else
+                c.itemID = c.itemID
+                list[#list + 1] = c
+            end
         end
     end
+    -- the craftable recipes: known or not
+    local have = {}
+    for _, d in ipairs(DECOR) do
+        local ok, has = pcall(function() return IsPlayerSpell and IsPlayerSpell(d[1]) or (IsSpellKnown and IsSpellKnown(d[1])) end)
+        if ok and has then have[d[2]:lower()] = true end
+    end
+    for _, e in ipairs(list) do e.recipeKnown = have[e.name:lower()] end
     table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
     decorCache, decorAt = { list = list, fromGame = fromGame }, GetTime()
     return list, fromGame
@@ -824,26 +877,26 @@ local function decorRefresh()
     local filter = (decorBox:GetText() or ""):lower()
     local lines, shown, own = {}, 0, 0
     for _, e in ipairs(list) do if e.owned then own = own + 1 end end
-    lines[1] = fromGame and ("|cff808080%d decor items in the game's catalog, you own %d. Where to find them is the game's own source text; the green 'farm' part is added from the addon's farm data when it knows a place.|r"):format(#list, own)
-        or ("|cffffd100The game's housing catalog could not be read here, so this shows the " .. #list .. " craftable decor recipes the addon knows (you know " .. own .. ").|r")
+    lines[1] = ("|cff808080%d decor items. %s Where to get them: the source text; 'farm:' in green is added when the addon knows a place.|r"):format(#list,
+        fromGame and ("You own " .. own .. " (read from the game).") or "The game's housing catalog could not be read, so owned or not is unknown (owned? = unknown).")
     lines[2] = ""
     for _, e in ipairs(list) do
-        local pass = (decorMode == "all") or (decorMode == "missing" and not e.owned) or (decorMode == "owned" and e.owned)
+        local pass = (decorMode == "all") or (decorMode == "missing" and not e.owned and not e.unknownOwned) or (decorMode == "owned" and e.owned)
         if pass and filter ~= "" then
             pass = e.name:lower():find(filter, 1, true) or (e.source or ""):lower():find(filter, 1, true)
         end
         if pass then
             shown = shown + 1
-            if shown <= 80 then
+            if shown <= 200 then
                 local farm = ""
                 local src = e.itemID and SFP.itemSources and SFP.itemSources[e.itemID]
                 if src and src[1] then farm = "  |cff80ff80farm: " .. src[1] .. "|r" end
-                lines[#lines + 1] = ("%s %s%s%s"):format(e.unknownOwned and "|cff808080owned?|r" or (e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r"), e.name,
+                lines[#lines + 1] = ("%s %s%s%s"):format(e.unknownOwned and "|cff808080owned?|r" or (e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r"), e.name .. (e.recipeKnown and "  |cff40ff40recipe known|r" or ""),
                     (e.source and e.source ~= "") and ("  |cff808080- " .. e.source .. "|r") or "", farm)
             end
         end
     end
-    if shown > 80 then lines[#lines + 1] = ("|cff808080+%d more - use the search box to narrow it down|r"):format(shown - 80) end
+    if shown > 200 then lines[#lines + 1] = ("|cff808080+%d more - use the search box to narrow it down|r"):format(shown - 200) end
     if shown == 0 then lines[#lines + 1] = "Nothing matches." end
     for _, bt in ipairs(decorBtns) do bt:SetText((bt.mode == decorMode and "|cff40ff40" or "") .. bt.label) end
     decorWin:SetContent(table.concat(lines, "\n"))
