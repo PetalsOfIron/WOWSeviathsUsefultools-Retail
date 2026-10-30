@@ -178,6 +178,11 @@ local function catRead()
         end
         -- the auction house also teaches the addon: trade goods it has not seen are added to the learned items (and become farm items)
         local tracked = id and SFP.trackedIDs[id]
+        local longScan = SFP.db.longScan
+        if longScan and id and SFP.RecordItem and not (SFP.db.knownItems and SFP.db.knownItems[id]) then
+            SFP.RecordItem(id)   -- long scan: full details of every item
+            catSeenIDs[id] = true
+        end
         if id and not tracked and not (SFP.db.knownItems and SFP.db.knownItems[id]) and C_Item and C_Item.GetItemInfoInstant then
             local _, _, _, _, _, classID = C_Item.GetItemInfoInstant(id)
             if classID == 7 and SFP.RecordItem then
@@ -187,7 +192,7 @@ local function catRead()
                 catSeenIDs[id] = true
             end
         end
-        if id and price and price > 0 and (tracked or catSeenIDs[id]) and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
+        if id and price and price > 0 and (tracked or catSeenIDs[id] or longScan) and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
     end
     catSeen = #results
     if catTimer then catTimer:Cancel() end
