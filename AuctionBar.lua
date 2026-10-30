@@ -56,14 +56,15 @@ local function refresh()
         local when = ago(last)
         local limit = (SFP.db.rescanHours or 12) * 3600
         local others = otherRealmScans()
+        local realm = (GetRealmName and GetRealmName()) or SFP:RealmKey()
         if (not last or last == 0) and #others > 0 then
-            text, old = "Prices are from another realm: " .. others[1][1] .. " - scan this realm", true
+            text, old = "Prices from another realm (" .. others[1][1] .. ") - scan " .. realm, true
         elseif not when or not last or last == 0 then
-            text, old = "Prices are old data - scan for current prices", true
+            text, old = "Prices for " .. realm .. ": old data - scan for current", true
         elseif time() - last > limit then
-            text, old = "Prices: last scan " .. when .. " - scan for current", true
+            text, old = "Prices for " .. realm .. ": last scan " .. when .. " - scan", true
         else
-            text = "Prices: last scan " .. when
+            text = "Prices for " .. realm .. ": last scan " .. when
         end
     end
     status:SetValue(value)
