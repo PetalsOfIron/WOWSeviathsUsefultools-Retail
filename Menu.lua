@@ -691,9 +691,73 @@ local buildZone = simplePage("Zone Check",
     end)
 
 local buildDecor = simplePage("Housing Decor",
-    "Every housing decor the game lists, whether you own it, and where to get it (the game's own source text, plus the addon's farm places when it knows them). Search it, or show only what you miss.",
+    "Housing planner: search any decor of any section, add it to your plan and keep it. The plan is saved for all your characters and shows if you already own each decor and where to get it. " ..
+    "Below it you can open the full decor list.",
     function(pane, y)
-        mkButton(pane, "Open decor list", 170, function() SFP:ShowDecor() end):SetPoint("TOPLEFT", 12, y)
+        mkText(pane, CYHEX .. "Your housing plan|r", 12, y, 400, "GameFontNormal")
+        local plan = SFP.MakeRowList(pane, 8, y - 20, 500, 150, 22)
+        local planInfo = mkText(pane, "", 12, y - 174, 480, "GameFontHighlightSmall")
+        mkText(pane, "Add decor - search by name or by where it comes from:", 12, y - 194, 400, "GameFontHighlightSmall")
+        local box = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
+        box:SetSize(260, 20)
+        box:SetPoint("TOPLEFT", 16, y - 212)
+        box:SetAutoFocus(false)
+        box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        local results = SFP.MakeRowList(pane, 8, y - 236, 500, 130, 22)
+        local function planData()
+            SFP.db.decorPlan = SFP.db.decorPlan or {}
+            return SFP.db.decorPlan
+        end
+        local function inPlan(e)
+            for i, p in ipairs(planData()) do
+                if (e.itemID and p.id == e.itemID) or (not e.itemID and p.name == e.name) then return i end
+            end
+        end
+        local fillPlan, fillResults
+        fillPlan = function()
+            local entries, byId, byName = SFP:DecorEntries(), {}, {}
+            for _, e in ipairs(entries) do
+                if e.itemID then byId[e.itemID] = e end
+                byName[e.name] = e
+            end
+            local items, have = {}, 0
+            for i, p in ipairs(planData()) do
+                local e = (p.id and byId[p.id]) or byName[p.name]
+                local state = (e and e.unknownOwned) and "|cff808080owned?|r" or ((e and e.owned) and "|cff40ff40owned|r" or "|cffff6060missing|r")
+                if e and e.owned then have = have + 1 end
+                local src = e and e.source and e.source ~= "" and ("  |cff808080" .. e.source:sub(1, 90) .. "|r") or ""
+                items[#items + 1] = {
+                    text = state .. " " .. (e and e.name or p.name) .. src,
+                    buttons = { { "Remove", 60, function() table.remove(planData(), i); fillPlan(); fillResults() end } },
+                }
+            end
+            plan:Set(items)
+            planInfo:SetText(#items == 0 and "|cff808080Nothing planned yet. Search below and add decor.|r" or ("|cff808080" .. #items .. " planned, " .. have .. " owned.|r"))
+        end
+        fillResults = function()
+            local q = (box:GetText() or ""):lower()
+            local items = {}
+            if #q >= 2 then
+                for _, e in ipairs(SFP:DecorEntries()) do
+                    if e.name:lower():find(q, 1, true) or (e.source or ""):lower():find(q, 1, true) then
+                        local idx = inPlan(e)
+                        items[#items + 1] = {
+                            text = e.name .. ((e.source and e.source ~= "") and ("  |cff808080" .. e.source:sub(1, 70) .. "|r") or ""),
+                            buttons = { idx and { "Added", 60, function() end } or { "Add", 60, function()
+                                table.insert(planData(), { id = e.itemID, name = e.name })
+                                fillPlan(); fillResults()
+                            end } },
+                        }
+                        if #items >= 60 then break end
+                    end
+                end
+                if #items == 0 then items[1] = { text = "|cff808080Nothing matches.|r", buttons = {} } end
+            end
+            results:Set(items)
+        end
+        box:SetScript("OnTextChanged", function() fillResults() end)
+        mkButton(pane, "Open decor list", 170, function() SFP:ShowDecor() end):SetPoint("TOPLEFT", 12, y - 374)
+        return function() fillPlan() end
     end)
 
 local buildAlts = simplePage("Alt Overview",
