@@ -882,14 +882,10 @@ local function detailText(mode, key)
     elseif mode == "ah" then
         local cls = db.ahItems and db.ahItems[key]
         local className = cls and GetItemClassInfo and GetItemClassInfo(cls) or "?"
-        local t = SFP:ItemName(key) .. "  |cff808080item ID " .. key .. "|r
-Section: " .. tostring(className) .. "
-"
+        local t = SFP:ItemName(key) .. "  |cff808080item ID " .. key .. "|r\nSection: " .. tostring(className) .. "\n"
         local price = SFP:GetPrice(key)
-        t = t .. "Auction price: " .. (price and SFP:FormatPrice(price) or "|cff808080none saved|r") .. "
-"
-        for _, l in ipairs(SFP:ItemTipLines(key)) do t = t .. "
-" .. l[1] end
+        t = t .. "Auction price: " .. (price and SFP:FormatPrice(price) or "|cff808080none saved|r") .. "\n"
+        for _, l in ipairs(SFP:ItemTipLines(key)) do t = t .. "\n" .. l[1] end
         return t
     elseif mode == "recipe" then
         local r = db.recipes[key]
