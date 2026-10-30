@@ -79,3 +79,15 @@
 - Items you collected in a zone now join that zone's item list and the item's "farm in" places when the addon loads (learned from your own loot, account-wide).
 
 - Transmog history: the addon reads your transmog collection once in the background (never in combat) and learns which monsters and bosses you already own gear from, from before it was installed. Monster tooltips say "You already own N items from this monster". /sfp history shows the numbers, /sfp history rescan reads it again.
+
+- The collection history now also reads your mounts and battle pets (their "Drop: ..." source), so monster tooltips can say you already own the mount or pet that monster drops.
+
+- Codex quest pages say when a quest was completed on another character of your account (the game keeps that history).
+
+- The collection history keeps itself current: new appearances, mounts and pets are added the moment you get them, and at login it reads again when the number of mounts or pets changed (for example from another character).
+
+- Codex: new tab "My Collection History" - every monster, rare and boss you already own gear, a mount or a pet from (including ones the Codex has no page for), plus one page for the BoE and world-drop gear you own. Boss, monster and item pages show a "Your collection" line. The info page lists the new features.
+
+- My Collection History is grouped into Bosses (by instance), Rares and Monsters.
+
+- Not only what you own: every rare with a mount, pet or toy is listed in My Collection History with "owned" or "not collected yet", and rare tooltips show the same for each collectible.

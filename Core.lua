@@ -819,10 +819,15 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
             SFP:ScanTransmogHistory(true)
         else
             local h = SFP.db.history
-            local items, mons = 0, 0
+            local items, mons, mnt, pets, boe = 0, 0, 0, 0, 0
+            for _ in pairs(h and h.boe or {}) do boe = boe + 1 end
             for _ in pairs(h and h.items or {}) do items = items + 1 end
-            for _ in pairs(h and h.by or {}) do mons = mons + 1 end
-            SFP:Print(("Transmog history: %d items you own, %d monsters and bosses they drop from. /sfp history rescan reads it again."):format(items, mons))
+            for _, r in pairs(h and h.by or {}) do
+                mons = mons + 1
+                mnt = mnt + (r.mounts and #r.mounts or 0)
+                pets = pets + (r.pets and #r.pets or 0)
+            end
+            SFP:Print(("Collection history: %d transmog items (%d world-drop / BoE), %d mounts and %d pets that drop from %d monsters and bosses. /sfp history rescan reads it again."):format(items, boe, mnt, pets, mons))
         end
     elseif cmd == "tipdebug" then
         SFP.tipDebug = not SFP.tipDebug
@@ -860,7 +865,7 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:Print("/sfp scan - rescan AH prices (auction house must be open)")
         SFP:Print("/sfp min <gold> - only light zones worth at least this much")
         SFP:Print("/sfp tooltip - toggle the item tooltip lines")
-        SFP:Print("/sfp history - what your transmog collection says you already looted (rescan to refresh)")
+        SFP:Print("/sfp history - what your transmog, mount and pet collections say you already looted (rescan to refresh)")
         SFP:Print("/sfp craft - the most profitable recipes you know")
         SFP:Print("/sfp income - toggle the gold messages (vendor, mail, quests)")
         SFP:Print("/sfp sold - toggle the chat message when an auction sells")

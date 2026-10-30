@@ -258,6 +258,7 @@ do
     if open then
         ns.Open = function(self, ...)
             if self.RefreshGrind then pcall(self.RefreshGrind, self) end
+            if self.RefreshHistory then pcall(self.RefreshHistory, self) end
             return open(self, ...)
         end
     end

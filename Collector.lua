@@ -494,9 +494,13 @@ local function unitTip(tt, data)
         local nm = rec and rec.n
         if not nm and unit then local okn, n = pcall(UnitName, unit); if okn then nm = n end end
         local past = SFP.HistoryFor and SFP:HistoryFor(nm)
-        if past then
-            tt:AddLine(("|cff80ff80You already own %d item%s from this monster%s (transmog collection)|r"):format(
-                past.c, past.c == 1 and "" or "s", past.i and (" in " .. past.i) or ""))
+        if past then tt:AddLine("|cff80ff80" .. SFP:HistoryText(past) .. "|r", 1, 1, 1, true) end
+        -- collectibles this one can drop: mount / pet / toy, and whether you already have each
+        for _, itemID in ipairs((SFP.farmNpc and SFP.farmNpc[id]) or {}) do
+            local own = SFP.OwnedStatus and SFP:OwnedStatus(itemID)
+            if own ~= nil then
+                tt:AddLine("|T" .. SFP:ItemIcon(itemID) .. ":12|t " .. SFP:ItemName(itemID) .. (own and "  |cff40ff40owned|r" or "  |cffff6060not collected yet|r"))
+            end
         end
     end
     local list = {}

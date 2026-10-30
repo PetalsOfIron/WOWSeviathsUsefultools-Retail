@@ -11,7 +11,7 @@ local function buildPanel()
 
     local title = f:CreateFontString(nil, "ARTWORK", "GameFontNormalHuge")
     title:SetPoint("TOPLEFT", 16, -16)
-    title:SetText("|c" .. SFP.CYAN_HEX .. "Seviaths|rFarmPack")
+    title:SetText("|c" .. SFP.CYAN_HEX .. "Seviaths|rUsefulTools")
 
     local ver = f:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     ver:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
@@ -37,7 +37,9 @@ local function buildPanel()
         "|cffabd473Hunter tames:|r green spots with the hunter crest for spirit beasts and unique-looking pets, with how to tame them.\n" ..
         "|c" .. SFP.CYAN_HEX .. "Continent map:|r one spot per farm mob; zoom in to see the full spawn areas.\n" ..
         "|c" .. SFP.CYAN_HEX .. "Minimap button:|r pulses cyan inside a farm zone; opens the farm browser.\n" ..
-        "|c" .. SFP.CYAN_HEX .. "Auction house:|r prices load the first time you open it (Auctionator used as fallback).\n\n" ..
+        "|c" .. SFP.CYAN_HEX .. "Auction house:|r prices load the first time you open it (Auctionator or TradeSkillMaster are used when you have not scanned). A button and a bar below the window scan and show the progress.\n" ..
+        "|c" .. SFP.CYAN_HEX .. "Codex:|r /codex - encyclopedia with Best Grinding Spots (top 10 farm spots by auction value), quest help and My Collection History.\n" ..
+        "|c" .. SFP.CYAN_HEX .. "Your history:|r the addon reads your transmog, mounts and pets and says on monster and Codex pages what you already own from them, even for monsters it has no data for; /sfp history shows the numbers.\n\n" ..
         "Item data and spawn positions: wowhead.com. Drop chances are approximate.")
 
     local open = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")

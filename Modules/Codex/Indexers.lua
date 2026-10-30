@@ -390,6 +390,8 @@ ns.ReadQuestRaw = function(id) return ReadQuest(id) end
 
 local function AddQuest(id, q)
     local done = C_QuestLog.IsQuestFlaggedCompleted(id)
+    -- done by another character of this account (the game keeps that too)
+    local acct = (not done) and C_QuestLog.IsQuestFlaggedCompletedOnAccount and C_QuestLog.IsQuestFlaggedCompletedOnAccount(id) or nil
     local objLine = (q.o or ""):gsub("\n", " · ")
     ns:Add({
         cat = "quest", id = id, name = q.t,
@@ -397,7 +399,7 @@ local function AddQuest(id, q)
         icon = q.w and "Interface\\Icons\\INV_Misc_Map02" or "Interface\\Icons\\INV_Misc_Note_01",
         sub = (q.g and (q.g .. " — ") or "") .. objLine,
         objectives = q.o, tag = q.g, level = q.l, worldQuest = q.w,
-        collected = done or nil, questID = id, wh = "quest=" .. id,
+        collected = done or nil, acctDone = acct or nil, questID = id, wh = "quest=" .. id,
         tags = (q.g or "") .. (q.w and " world quest" or ""),
     })
 end
@@ -731,6 +733,7 @@ ns.INDEXERS = {
     { name = "Finding delves",                fn = function() if ns.IndexDelves then ns:IndexDelves() end end },
     { name = "Loading gold farms",            fn = function() if ns.LoadFarms then ns:LoadFarms() end end },
     { name = "Ranking grinding spots",        fn = function() if ns.LoadGrind then ns:LoadGrind() end end },
+    { name = "Reading your collection history", fn = function() if ns.LoadHistory then ns:LoadHistory() end end },
     { name = "Loading hunter pets",           fn = function() if ns.LoadBeasts then ns:LoadBeasts() end end },
     { name = "Loading monsters",              fn = function() if ns.LoadMonsters then ns:LoadMonsters() end end },
     { name = "Reading your items",            fn = IndexSeenItems },
