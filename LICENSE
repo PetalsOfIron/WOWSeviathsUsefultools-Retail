@@ -1,4 +1,4 @@
-SeviathsFarmPack
+SeviathsUsefulTools
 Copyright (c) 2026 Seviath
 
 This work is licensed under the Creative Commons
@@ -9,7 +9,7 @@ You are free to:
   - Remix: adapt the work
 
 Under the following conditions:
-  - Attribution: you must credit the work as "SeviathsFarmPack by Seviath"
+  - Attribution: you must credit the work as "SeviathsUsefulTools by Seviath"
     and indicate if changes were made.
   - NonCommercial: you may not use this work for commercial purposes
     (no selling it, no paywalls, no paid bundles).
@@ -17,4 +17,5 @@ Under the following conditions:
 Full license text: https://creativecommons.org/licenses/by-nc/3.0/legalcode
 
 Item data and spawn positions referenced by this addon come from wowhead.com.
+Auctionator and TradeSkillMaster are optional and not part of this addon.
 World of Warcraft is a trademark of Blizzard Entertainment, Inc.
