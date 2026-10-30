@@ -75,10 +75,19 @@ ns.FARMS = {
 
 -- live price from Auctionator, if installed (copper -> text)
 function ns:LivePrice(itemName)
-    local api = Auctionator and Auctionator.API and Auctionator.API.v1
-    if not (api and api.GetAuctionPriceByItemName) then return nil end
-    local ok, copper = pcall(api.GetAuctionPriceByItemName, "SeviathsCodex", itemName)
-    if ok and copper and copper > 0 then
+    local S = _G.SeviathsUsefulTools
+    local copper
+    -- the main addon knows every source: its own scan, Auctionator, TradeSkillMaster
+    local id = itemName and C_Item and C_Item.GetItemInfoInstant and C_Item.GetItemInfoInstant(itemName)
+    if id and S and S.GetPrice then copper = S:GetPrice(id) end
+    if not (copper and copper > 0) then
+        local api = Auctionator and Auctionator.API and Auctionator.API.v1
+        if api and api.GetAuctionPriceByItemName then
+            local ok, c = pcall(api.GetAuctionPriceByItemName, "SeviathsCodex", itemName)
+            if ok and c and c > 0 then copper = c end
+        end
+    end
+    if copper and copper > 0 then
         return GetCoinTextureString and GetCoinTextureString(copper) or (math.floor(copper / 10000) .. "g")
     end
 end
@@ -103,8 +112,8 @@ function ns:FarmText(e)
             lines[#lines + 1] = "• " .. m .. (p and ("   " .. p) or "")
         end
         out[#out + 1] = C .. "What you get|r\n" .. table.concat(lines, "\n")
-        out[#out + 1] = anyPrice and "|cff888888Prices: live from Auctionator on your realm.|r"
-            or "|cff888888Gold per hour depends on your realm's prices. Install Auctionator (scan the AH once) and live prices appear here.|r"
+        out[#out + 1] = anyPrice and "|cff888888Prices: your own scan, else Auctionator or TradeSkillMaster.|r"
+            or "|cff888888Gold per hour depends on your realm's prices. Scan the auction house once (or use Auctionator / TradeSkillMaster) and prices appear here.|r"
     end
     if f.inst then
         local inst = ns:FindByName("dungeon", f.inst) or ns:FindByName("raid", f.inst)

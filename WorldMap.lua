@@ -835,13 +835,13 @@ local function panelRow(i)
     row:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     row:SetScript("OnEnter", function(self)
         if self.itemID then
-            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-            GameTooltip:SetItemByID(self.itemID)
-            GameTooltip:AddLine("Right-click: Wowhead link", 0, 0.9, 1)
-            GameTooltip:Show()
+            SFP.Tip():SetOwner(self, "ANCHOR_LEFT")
+            SFP.Tip():SetItemByID(self.itemID)
+            SFP.Tip():AddLine("Right-click: Wowhead link", 0, 0.9, 1)
+            SFP.Tip():Show()
         end
     end)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    row:SetScript("OnLeave", function() SFP.Tip():Hide() end)
     row:SetScript("OnClick", function(self, button)
         if self.itemID and button == "RightButton" then SFP:ShowWowhead(self.itemID)
         elseif self.waypoint then
@@ -940,14 +940,14 @@ local function gatherRow(i)
     r:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
     r:SetScript("OnEnter", function(self)
         if not self.item then return end
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:SetItemByID(self.item)
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(self.bestText, 0.25, 1, 0.25, true)
-        if self.target then GameTooltip:AddLine("Click: open that zone", 0, 0.9, 1) end
-        GameTooltip:Show()
+        SFP.Tip():SetOwner(self, "ANCHOR_LEFT")
+        SFP.Tip():SetItemByID(self.item)
+        SFP.Tip():AddLine(" ")
+        SFP.Tip():AddLine(self.bestText, 0.25, 1, 0.25, true)
+        if self.target then SFP.Tip():AddLine("Click: open that zone", 0, 0.9, 1) end
+        SFP.Tip():Show()
     end)
-    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
     r:SetScript("OnClick", function(self)
         if self.target and self.target ~= WorldMapFrame:GetMapID() then WorldMapFrame:SetMapID(self.target) end
     end)
@@ -1130,6 +1130,26 @@ local function buildSpotPanel()
         SFP.RefreshWorldMap()
     end)
 
+    -- tick box on the map itself: show or hide the yellow route line (same switch as on the Settings page)
+    local cb = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+    cb:SetSize(18, 18)
+    cb:SetPoint("TOPLEFT", 134, -1)
+    cb:SetHitRectInsets(0, -64, 0, 0)
+    cb.label = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    cb.label:SetPoint("LEFT", cb, "RIGHT", 0, 0)
+    cb.label:SetText("Route line")
+    cb:SetScript("OnClick", function(self)
+        SFP.db.showRoute = self:GetChecked() and true or false
+        SFP.RefreshWorldMap()
+    end)
+    cb:SetScript("OnEnter", function(self)
+        SFP.Tip():SetOwner(self, "ANCHOR_RIGHT")
+        SFP.Tip():AddLine("Show or hide the yellow farm route line on this map.", 1, 1, 1, true)
+        SFP.Tip():Show()
+    end)
+    cb:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+    f.routeCheck = cb
+
     local function link(text, anchor, x)
         local b = CreateFrame("Button", nil, f)
         b:SetSize(60, 16)
@@ -1176,18 +1196,18 @@ local function spotRow(i)
         local s = self.spot
         if not s then return end
         local c = spotColor(s)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:AddLine(s.name or "?", c.r, c.g, c.b)
+        SFP.Tip():SetOwner(self, "ANCHOR_RIGHT")
+        SFP.Tip():AddLine(s.name or "?", c.r, c.g, c.b)
         for n, id in ipairs(s.items or {}) do
             if n > 6 then break end
-            GameTooltip:AddLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id))
+            SFP.Tip():AddLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id))
         end
-        if s.hx then GameTooltip:AddLine(string.format("%.1f, %.1f", s.hx * 100, s.hy * 100), 1, 0.82, 0) end
-        GameTooltip:AddLine("Tick / untick: show or hide this spot", 0, 0.9, 1)
-        GameTooltip:AddLine("Click the name: set a waypoint", 0, 0.9, 1)
-        GameTooltip:Show()
+        if s.hx then SFP.Tip():AddLine(string.format("%.1f, %.1f", s.hx * 100, s.hy * 100), 1, 0.82, 0) end
+        SFP.Tip():AddLine("Tick / untick: show or hide this spot", 0, 0.9, 1)
+        SFP.Tip():AddLine("Click the name: set a waypoint", 0, 0.9, 1)
+        SFP.Tip():Show()
     end)
-    r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
     r:SetScript("OnClick", function(self)
         local s = self.spot
         if s and s.hx and SFP.SetWaypoint then SFP:SetWaypoint(spotPanel.mapID, s.hx, s.hy, s.name) end
@@ -1215,6 +1235,7 @@ drawSpotList = function(mapID)
     end
     spotPanel.title:SetText("|c" .. SFP.CYAN_HEX .. "Farm spots|r  |cffaaaaaa" .. (nSpots - nHidden) .. "/" .. nSpots .. "|r")
     spotPanel.toggle:SetText(SFP.db.spotsCollapsed and "[+]" or "[-]")
+    spotPanel.routeCheck:SetChecked(SFP.db.showRoute ~= false)
     spotPanel.allOn:SetScript("OnClick", function() setSpotsHidden(zone, keys, false) end)
     spotPanel.allOff:SetScript("OnClick", function() setSpotsHidden(zone, keys, true) end)
     spotPanel.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)

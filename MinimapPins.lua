@@ -51,20 +51,20 @@ local function acquire()
     f:SetScript("OnEnter", function(self)
         local s = self.spot
         if not s then return end
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddLine(s.name or "?", color(s).r, color(s).g, color(s).b)
+        SFP.Tip():SetOwner(self, "ANCHOR_LEFT")
+        SFP.Tip():AddLine(s.name or "?", color(s).r, color(s).g, color(s).b)
         local tag = s.gather and ("best zone for " .. (s.gather == "ore" and "ore" or "herbs"))
             or (s.hunter and "hunter tame") or (s.rare and "rare") or (s.special and "special material") or "farm spot"
-        GameTooltip:AddLine(tag, 0.8, 0.8, 0.8)
+        SFP.Tip():AddLine(tag, 0.8, 0.8, 0.8)
         for i, id in ipairs(s.items or {}) do
             if i > 5 then break end
-            GameTooltip:AddLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id))
+            SFP.Tip():AddLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id))
         end
-        if s.note and s.note ~= "" then GameTooltip:AddLine(s.note, 0.6, 0.6, 0.6, true) end
-        GameTooltip:AddLine(string.format("%.1f, %.1f", self.px * 100, self.py * 100), 1, 0.82, 0)
-        GameTooltip:Show()
+        if s.note and s.note ~= "" then SFP.Tip():AddLine(s.note, 0.6, 0.6, 0.6, true) end
+        SFP.Tip():AddLine(string.format("%.1f, %.1f", self.px * 100, self.py * 100), 1, 0.82, 0)
+        SFP.Tip():Show()
     end)
-    f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    f:SetScript("OnLeave", function() SFP.Tip():Hide() end)
     return f
 end
 

@@ -55,20 +55,76 @@ local function makeWindow(name, title, w, h)
 end
 
 ---------------------------------------------------------------------------
+-- a scrolling list of rows, each with a text and a few buttons (the saved lists use it)
+---------------------------------------------------------------------------
+function SFP.MakeRowList(parent, x, y, w, h, rowH)
+    local sf = CreateFrame("ScrollFrame", nil, parent, "UIPanelScrollFrameTemplate")
+    sf:SetPoint("TOPLEFT", x, y)
+    sf:SetSize(w - 24, h)
+    local child = CreateFrame("Frame", nil, sf)
+    child:SetSize(w - 24, 10)
+    sf:SetScrollChild(child)
+    local rows = {}
+    local list = { scroll = sf }
+    -- items: { { text = "...", buttons = { { "label", width, function } , ... } }, ... }
+    function list:Set(items)
+        for i, it in ipairs(items) do
+            local r = rows[i]
+            if not r then
+                r = CreateFrame("Frame", nil, child)
+                r:SetSize(w - 24, rowH)
+                r:SetPoint("TOPLEFT", 0, -(i - 1) * rowH)
+                r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                r.text:SetPoint("LEFT", 4, 0)
+                r.text:SetJustifyH("LEFT")
+                r.text:SetWordWrap(false)
+                r.btns = {}
+                rows[i] = r
+            end
+            r.text:SetText(it.text or "")
+            local used = 0
+            for j = #(it.buttons or {}), 1, -1 do
+                local def = it.buttons[j]
+                local b = r.btns[j]
+                if not b then
+                    b = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
+                    r.btns[j] = b
+                end
+                b:SetSize(def[2], rowH - 2)
+                b:ClearAllPoints()
+                b:SetPoint("RIGHT", r, "RIGHT", -used, 0)
+                b:SetText(def[1])
+                b:SetScript("OnClick", def[3])
+                b:Show()
+                used = used + def[2] + 2
+            end
+            for j = #(it.buttons or {}) + 1, #r.btns do r.btns[j]:Hide() end
+            r.text:SetWidth(math.max(40, w - 24 - used - 8))
+            r:Show()
+        end
+        for i = #items + 1, #rows do rows[i]:Hide() end
+        child:SetHeight(#items * rowH + 4)
+    end
+    return list
+end
+
+---------------------------------------------------------------------------
 -- route: nearest-neighbour loop through the ticked spots of a zone
 ---------------------------------------------------------------------------
 local MAX_ROUTE = 12
 
-function SFP:BuildRoute(mapID)
+function SFP:BuildRoute(mapID, only)
     local zone = self.zoneByMap and self.zoneByMap[mapID]
     if not (zone and zone.spawns) then self:Print("No farm spots on this map."); return end
     local spots = {}
     for _, sp in ipairs(zone.spawns) do
-        if sp.hx and sp.hy and self.ShowSpot and self.ShowSpot(sp) then
+        local use
+        if only then use = only[self.SpotKey(sp)] else use = self.ShowSpot and self.ShowSpot(sp) end
+        if sp.hx and sp.hy and use then
             spots[#spots + 1] = { name = sp.name or "?", x = sp.hx, y = sp.hy }
         end
     end
-    if #spots < 2 then self:Print("Tick at least two spots in the list first."); return end
+    if #spots < 2 then self:Print("Pick at least two spots first."); return end
     -- start next to you when you are in this zone, else at the first spot
     local cx, cy
     if C_Map.GetBestMapForUnit("player") == mapID then
@@ -119,6 +175,10 @@ function SFP:RouteZones()
             out[#out + 1] = { map = mapID, name = self:ZoneName(mapID), exp = exp and exp.name or "", expOrder = exp and order[exp.key] or 99, count = n }
         end
     end
+    -- two maps with the same name (floors, sub-areas): tell them apart
+    local seen = {}
+    for _, z in ipairs(out) do seen[z.name] = (seen[z.name] or 0) + 1 end
+    for _, z in ipairs(out) do if seen[z.name] > 1 then z.name = z.name .. " (map " .. z.map .. ")" end end
     table.sort(out, function(a, b)
         if a.expOrder ~= b.expOrder then return a.expOrder > b.expOrder end   -- newest expansion first
         return a.name < b.name
@@ -265,7 +325,21 @@ function SFP:TypicalPrice(itemID)
         for i = 1, #samples - 1 do vals[#vals + 1] = samples[i].p end
         return median(vals), #samples - 1, "your scans"
     end
-    -- no history of our own: TradeSkillMaster keeps a long-term price (Auctionator has no history to read)
+    -- no history of our own: Auctionator's own price history (when this version offers it)
+    if Auctionator and Auctionator.Database and Auctionator.Database.GetPriceHistory then
+        for _, key in ipairs({ tostring(itemID), "g:" .. itemID }) do
+            local ok, hist = pcall(Auctionator.Database.GetPriceHistory, Auctionator.Database, key)
+            if ok and type(hist) == "table" and #hist >= 3 then
+                local vals = {}
+                for _, h in ipairs(hist) do
+                    local v = type(h) == "table" and (h.minSeen or h.min or h.price) or h
+                    if type(v) == "number" and v > 0 then vals[#vals + 1] = v end
+                end
+                if #vals >= 3 then return median(vals), #vals, "Auctionator history" end
+            end
+        end
+    end
+    -- TradeSkillMaster keeps a long-term price too
     if TSM_API and TSM_API.GetCustomPriceValue then
         for _, src in ipairs({ "DBHistorical", "DBMarket", "DBRegionMarketAvg" }) do
             local ok, v = pcall(TSM_API.GetCustomPriceValue, src, "i:" .. itemID)
@@ -278,6 +352,9 @@ function SFP:BoeDeals()
     local out, nohist = {}, {}
     for id, info in pairs(self.Items or {}) do
         if info.kind == "boe" then
+            if C_Item and C_Item.RequestLoadItemDataByID and not (C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)) then
+                pcall(C_Item.RequestLoadItemDataByID, id)
+            end
             -- now: our own scan, else Auctionator / TradeSkillMaster
             local now = self:GetPrice(id)
             if now and now > 0 then
@@ -296,8 +373,7 @@ function SFP:BoeDeals()
 end
 
 local dealWin
-function SFP:ShowDeals()
-    dealWin = dealWin or makeWindow("SeviathsUsefulToolsDeals", "BoE deals - now against the typical price", 480, 360)
+local function renderDeals(self)
     local list, nohist = self:BoeDeals()
     local lines = {}
     for i, d in ipairs(list) do
@@ -313,7 +389,7 @@ function SFP:ShowDeals()
     end
     -- items that have a price now but nothing to compare with yet
     if #nohist > 0 then
-        lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cff00e5ffBoE prices now|r  |cff808080(no price history yet - scan on a few different days, or use TradeSkillMaster)|r"
+        lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cff00e5ffBoE prices now|r  |cff808080(no price history yet - the addon keeps one from now on, so this fills in over a few days)|r"
         for i, d in ipairs(nohist) do
             if i > 30 then break end
             lines[#lines + 1] = ("  %s   %s"):format(self:ItemName(d.id), money(d.now))
@@ -323,18 +399,38 @@ function SFP:ShowDeals()
         lines[1] = "No BoE prices known yet. Scan the auction house (button below its window), or install Auctionator or TradeSkillMaster and scan there. Then open this list again."
     end
     dealWin:SetContent(table.concat(lines, "\n"))
+end
+
+function SFP:ShowDeals()
+    if not dealWin then
+        dealWin = makeWindow("SeviathsUsefulToolsDeals", "BoE deals - now against the typical price", 480, 360)
+        local acc = 0
+        dealWin:SetScript("OnUpdate", function(_, dt)
+            acc = acc + dt
+            if acc < 2 then return end
+            acc = 0
+            SFP:Safe("deals update", renderDeals, SFP)
+        end)
+    end
+    renderDeals(self)
     dealWin:Show()
 end
 
 ---------------------------------------------------------------------------
 -- crafting shopping list
 ---------------------------------------------------------------------------
-local shopWin, shopBox, shopResults, shopList = nil, nil, {}, {}
+local shopWin, shopBox, shopResults, shopRows = nil, nil, {}, nil
+
+-- the list is saved with the addon's data, so it is still there after a relog and on every character
+local function shopData()
+    SFP.db.shopList = SFP.db.shopList or {}
+    return SFP.db.shopList
+end
 
 local function shopTotals()
     local need, order = {}, {}
     local products, productValue = {}, 0
-    for _, entry in ipairs(shopList) do
+    for _, entry in ipairs(shopData()) do
         local rec = SFP.db.recipes[entry.key]
         if rec then
             for _, rg in ipairs(rec.r or {}) do
@@ -352,10 +448,33 @@ local function shopTotals()
     return need, order, products, productValue
 end
 
-local function shopRefresh()
+local shopRefresh
+local function shopFillRows()
+    local items = {}
+    for i, entry in ipairs(shopData()) do
+        local rec = SFP.db.recipes[entry.key]
+        items[#items + 1] = {
+            text = ("%dx %s%s"):format(entry.qty, (rec and rec.n) or entry.key, rec and "" or "  |cffff6060(recipe not known on this account)|r"),
+            buttons = {
+                { "-", 24, function()
+                    entry.qty = entry.qty - 1
+                    if entry.qty < 1 then table.remove(shopData(), i) end
+                    shopRefresh()
+                end },
+                { "+", 24, function() entry.qty = entry.qty + 1; shopRefresh() end },
+                { "Remove", 60, function() table.remove(shopData(), i); shopRefresh() end },
+            },
+        }
+    end
+    shopRows:Set(items)
+end
+
+shopRefresh = function()
+    if not shopWin then return end
+    shopFillRows()
     local lines = {}
-    if #shopList == 0 then
-        lines[1] = "Type part of a recipe name above, click a result to add it (click again for more). The recipes are the ones the addon learned when you opened your professions."
+    if #shopData() == 0 then
+        lines[1] = "Type part of a recipe name above and click a result to add it. The list is saved: you can add, remove or change the amount of each entry whenever you want. The recipes are the ones the addon learned when you opened your professions."
     else
         local need, order, products, productValue = shopTotals()
         lines[#lines + 1] = "|cff00e5ffMaking:|r " .. table.concat(products, ", ")
@@ -407,8 +526,8 @@ end
 
 function SFP:ShowShop()
     if not shopWin then
-        shopWin = makeWindow("SeviathsUsefulToolsShop", "Crafting shopping list", 520, 420)
-        shopWin.scroll:SetPoint("TOPLEFT", 12, -190)
+        shopWin = makeWindow("SeviathsUsefulToolsShop", "Crafting shopping list", 540, 540)
+        shopWin.scroll:SetPoint("TOPLEFT", 12, -300)
         shopBox = CreateFrame("EditBox", nil, shopWin, "InputBoxTemplate")
         shopBox:SetSize(300, 22)
         shopBox:SetPoint("TOPLEFT", 22, -34)
@@ -416,23 +535,27 @@ function SFP:ShowShop()
         shopBox:SetScript("OnTextChanged", function(self) shopSearch(self:GetText()) end)
         shopBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
         local clear = CreateFrame("Button", nil, shopWin, "UIPanelButtonTemplate")
-        clear:SetSize(90, 22)
+        clear:SetSize(110, 22)
         clear:SetPoint("LEFT", shopBox, "RIGHT", 10, 0)
-        clear:SetText("Clear list")
-        clear:SetScript("OnClick", function() wipe(shopList); shopRefresh() end)
-        for i = 1, 8 do
+        clear:SetText("Remove all")
+        clear:SetScript("OnClick", function() wipe(shopData()); shopRefresh() end)
+        for i = 1, 6 do
             local b = CreateFrame("Button", nil, shopWin, "UIPanelButtonTemplate")
-            b:SetSize(470, 18)
+            b:SetSize(490, 18)
             b:SetPoint("TOPLEFT", 22, -62 - (i - 1) * 16)
             b:SetScript("OnClick", function(self)
                 if not self.key then return end
-                for _, e in ipairs(shopList) do if e.key == self.key then e.qty = e.qty + 1; shopRefresh(); return end end
-                shopList[#shopList + 1] = { key = self.key, qty = 1 }
+                for _, e in ipairs(shopData()) do if e.key == self.key then e.qty = e.qty + 1; shopRefresh(); return end end
+                shopData()[#shopData() + 1] = { key = self.key, qty = 1 }
                 shopRefresh()
             end)
             b:Hide()
             shopResults[i] = b
         end
+        local label = shopWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        label:SetPoint("TOPLEFT", 22, -168)
+        label:SetText("Your list (saved):")
+        shopRows = SFP.MakeRowList(shopWin, 18, -186, 510, 104, 20)
     end
     shopWin:Show()
     shopRefresh()

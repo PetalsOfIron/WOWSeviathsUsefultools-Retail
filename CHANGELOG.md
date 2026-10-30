@@ -25,6 +25,13 @@
 
 - Prices: when the auction house is not scanned the addon now takes prices from Auctionator or TradeSkillMaster (TSM: DBMinBuyout, then DBMarket); they are saved per realm like scanned prices.
 
+- Delve Planner rebuilt: your class and all its specs are detected (a class change resets it), the comfortable tier is typed into a box, the companion role (Healer/Tank/Damage or best for the spec) and Valeera's curios (10 curios with bonuses, hover for details) are chosen from lists and saved, and every delve the game's map knows is listed with its bountiful state.
+- Shopping list and achievement list are saved between sessions; every entry can be removed, and shopping amounts changed, at any time.
+- Zone Check shows its result on its own menu page (all missing mounts, pets and toys of the zone) instead of one chat line; Housing Decor lists every decor the game's housing catalog knows with owned/missing and where to get it (shown only when the game gives the catalog).
+- Alt Overview: pick a character from a list and see its overview, bags, bank, the warband bank and all the gold (bags are saved while you play, banks when you open them).
+- The group makeup window opens by itself in a group of 5 or more (dungeon, raid or open world), once per group; close it with the X or switch it off in the Settings page or on the My Group page.
+- The farm route line has a tick box on the world map ('Route line') next to the spot list.
+- Fixed: the Learned data page was missing its code in the retail edition; map, minimap and menu tooltips now use the addon's own tooltip frame so Blizzard's map pins are no longer tainted by the addon.
 - War Within farm monsters: 22 more with real spawn points and Wowhead drop rates (Ringing Deeps, Hallowfall, Isle of Dorn, Azj-Kahet, Undermine, K'aresh).
 - 84 rare-drop mounts, pets and toys added to the item data (they now show their kind and icon on tooltips and the map).
 
@@ -129,3 +136,10 @@
 - Killed Today page: lists everything you killed today per character, with the zone and the time.
 
 - The collection history reads by itself on the first start after the install (about 20 seconds after login, with one chat line saying so) and again when your mount or pet count changes; the My Collections page says so.
+
+- Farm Route page: detects the zone you are in and lists its farm spots with check boxes; tick the ones you want and press Build route. Another zone can be picked from the list below (zones with the same name show their map number).
+
+- The tool pages in the menu now update themselves every two seconds while they are open (What To Farm Next, Farm Session, Killed Today, My Collections and the others), so distances, kills and collections stay current without reopening.
+
+- Prices everywhere in the addon use the same order: your own scan first, then Auctionator, then TradeSkillMaster. The item tooltip "AH (unit)" line and the Codex material and farming prices now follow it too (they used only the addon's own scan or Auctionator by name before).
+- BoE deals: the window redraws itself while open so item names fill in, and uses Auctionator's own price history for the typical price when this Auctionator version offers it.
