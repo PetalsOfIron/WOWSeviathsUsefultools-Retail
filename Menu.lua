@@ -747,7 +747,24 @@ local function buildGroups(pane)
     mkText(pane, "Tools for dungeon and raid groups: your group's raid buffs and tier tokens, tags and notes on players you met, filters for Premade Groups when the game offers them. " ..
         "The group makeup opens by itself when you are in a group of 5 or more (dungeon, raid or open world); the switch is on the Settings page.", 12, -34, 500, "GameFontHighlightSmall")
     mkButton(pane, "Open Dungeons & Raids", 190, function() SFP:RunModule("SEVIATHSDUNGEONSRAIDS", "") end):SetPoint("TOPLEFT", 12, -90)
-    mkButton(pane, "My group's makeup", 190, function() SFP:RunModule("SEVIATHSDUNGEONSRAIDS", "comp") end, "Roles, Bloodlust, battle res, missing raid buffs, tier tokens"):SetPoint("TOPLEFT", 12, -120)
+    mkButton(pane, "My group's makeup", 190, function()
+        -- open the makeup window directly, in front of the menu, and say if something goes wrong
+        local okM, _, dns = pcall(SFP_Module, "DungeonsRaids")
+        if not (okM and dns and dns.UI and dns.UI.Show) then SFP:Print("The Dungeons & Raids part is not loaded."); return end
+        local ok, err = pcall(dns.UI.Show, dns.UI, "group")
+        if not ok then SFP:Print("Could not open the group makeup: " .. tostring(err)); return end
+        local f = dns.UI.frame
+        if f then
+            f:SetFrameStrata("FULLSCREEN_DIALOG")
+            f:ClearAllPoints()
+            f:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+            f:Show()
+            f:Raise()
+            if dns.UI.RefreshGroup then pcall(dns.UI.RefreshGroup, dns.UI) end
+        else
+            SFP:Print("The group makeup window could not be created.")
+        end
+    end, "Roles, Bloodlust, battle res, missing raid buffs, tier tokens"):SetPoint("TOPLEFT", 12, -120)
     mkButton(pane, "Rate my last group", 190, function() SFP:RunModule("SEVIATHSDUNGEONSRAIDS", "rate") end):SetPoint("TOPLEFT", 12, -150)
     mkText(pane, "Tag a player: /sdr tag Name-Realm good|bad|fav|block", 12, -210, 500, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
 end
