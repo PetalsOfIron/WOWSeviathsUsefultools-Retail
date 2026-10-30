@@ -52,7 +52,8 @@ step = function()
     if not ahOpen then
         scanning = false
         setProgress("idle")
-        SFP:Print(string.format("Price scan paused at %d/%d - it continues next time you open the auction house.", qIndex, #queue))
+        SFP:Print(string.format("Price scan stopped: %d of %d items scanned (%d%%), %d left. The prices found are saved; it continues next time you open the auction house.",
+            qIndex, #queue, math.floor(qIndex * 100 / math.max(1, #queue)), math.max(0, #queue - qIndex)))
         SFP:RefreshAll()
         return
     end
@@ -273,9 +274,15 @@ end
 
 SFP.StopCategoryScan = function()
     if catBusy then
+        local done, total = math.max(0, catIndex - 1), #catQueue
         catBusy, scanning = false, false
         if catTimer then catTimer:Cancel(); catTimer = nil end
+        -- keep what was read so far
+        local saved = 0
+        for id, p in pairs(catBest) do savePrice(id, p); saved = saved + 1 end
         setProgress("idle")
+        SFP:Print(string.format("Scan stopped: %d of %d sections read (%d%%), prices saved for %d items. Run the scan again to finish.",
+            done, total, math.floor(done * 100 / math.max(1, total)), saved))
     end
 end
 
