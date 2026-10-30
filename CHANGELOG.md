@@ -68,3 +68,5 @@
 - Fixed a Lua error when looting (the game hides the target of your last gathering / skinning cast as a secret value); loot, cast and position values are checked before they are compared.
 
 - Codex quest pages explain more: "What the quest says" (the game's own quest text, while the quest is in your log), a "Next step" line for the objective you do next, and advice judged by that step. "Follow the flower trail" no longer shows escort advice - it now says to walk along the glowing trail.
+
+- Hover a quest in the quest log or the objective tracker: the tooltip now says what to do next, how, and where (Codex). `/codex hint` switches these hints (items and quests) on or off.
