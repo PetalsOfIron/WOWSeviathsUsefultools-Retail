@@ -152,6 +152,73 @@ ev:SetScript("OnEvent", function()
 end)
 
 ------------------------------------------------------------------------
+-- Hover a quest (quest log or objective tracker): what to do next and how
+------------------------------------------------------------------------
+local function QuestHoverTip(owner, questID)
+    if not owner or type(questID) ~= "number" or questID <= 0 then return end
+    if ns.db and ns.db.hideHint then return end
+    pcall(function()
+        local e = { id = questID, worldQuest = C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID) or nil }
+        local complete = C_QuestLog.IsComplete and C_QuestLog.IsComplete(questID)
+        local nextObj = ns:QuestNextObjective(e)
+        local lines = {}
+        if complete then
+            lines[#lines + 1] = "Done - go and turn it in."
+        elseif nextObj then
+            lines[#lines + 1] = "Next: " .. nextObj
+        end
+        if not complete then
+            for raw in (ns:QuestHowTo(e, nil, nextObj) or ""):gmatch("[^\n]+") do
+                local tip = raw:gsub("^•%s*", "")
+                if not tip:find("^Next step:") then lines[#lines + 1] = tip end
+            end
+        end
+        local where = (ns:QuestWhere(e) or ""):match("[^\n]+")
+        if where and not where:find("Not known yet") then lines[#lines + 1] = where end
+        if #lines == 0 then return end
+        if GameTooltip:IsShown() and GameTooltip:GetOwner() == owner then
+            GameTooltip:AddLine(" ")
+        else
+            GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+        end
+        GameTooltip:AddLine("|cff33e6ffSeviath's Codex|r - what to do")
+        for _, l in ipairs(lines) do GameTooltip:AddLine(l, 1, 1, 1, true) end
+        GameTooltip:AddLine("|cff33e6ffAlt+click: open in Codex|r")
+        GameTooltip:Show()
+    end)
+end
+
+-- quest log entries in the map window
+if _G.QuestMapLogTitleButton_OnEnter then
+    hooksecurefunc("QuestMapLogTitleButton_OnEnter", function(self)
+        QuestHoverTip(self, self.questID)
+    end)
+end
+
+-- objective tracker blocks (the quest list on the right of the screen)
+local function HookTrackerBlock(block)
+    if type(block) ~= "table" or block.SeviathsQuestTip or not block.HookScript then return end
+    block.SeviathsQuestTip = true
+    block:HookScript("OnEnter", function(self) QuestHoverTip(self, self.id or self.questID) end)
+    block:HookScript("OnLeave", function() GameTooltip:Hide() end)
+end
+
+local function ScanTracker()
+    for _, mname in ipairs({ "QuestObjectiveTracker", "CampaignQuestObjectiveTracker", "WorldQuestObjectiveTracker",
+        "BonusObjectiveTracker" }) do
+        local mod = _G[mname]
+        if mod and type(mod.usedBlocks) == "table" then
+            for _, byId in pairs(mod.usedBlocks) do
+                if type(byId) == "table" then
+                    for _, block in pairs(byId) do HookTrackerBlock(block) end
+                end
+            end
+        end
+    end
+end
+C_Timer.NewTicker(3, function() pcall(ScanTracker) end)
+
+------------------------------------------------------------------------
 -- Tooltip hint on items
 ------------------------------------------------------------------------
 if TooltipDataProcessor and Enum.TooltipDataType then
@@ -179,7 +246,7 @@ SlashCmdList.SEVIATHSCODEX = function(msg)
         ns:StartIndexing(); ns:Toggle(rest); return
     elseif msg:match("^%s*hint%s*$") then
         ns.db.hideHint = not ns.db.hideHint
-        ns:Print("item tooltip hint " .. (ns.db.hideHint and "off" or "on"))
+        ns:Print("tooltip hints (items and quests) " .. (ns.db.hideHint and "off" or "on"))
         return
     end
     return base(msg)
