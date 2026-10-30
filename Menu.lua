@@ -521,10 +521,21 @@ local buildDelve = simplePage("Delve Planner",
         for i, sl in ipairs(SFP:CurioSlots()) do
             local rows = 0
             for _, cu in ipairs(SFP.CURIOS or {}) do if cu[2] == sl.key then rows = rows + 1 end end
-            curioBlock(sl.key, ("Slot %d - %s (left-click pick, right-click = I have it)"):format(i, sl.label), nextY)
+            if sl.key == "role" then
+                mkText(c, ("Slot %d - Role: the companion role, set with the Healer / Tank / Damage buttons above."):format(i), 0, nextY, 480, "GameFontNormal")
+                mkButton(c, "Scan my account's curios", 220, function()
+                    local n, rep = SFP:ScanOwnedCurios()
+                    SFP:Print(n > 0 and ("Found " .. n .. " of your curios and marked them as owned.") or "No curios could be read from the game.")
+                    SFP:Print(rep)
+                    pane.refresh()
+                end, "Reads the curios of your delve companion from the game and marks them as owned. Right-click a curio to mark it by hand."):SetPoint("TOPLEFT", 0, nextY - 24)
+                nextY = nextY - 70
+            else
+                curioBlock(sl.key, ("Slot %d - %s (left-click pick, right-click = I have it)"):format(i, sl.label), nextY)
             nextY = nextY - (22 + math.max(1, math.ceil(rows / 3)) * 26 + 56)
             if rows == 0 then
                 mkText(c, "|cff808080No verified curios for this slot yet.|r", 0, nextY + 56 + 26 - 8, 480, "GameFontHighlightSmall")
+            end
             end
         end
         local best = mkText(c, SFP.CURIO_BEST or "", 0, nextY, 480, "GameFontHighlightSmall")

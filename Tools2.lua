@@ -541,6 +541,56 @@ function SFP:BestCurio(slot)
     return nil, any
 end
 
+-- Reads the curios of the companion from the game (best effort: the delve companion API is not documented well).
+-- Marks the ones found as owned. Returns how many were found and a short report of what the game answered.
+function SFP:ScanOwnedCurios()
+    local report, found = {}, 0
+    local D = C_DelvesUI
+    if not D then return 0, "The game has no delve interface (C_DelvesUI)." end
+    local known = {}
+    for _, cu in ipairs(self.CURIOS or {}) do known[cu[1]:lower()] = cu[1] end
+    local configID
+    for _, fname in ipairs({ "GetCompanionConfigID", "GetCurrentCompanionConfigID", "GetCompanionTraitConfigID" }) do
+        if type(D[fname]) == "function" then
+            local ok, id = pcall(D[fname])
+            if ok and type(id) == "number" and id > 0 then configID = id; report[#report + 1] = fname .. " = " .. id; break end
+        end
+    end
+    local nodes = {}
+    local E = Enum and Enum.CurioType
+    if type(E) == "table" and type(D.GetCurioNodeForCompanion) == "function" then
+        for name, v in pairs(E) do
+            local ok, node = pcall(D.GetCurioNodeForCompanion, v)
+            if ok and type(node) == "number" and node > 0 then nodes[#nodes + 1] = node; report[#report + 1] = "curio type " .. tostring(name) .. " -> node " .. node end
+        end
+    end
+    if configID and C_Traits and #nodes > 0 then
+        for _, node in ipairs(nodes) do
+            local okN, ni = pcall(C_Traits.GetNodeInfo, configID, node)
+            if okN and type(ni) == "table" then
+                for _, entryID in ipairs(ni.entryIDs or {}) do
+                    local okE, ei = pcall(C_Traits.GetEntryInfo, configID, entryID)
+                    local def = okE and type(ei) == "table" and ei.definitionID
+                    local okD, di = pcall(C_Traits.GetDefinitionInfo, def or 0)
+                    local name = okD and type(di) == "table" and (di.overrideName or (di.spellID and C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(di.spellID)))
+                    if type(name) == "string" and not (issecretvalue and issecretvalue(name)) and known[name:lower()] then
+                        self.db.curiosOwned = self.db.curiosOwned or {}
+                        self.db.curiosOwned[known[name:lower()]] = true
+                        found = found + 1
+                    end
+                end
+            end
+        end
+    end
+    if found == 0 then
+        local names = {}
+        for k, v in pairs(D) do if type(v) == "function" then names[#names + 1] = k end end
+        table.sort(names)
+        report[#report + 1] = "Nothing matched. Delve functions of this game: " .. table.concat(names, ", ")
+    end
+    return found, table.concat(report, "; ")
+end
+
 function SFP:DelveBestSetup()
     local info = self:DelveInfo()
     local out = { companion = info.recommended, curios = {}, lines = {} }
@@ -1170,3 +1220,6 @@ function SFP:ShowAchPlanner()
     achWin:Show()
     self:AchRefreshList()
 end
+
+-- read the companion curios once after login (silent; the delve planner button does it again with a report)
+SFP:OnLogin(function() C_Timer.After(30, function() SFP:Safe("curio scan", SFP.ScanOwnedCurios, SFP) end) end)
