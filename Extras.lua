@@ -213,8 +213,9 @@ local function playerPos()
     return map, x, y
 end
 
-function SFP:FarmNext(limit)
+function SFP:FarmNext(limit, mode)
     limit = limit or 5
+    mode = mode or self.db.nextSort or "best"
     local pm, px, py = playerPos()
     local list = {}
     for mapID, entries in pairs(self.Rares or {}) do
@@ -233,7 +234,12 @@ function SFP:FarmNext(limit)
                             local dx, dy = (sp.hx or sp.points[1][1]) - px, (sp.hy or sp.points[1][2]) - py
                             dist = math.sqrt(dx * dx + dy * dy)
                         end
-                        list[#list + 1] = { sp = sp, map = mapID, missing = missing, killed = killed, dist = dist }
+                        local score = 0
+                        for _, id in ipairs(missing) do
+                            local k = self.Items and self.Items[id] and self.Items[id].kind
+                            score = score + (k == "mount" and 3 or (k == "toy" and 2 or 1))
+                        end
+                        list[#list + 1] = { sp = sp, map = mapID, missing = missing, killed = killed, dist = dist, score = score }
                     end
                 end
             end
@@ -242,6 +248,7 @@ function SFP:FarmNext(limit)
     -- available ones first, then same zone nearest first, then more missing items
     table.sort(list, function(a, b)
         if (a.killed and 1 or 0) ~= (b.killed and 1 or 0) then return not a.killed end
+        if mode == "best" and a.score ~= b.score then return a.score > b.score end
         if (a.dist ~= nil) ~= (b.dist ~= nil) then return a.dist ~= nil end
         if a.dist and b.dist and math.abs(a.dist - b.dist) > 0.001 then return a.dist < b.dist end
         if #a.missing ~= #b.missing then return #a.missing > #b.missing end

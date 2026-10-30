@@ -259,6 +259,7 @@ local buildRoute = simplePage("Farm Route",
         end
 
         mkButton(pane, "Use the zone I am in", 160, function() setZone(SFP:PlayerFarmZone()) end):SetPoint("TOPLEFT", 330, y + 4)
+        mkButton(pane, "Open farm routes", 150, function() SFP:ShowRouteWindow() end, "A bigger window with every spot of a zone and every zone."):SetPoint("TOPLEFT", 330, y - 22)
         local by = y - 184
         mkButton(pane, "Select all", 90, function()
             for _, sp in ipairs(state.spots) do state.sel[SFP.SpotKey(sp)] = true end
@@ -336,7 +337,7 @@ local buildSession = simplePage("Farm Session",
     end)
 
 local buildNext = simplePage("What To Farm Next",
-    "Rares that still drop a mount, pet or toy you do not own, nearest first (killed today come last). Press Waypoint on the one you want. It needs your collections to be read (see My Collections).",
+    "Rares that still drop a mount, pet or toy you do not own. Best first (most and most wanted missing items; mounts count most) or nearest first, killed today come last. Press Waypoint on the one you want, or open the full list to pick rares by zone and build a route. It needs your collections to be read (see My Collections).",
     function(pane, y)
         local rows = {}
         for i = 1, 9 do
@@ -345,10 +346,14 @@ local buildNext = simplePage("What To Farm Next",
             local fs = mkText(pane, "", 100, y - 30 - (i - 1) * 36, 410, "GameFontHighlightSmall")
             rows[i] = { btn = btn, fs = fs }
         end
-        local head = mkText(pane, "", 12, y, 500, "GameFontNormal")
+        local head = mkText(pane, "", 12, y, 200, "GameFontNormal")
+        mkButton(pane, "Full list by zone", 140, function() SFP:ShowNextWindow() end):SetPoint("TOPLEFT", 368, y + 4)
+        local sortBtn = mkButton(pane, "", 146, function() SFP.db.nextSort = (SFP.db.nextSort or "best") == "best" and "near" or "best"; pane.refresh() end)
+        sortBtn:SetPoint("TOPLEFT", 216, y + 4)
         local retry
         local function fill()
             local top, total = SFP:FarmNext(9)
+            sortBtn.text:SetText((SFP.db.nextSort or "best") == "best" and "Sorted: best first" or "Sorted: nearest first")
             head:SetText(total > 0 and (total .. " rares have something you miss") or "Nothing to suggest (or your collections are not read yet)")
             for i, r in ipairs(rows) do
                 local c = top[i]
@@ -464,14 +469,15 @@ local buildDelve = simplePage("Delve Planner",
         tierBox:SetScript("OnEnterPressed", saveTier)
         tierBox:SetScript("OnEditFocusLost", function(self) SFP:SetDelveTier(self:GetText()) end)
         tierBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-        mkText(c, "Press Enter to save. Empty = not set.", 306, -104, 190, "GameFontHighlightSmall"):SetTextColor(0.6, 0.6, 0.6)
+        mkButton(c, "Use suggested setup", 190, function() SFP:UseBestSetup(); pane.refresh() end,
+            "Sets the companion role and the curios to what the guides suggest for the spec above."):SetPoint("TOPLEFT", 306, -100)
 
         mkText(c, "Companion role (Valeera):", 0, -134, 480, "GameFontHighlightSmall")
         local roleBtns = {}
         local ROLES = { { nil, "Best for my spec", 140 }, { "Healer", "Healer", 96 }, { "Tank", "Tank", 96 }, { "Damage", "Damage", 96 } }
         local rx = 0
         for i, r in ipairs(ROLES) do
-            local b = mkButton(c, r[2], r[3], function() SFP.db.delveCompanion = r[1]; pane.refresh() end)
+            local b = mkButton(c, r[2], r[3], function() SFP:DelveSet("companion", r[1]); pane.refresh() end)
             b:SetPoint("TOPLEFT", rx, -154)
             b.role, b.label = r[1], r[2]
             roleBtns[i] = b
@@ -488,8 +494,7 @@ local buildDelve = simplePage("Delve Planner",
                 if cu[2] == slot then
                     n = n + 1
                     local b = mkButton(c, cu[1], 156, function()
-                        SFP.db.delveCurios = SFP.db.delveCurios or {}
-                        SFP.db.delveCurios[slot] = (SFP.db.delveCurios[slot] == cu[1]) and nil or cu[1]
+                        SFP:DelveSet("curio", (SFP:DelveGet("curio", slot) == cu[1]) and false or cu[1], slot)
                         pane.refresh()
                     end, cu[3])
                     b:SetPoint("TOPLEFT", ((n - 1) % 3) * 160, topY - 22 - math.floor((n - 1) / 3) * 26)
@@ -502,17 +507,40 @@ local buildDelve = simplePage("Delve Planner",
             t:SetSpacing(2)
             curioText[slot] = t
         end
-        curioBlock("combat", "Combat curio (pick one, hover for the bonus)", -290)
-        curioBlock("utility", "Utility curio (pick one, hover for the bonus)", -468)
-        local best = mkText(c, SFP.CURIO_BEST or "", 0, -640, 480, "GameFontHighlightSmall")
+        local nextY = -440
+        for i, sl in ipairs(SFP:CurioSlots()) do
+            local rows = 0
+            for _, cu in ipairs(SFP.CURIOS or {}) do if cu[2] == sl.key then rows = rows + 1 end end
+            curioBlock(sl.key, ("Slot %d - %s (pick one, hover for the bonus)"):format(i, sl.label), nextY)
+            nextY = nextY - (22 + math.max(1, math.ceil(rows / 3)) * 26 + 56)
+            if rows == 0 then
+                mkText(c, "|cff808080No verified curios for this slot yet.|r", 0, nextY + 56 + 26 - 8, 480, "GameFontHighlightSmall")
+            end
+        end
+        local best = mkText(c, SFP.CURIO_BEST or "", 0, nextY, 480, "GameFontHighlightSmall")
         best:SetTextColor(0.8, 0.8, 0.5)
-        local listHead = mkText(c, "", 0, -700, 480, "GameFontNormal")
-        local listText = mkText(c, "", 0, -722, 470, "GameFontHighlightSmall")
-        listText:SetSpacing(2)
+        local listY = nextY - 60
+        local listHead = mkText(c, "", 0, listY, 480, "GameFontNormal")
+        local infoText = mkText(c, "", 0, listY - 22, 470, "GameFontHighlightSmall")
+        infoText:SetSpacing(2)
+        local delveRows = {}
+        local function delveRow(i)
+            local b = delveRows[i]
+            if not b then
+                b = mkButton(c, "", 330, function(self)
+                    if self.pick == false then return end
+                    SFP.db.delveSel = self.pick
+                    pane.refresh()
+                end)
+                delveRows[i] = b
+            end
+            return b
+        end
+        local listText = infoText
 
         return function()
             local info = SFP:DelveInfo()
-            classText:SetText("Class: " .. (info.className or "?") .. (info.spec and ("     Spec used: " .. info.spec.name) or ""))
+            classText:SetText("Class: " .. (info.className or "?") .. (info.spec and ("   Spec: " .. info.spec.name) or "") .. "   |cffffd100Settings for: " .. (SFP.db.delveSel or "all delves (default)") .. "|r")
             for i, b in ipairs(specBtns) do
                 local sp = info.specs[i]
                 b.specID, b.follow = nil, nil
@@ -529,14 +557,14 @@ local buildDelve = simplePage("Delve Planner",
                     b:Hide()
                 end
             end
-            if not tierBox:HasFocus() then tierBox:SetText(SFP.db.delveTier and tostring(SFP.db.delveTier) or "") end
+            if not tierBox:HasFocus() then local t = SFP:DelveGet("tier"); tierBox:SetText(t and tostring(t) or "") end
             for _, b in ipairs(roleBtns) do
-                local sel = (b.role == SFP.db.delveCompanion)
+                local sel = (b.role == SFP:DelveGet("companion"))
                 local mark = (b.role and b.role == info.recommended) and " |cff808080(best)|r" or ""
                 b.text:SetText((sel and "|cff40ff40" or "") .. b.label .. mark)
             end
-            advice:SetText(SFP:DelveAdvice())
-            local chosen = SFP.db.delveCurios or {}
+            advice:SetText(SFP:DelveAdvice() .. "\n\n" .. table.concat(SFP:DelveBestSetup().lines, "\n"))
+            local chosen = setmetatable({}, { __index = function(_, slot) return SFP:DelveGet("curio", slot) or nil end })
             for _, b in ipairs(curioBtns) do
                 b.text:SetText((chosen[b.slot] == b.curio and "|cff40ff40" or "") .. b.curio)
             end
@@ -547,16 +575,48 @@ local buildDelve = simplePage("Delve Planner",
                 t:SetText(bonus and ("|cff40ff40" .. name .. ":|r " .. bonus) or "|cff808080Nothing chosen yet.|r")
             end
             local list = SFP:DelveList()
-            listHead:SetText(("All delves (%d) - from the game's map and the Codex list"):format(#list))
-            local lines, zone = {}, nil
-            for _, d in ipairs(list) do
-                if d.zone ~= zone then zone = d.zone; lines[#lines + 1] = "|cff00e5ff" .. zone .. "|r" end
-                lines[#lines + 1] = "    " .. d.name .. (d.bountiful and "  |cffffd100bountiful today|r" or "")
+            listHead:SetText(("All delves (%d) - click one to set its own tier, companion and curios"):format(#list))
+            local sel = SFP.db.delveSel
+            local lines = {}
+            if sel then
+                lines[#lines + 1] = "|cffffd100" .. sel .. "|r  - your choices above are saved for this delve only (anything you leave empty uses the default)."
+                local tips = SFP:DelveTips(sel)
+                if tips then
+                    if tips.where then lines[#lines + 1] = "Where: " .. tips.where end
+                    if #tips.variants > 0 then lines[#lines + 1] = "Story variants: " .. table.concat(tips.variants, ", ") end
+                    if #tips.tips > 0 then
+                        lines[#lines + 1] = "|cff00e5ffAbout Valeera here (from the guide):|r"
+                        for i = 1, math.min(8, #tips.tips) do lines[#lines + 1] = "  - " .. tips.tips[i] end
+                    else
+                        lines[#lines + 1] = "The guide has no special advice for Valeera in this delve."
+                    end
+                else
+                    lines[#lines + 1] = "|cff808080No guide written for this delve yet.|r"
+                end
+                lines[#lines + 1] = "For your spec the best companion role is |cff40ff40" .. info.recommended .. "|r."
+            else
+                lines[#lines + 1] = "|cff808080Showing the default settings. Pick a delve below to give it its own.|r"
             end
-            lines[#lines + 1] = ""
-            lines[#lines + 1] = "|cff808080Delves of other expansions show up here once the game's map reports them. Guides for each delve are in the Codex (Guides).|r"
-            listText:SetText(table.concat(lines, "\n"))
-            c:SetHeight(722 + listText:GetStringHeight() + 20)
+            infoText:SetText(table.concat(lines, "\n"))
+            local top = listY - 22 - infoText:GetStringHeight() - 10
+            local n = 0
+            local function row(text, pick)
+                n = n + 1
+                local b = delveRow(n)
+                b:ClearAllPoints()
+                b:SetPoint("TOPLEFT", c, "TOPLEFT", 0, top - (n - 1) * 24)
+                b.pick = pick
+                b.text:SetText(text)
+                b:Show()
+            end
+            row((not sel and "|cff40ff40" or "") .. "All delves (default settings)", nil)
+            local zone
+            for _, dv in ipairs(list) do
+                if dv.zone ~= zone then zone = dv.zone; row("|cff00e5ff" .. zone .. "|r", false) end
+                row("    " .. (sel == dv.name and "|cff40ff40" or "") .. dv.name .. (dv.bountiful and "  |cffffd100bountiful today|r" or ""), dv.name)
+            end
+            for i = n + 1, #delveRows do delveRows[i]:Hide() end
+            c:SetHeight(-top + n * 24 + 20)
         end
     end)
 
