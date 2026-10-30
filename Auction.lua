@@ -141,6 +141,7 @@ end
 -- (browse results come in big batches with the lowest price per item), instead of one search per item
 local catQueue, catIndex, catSeen, catBest, catTimer, catBusy = {}, 0, 0, {}, nil, false
 local catLearned, catSeenIDs, catNewIDs = 0, {}, 0
+local catSentIndex = 0
 local catNext
 
 local function catFinish()
@@ -214,12 +215,13 @@ local function catRead()
 end
 
 local function catSend()
-    if not catBusy then return end
+    if not catBusy or catSentIndex == catIndex then return end
     if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then
         C_Timer.After(0.3, catSend)   -- the game limits how fast we may ask; try again in a moment
         return
     end
     local cid = catQueue[catIndex]
+    catSentIndex = catIndex
     catSeen = 0
     setProgress("section", catIndex, #catQueue)
     C_AuctionHouse.SendBrowseQuery({
@@ -257,7 +259,7 @@ function SFP:StartCategoryScan()
         for _, v in ipairs(all) do catQueue[#catQueue + 1] = v end
     end
     if #catQueue == 0 then return false end
-    catIndex, catSeen, catBusy = 0, 0, true
+    catIndex, catSeen, catBusy, catSentIndex = 0, 0, true, 0
     wipe(catBest)
     wipe(catSeenIDs)
     SFP.db.scanLog = {}
@@ -383,7 +385,13 @@ f:SetScript("OnEvent", function(_, event, arg1)
         ahOpen = false
         if SFP.StopCategoryScan then SFP.StopCategoryScan() end
     elseif event == "AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
-        if scanning and not waitingFor then step() end
+        if catBusy then
+            -- the section scan is running (the item-by-item scan must not take over): send the next request
+            if catSentIndex ~= catIndex then catSend()
+            elseif C_AuctionHouse.HasFullBrowseResults and not C_AuctionHouse.HasFullBrowseResults() and C_AuctionHouse.RequestMoreBrowseResults then
+                C_AuctionHouse.RequestMoreBrowseResults()
+            end
+        elseif scanning and not waitingFor then step() end
     elseif event == "COMMODITY_SEARCH_RESULTS_UPDATED" then
         local itemID = arg1
         if itemID and C_AuctionHouse.GetNumCommoditySearchResults(itemID) > 0 then
