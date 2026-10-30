@@ -150,13 +150,42 @@ function ns:QuestObjectives(e)
     return text ~= "" and text or nil
 end
 
--- "How to do it": practical steps by objective type
-function ns:QuestHowTo(e, objText)
-    local t = (objText or ""):lower()
+-- the first objective you have not finished yet (nil when the quest is not in your log or all is done)
+function ns:QuestNextObjective(e)
+    local objs = C_QuestLog.GetQuestObjectives and C_QuestLog.GetQuestObjectives(e.id)
+    for _, o in ipairs(objs or {}) do
+        if o.text and o.text ~= "" and not secret(o.text) and not o.finished then return o.text end
+    end
+end
+
+-- what the game itself says about the quest (story + instructions), only while it is in your log
+function ns:QuestStory(e)
+    local idx = C_QuestLog.GetLogIndexForQuestID and C_QuestLog.GetLogIndexForQuestID(e.id)
+    if not idx then return nil end
+    local fn = (C_QuestLog and C_QuestLog.GetQuestLogQuestText) or GetQuestLogQuestText
+    if not fn then return nil end
+    local ok, desc = pcall(fn, idx)
+    if not ok or type(desc) ~= "string" or secret(desc) or desc == "" then return nil end
+    desc = desc:gsub("%$[bB]", "\n"):gsub("<[^>]*>", "")
+    if #desc > 700 then desc = desc:sub(1, 700):gsub("%s+%S*$", "") .. " ..." end
+    return desc
+end
+
+-- "How to do it": practical steps by objective type. Judged by the objective you do NEXT when known,
+-- so a finished "speak to ..." step does not bury the advice for the step in front of you.
+function ns:QuestHowTo(e, objText, nextText)
+    local t = (nextText or objText or ""):lower()
     local steps = {}
     local function add(s) steps[#steps + 1] = "• " .. s end
+    if nextText then add("Next step: " .. nextText) end
     if e.worldQuest then
         add("World quest: no pick-up needed — fly into the area and it starts by itself.")
+    end
+    local trail = t:find("follow the") and (t:find("trail") or t:find("path") or t:find("track") or t:find("footprint")
+        or t:find("flower") or t:find("light") or t:find("marker") or t:find("glow") or t:find("road") or t:find("stream")
+        or t:find("petal") or t:find("wisp"))
+    if trail then
+        add("Follow the trail: walk along the glowing trail on the ground (it also shows on your minimap and map as a path of dots). The objective completes when you reach the end — nothing to kill or click.")
     end
     if t:find("slain") or t:find("kill") or t:find("defeat") or t:find("slay") or t:find("destroy") then
         add("Kill quest: the enemies are in the highlighted area on your map (M) while the quest is in your log. Kills count for everyone in your party who has the quest.")
@@ -170,8 +199,10 @@ function ns:QuestHowTo(e, objText)
     if t:find("speak") or t:find("talk") or t:find("report to") or t:find("return to") then
         add("Talk / report: go to the named NPC and talk to them — the map shows a ? or ! where they are once the quest is in your log.")
     end
-    if t:find("escort") or t:find("protect") or t:find("accompany") or t:find("follow") then
+    if t:find("escort") or t:find("protect") or t:find("accompany") then
         add("Escort: stay close and kill attackers. If the NPC dies, abandon the quest and pick it up again to restart.")
+    elseif t:find("follow") and not trail then
+        add("Follow: stay close behind the named character while they walk to the destination; the objective completes on arrival.")
     end
     if t:find("explore") or t:find("investigate") or t:find("scout") or t:find("find") or t:find("locate") then
         add("Explore: walk into the marked area until the objective completes.")
