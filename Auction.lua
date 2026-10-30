@@ -140,6 +140,7 @@ end
 -- section scan, the way Auctionator does it: open each auction house category and read its price list
 -- (browse results come in big batches with the lowest price per item), instead of one search per item
 local catQueue, catIndex, catSeen, catBest, catTimer, catBusy = {}, 0, 0, {}, nil, false
+local catLearned, catSeenIDs = 0, {}
 local catNext
 
 local function catFinish()
@@ -149,7 +150,7 @@ local function catFinish()
     scanning, catBusy = false, false
     markScanned()
     setProgress("done", 1, 1)
-    SFP:Print(("Auction scan done: prices for %d items."):format(found))
+    SFP:Print(("Auction scan done: prices for %d items%s."):format(found, catLearned > 0 and (", " .. catLearned .. " new materials learned") or ""))
     SFP:RefreshAll()
 end
 
@@ -160,7 +161,18 @@ local function catRead()
         local r = results[i]
         local id = r and r.itemKey and r.itemKey.itemID
         local price = r and r.minPrice
-        if id and price and price > 0 and SFP.trackedIDs[id] and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
+        -- the auction house also teaches the addon: trade goods it has not seen are added to the learned items (and become farm items)
+        local tracked = id and SFP.trackedIDs[id]
+        if id and not tracked and not (SFP.db.knownItems and SFP.db.knownItems[id]) and C_Item and C_Item.GetItemInfoInstant then
+            local _, _, _, _, _, classID = C_Item.GetItemInfoInstant(id)
+            if classID == 7 and SFP.RecordItem then
+                SFP.RecordItem(id)
+                tracked = SFP.trackedIDs[id]
+                catLearned = catLearned + 1
+                catSeenIDs[id] = true
+            end
+        end
+        if id and price and price > 0 and (tracked or catSeenIDs[id]) and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
     end
     catSeen = #results
     if C_AuctionHouse.HasFullBrowseResults and C_AuctionHouse.HasFullBrowseResults() then
@@ -209,6 +221,8 @@ function SFP:StartCategoryScan()
     if #catQueue == 0 then return false end
     catIndex, catSeen, catBusy = 0, 0, true
     wipe(catBest)
+    wipe(catSeenIDs)
+    catLearned = 0
     scanning = true
     self:Print("Scanning the auction house...")
     catNext()
