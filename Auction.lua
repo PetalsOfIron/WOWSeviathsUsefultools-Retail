@@ -150,6 +150,7 @@ local function catFinish()
     scanning, catBusy = false, false
     markScanned()
     setProgress("done", 1, 1)
+    SFP:Safe("auction names", SFP.FillAhNames, SFP, 500)
     SFP:Print(("Auction scan done: prices for %d items%s."):format(found, (catNewIDs > 0 and (", " .. catNewIDs .. " new item IDs learned") or "") .. (catLearned > 0 and (", " .. catLearned .. " new materials") or "")))
     SFP:RefreshAll()
 end
@@ -264,6 +265,46 @@ end
 SFP.CategoryScanEvent = function(event)
     if catBusy and (event == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" or event == "AUCTION_HOUSE_BROWSE_RESULTS_ADDED") then catRead() end
 end
+
+-- names of the auction items: saved as the game gives them (the game loads item names a moment after it is asked)
+function SFP:FillAhNames(limit)
+    if not (self.db and self.db.ahItems) then return 0 end
+    self.db.ahNames = self.db.ahNames or {}
+    local asked, missing = 0, 0
+    for id in pairs(self.db.ahItems) do
+        if not self.db.ahNames[id] then
+            local nm = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+            if nm and nm ~= "" and not (issecretvalue and issecretvalue(nm)) then
+                self.db.ahNames[id] = nm
+            else
+                missing = missing + 1
+                if asked < (limit or 300) and C_Item and C_Item.RequestLoadItemDataByID then
+                    pcall(C_Item.RequestLoadItemDataByID, id)
+                    asked = asked + 1
+                end
+            end
+        end
+    end
+    return missing
+end
+
+local nameFrame = CreateFrame("Frame")
+pcall(nameFrame.RegisterEvent, nameFrame, "GET_ITEM_INFO_RECEIVED")
+nameFrame:SetScript("OnEvent", function(_, _, id, success)
+    if id and success ~= false and SFP.db and SFP.db.ahItems and SFP.db.ahItems[id] then
+        SFP.db.ahNames = SFP.db.ahNames or {}
+        if not SFP.db.ahNames[id] then
+            local nm = C_Item.GetItemNameByID(id)
+            if nm and nm ~= "" and not (issecretvalue and issecretvalue(nm)) then SFP.db.ahNames[id] = nm end
+        end
+    end
+end)
+-- keep filling in the background until every item has its name
+SFP:OnLogin(function()
+    C_Timer.NewTicker(15, function()
+        if SFP.db and SFP.db.ahItems then SFP:Safe("auction names", SFP.FillAhNames, SFP, 300) end
+    end)
+end)
 
 function SFP:StartScan(force, noFull)
     if not ahOpen then
