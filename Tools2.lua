@@ -541,6 +541,21 @@ function SFP:BestCurio(slot)
     return nil, any
 end
 
+-- curios learned from the game are added to the planner's list (after a /reload they also get a button)
+function SFP:MergeLearnedCurios()
+    local have = {}
+    for _, cu in ipairs(self.CURIOS or {}) do have[cu[1]] = true end
+    for name, r in pairs(self.CuriosLearned or {}) do
+        if not have[name] then have[name] = true; table.insert(self.CURIOS, { name, r.slot or "combat", (r.text and r.text ~= "") and r.text or "Learned from the game (no description read).", learned = true, spell = r.spell }) end
+    end
+    for name, r in pairs(self.db and self.db.learnedCurios or {}) do
+        if not have[name] then
+            table.insert(self.CURIOS, { name, r.slot or "combat", (r.text and r.text ~= "") and r.text or "Learned from your game (no description read).", learned = true, spell = r.spell })
+        end
+    end
+end
+SFP:OnLogin(function() SFP:MergeLearnedCurios() end)
+
 -- Reads the curios of the companion from the game (best effort: the delve companion API is not documented well).
 -- Marks the ones found as owned. Returns how many were found and a short report of what the game answered.
 function SFP:ScanOwnedCurios()
@@ -556,12 +571,12 @@ function SFP:ScanOwnedCurios()
             if ok and type(id) == "number" and id > 0 then configID = id; report[#report + 1] = fname .. " = " .. id; break end
         end
     end
-    local nodes = {}
+    local nodes, nodeType = {}, {}
     local E = Enum and Enum.CurioType
     if type(E) == "table" and type(D.GetCurioNodeForCompanion) == "function" then
         for name, v in pairs(E) do
             local ok, node = pcall(D.GetCurioNodeForCompanion, v)
-            if ok and type(node) == "number" and node > 0 then nodes[#nodes + 1] = node; report[#report + 1] = "curio type " .. tostring(name) .. " -> node " .. node end
+            if ok and type(node) == "number" and node > 0 then nodes[#nodes + 1] = node; nodeType[node] = tostring(name):lower(); report[#report + 1] = "curio type " .. tostring(name) .. " -> node " .. node end
         end
     end
     if configID and C_Traits and #nodes > 0 then
@@ -573,9 +588,23 @@ function SFP:ScanOwnedCurios()
                     local def = okE and type(ei) == "table" and ei.definitionID
                     local okD, di = pcall(C_Traits.GetDefinitionInfo, def or 0)
                     local name = okD and type(di) == "table" and (di.overrideName or (di.spellID and C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(di.spellID)))
-                    if type(name) == "string" and not (issecretvalue and issecretvalue(name)) and known[name:lower()] then
+                    if type(name) == "string" and not (issecretvalue and issecretvalue(name)) then
                         self.db.curiosOwned = self.db.curiosOwned or {}
-                        self.db.curiosOwned[known[name:lower()]] = true
+                        if known[name:lower()] then
+                            self.db.curiosOwned[known[name:lower()]] = true
+                        else
+                            -- a curio the addon did not know: learn it (name, slot, ids, text) and keep it in the saved data
+                            local spellID = okD and type(di) == "table" and di.spellID or nil
+                            local desc
+                            if spellID and C_Spell and C_Spell.GetSpellDescription then
+                                local okS, t = pcall(C_Spell.GetSpellDescription, spellID)
+                                if okS and type(t) == "string" and not (issecretvalue and issecretvalue(t)) then desc = t end
+                            end
+                            self.db.learnedCurios = self.db.learnedCurios or {}
+                            self.db.learnedCurios[name] = { slot = nodeType[node] or "combat", spell = spellID, node = node, entry = entryID, text = desc }
+                            self.db.curiosOwned[name] = true
+                            self:MergeLearnedCurios()
+                        end
                         found = found + 1
                     end
                 end
