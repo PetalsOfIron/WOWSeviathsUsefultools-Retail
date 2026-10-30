@@ -14,3 +14,18 @@ Open it with `/sfp` or the minimap button. Other commands: `/sfp craft`, `/sfp s
 The Codex, Dungeons & Raids and Guild Helper saved data carries over (same saved-variable names).
 
 The classic (Mists of Pandaria) edition with the Questie-based quest tooltips lives in the SeviathsUsefulTools folder of the classic client; retail has its own quest tooltips and nameplate icons, so that part is left out here.
+
+## License
+
+Creative Commons Attribution-NonCommercial 3.0 (CC BY-NC 3.0), see `LICENSE`. Item data and spawn positions come from wowhead.com.
+
+## Releasing (CurseForge, Wago, GitHub)
+
+The packaging is set up, nothing is uploaded until you do these once:
+
+1. Create the project on CurseForge and copy its numeric project id.
+2. Add the line `## X-Curse-Project-ID: <id>` to `SeviathsUsefulTools.toc` (optionally `## X-Wago-ID: <id>`).
+3. In the GitHub repository settings add the secret `CF_API_KEY` (your CurseForge API token) and, for Wago, `WAGO_API_TOKEN`.
+4. Update the version in the `.toc` and `CHANGELOG.md`, commit, then push a tag: `git tag v2.0.1 && git push origin v2.0.1`.
+
+The workflow in `.github/workflows/release.yml` builds the zip (rules in `.pkgmeta`) and uploads it with the changelog.
