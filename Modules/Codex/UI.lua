@@ -321,8 +321,11 @@ local function DetailText(e)
         t = t .. "\n\n" .. ns:EntranceRoute(e)
     elseif c == "quest" then
         local obj = ns:QuestObjectives(e)
+        local nextObj = ns:QuestNextObjective(e)
         t = t .. section("What to do", obj or "No objective text — usually a 'talk to' or automatic quest.")
-        t = t .. section("How to do it", ns:QuestHowTo(e, obj))
+        local story = ns:QuestStory(e)
+        if story then t = t .. section("What the quest says", story) end
+        t = t .. section("How to do it", ns:QuestHowTo(e, obj, nextObj))
         t = t .. section("Where to go", ns:QuestWhere(e))
         if e.tag then t = t .. section("Type", e.tag .. (e.worldQuest and " (world quest)" or "")) end
     elseif c == "achievement" then
