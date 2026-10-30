@@ -33,12 +33,10 @@ function ns:GroupComp()
 end
 
 function ns:GroupCompText()
-  if not IsInGroup() then
-    return "You're not in a group.\n\nWhen you lead a group, this shows roles, Bloodlust, battle res, missing raid buffs and tier token spread, and applicants get tagged with what they would add."
-  end
   local c = ns:GroupComp()
   local function YN(v) return v and "|cff40ff60yes|r" or "|cffff5050no|r" end
   local lines = {}
+  if not IsInGroup() then lines[#lines + 1] = "|cff999999You are not in a group: this is only you. It works for any group size, so join or invite people and press Refresh.|r"; lines[#lines + 1] = " " end
   lines[#lines + 1] = string.format("Members: |cffffffff%d|r    Tanks %d   Healers %d   DPS %d%s",
     c.n, c.roles.TANK, c.roles.HEALER, c.roles.DAMAGER,
     c.roles.NONE > 0 and ("   |cff999999no role " .. c.roles.NONE .. "|r") or "")
