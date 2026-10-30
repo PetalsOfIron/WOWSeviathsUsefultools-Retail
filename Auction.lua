@@ -140,7 +140,7 @@ end
 -- section scan, the way Auctionator does it: open each auction house category and read its price list
 -- (browse results come in big batches with the lowest price per item), instead of one search per item
 local catQueue, catIndex, catSeen, catBest, catTimer, catBusy = {}, 0, 0, {}, nil, false
-local catLearned, catSeenIDs = 0, {}
+local catLearned, catSeenIDs, catNewIDs = 0, {}, 0
 local catNext
 
 local function catFinish()
@@ -150,7 +150,7 @@ local function catFinish()
     scanning, catBusy = false, false
     markScanned()
     setProgress("done", 1, 1)
-    SFP:Print(("Auction scan done: prices for %d items%s."):format(found, catLearned > 0 and (", " .. catLearned .. " new materials learned") or ""))
+    SFP:Print(("Auction scan done: prices for %d items%s."):format(found, (catNewIDs > 0 and (", " .. catNewIDs .. " new item IDs learned") or "") .. (catLearned > 0 and (", " .. catLearned .. " new materials") or "")))
     SFP:RefreshAll()
 end
 
@@ -161,6 +161,15 @@ local function catRead()
         local r = results[i]
         local id = r and r.itemKey and r.itemKey.itemID
         local price = r and r.minPrice
+        -- every item ID seen at the auction house is kept (item ID -> item class), so the addon knows them all
+        if id and SFP.db then
+            SFP.db.ahItems = SFP.db.ahItems or {}
+            if not SFP.db.ahItems[id] then
+                local cls = C_Item and C_Item.GetItemInfoInstant and select(6, C_Item.GetItemInfoInstant(id))
+                SFP.db.ahItems[id] = cls or 0
+                catNewIDs = catNewIDs + 1
+            end
+        end
         -- the auction house also teaches the addon: trade goods it has not seen are added to the learned items (and become farm items)
         local tracked = id and SFP.trackedIDs[id]
         if id and not tracked and not (SFP.db.knownItems and SFP.db.knownItems[id]) and C_Item and C_Item.GetItemInfoInstant then
@@ -232,6 +241,7 @@ function SFP:StartCategoryScan()
     wipe(catBest)
     wipe(catSeenIDs)
     catLearned = 0
+    catNewIDs = 0
     scanning = true
     self:Print("Scanning the auction house...")
     catNext()
