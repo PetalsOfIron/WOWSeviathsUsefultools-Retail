@@ -997,6 +997,11 @@ local function decorEntries()
     return list, fromGame
 end
 
+-- all decor entries (the addon's data plus what the game's catalog adds), for the housing planner
+function SFP:DecorEntries()
+    return (decorEntries())
+end
+
 -- learning needs no window: reads the housing catalog by itself
 function SFP:LearnDecor()
     decorCache = nil
