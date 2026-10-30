@@ -88,7 +88,6 @@ local fullWaiting, fullTimer, fullTick = false, nil, nil
 local function processReplicate()
     local n = C_AuctionHouse.GetNumReplicateItems and C_AuctionHouse.GetNumReplicateItems() or 0
     local best, i, found, nextPct = {}, 0, 0, 25
-    SFP:Print(("Full scan: the auction house answered, reading %d auctions..."):format(n))
     local function chunk()
         -- work for about 25 ms per frame instead of a fixed small batch: the same data is read much faster
         local t0 = debugprofilestop and debugprofilestop() or 0
@@ -106,11 +105,6 @@ local function processReplicate()
         end
         setProgress("read", i, n)
         if i < n then
-            local pct = math.floor(i * 100 / math.max(1, n))
-            if pct >= nextPct then
-                SFP:Print(("Full scan: %d%% read (%d/%d auctions)"):format(pct, i, n))
-                nextPct = nextPct + 25
-            end
             C_Timer.After(0, chunk)
         else
             for id, p in pairs(best) do savePrice(id, p); found = found + 1 end
@@ -132,16 +126,7 @@ function SFP:TryFullScan()
     setProgress("wait")
     self:Print("Full auction scan started (one request for the whole auction house)...")
     if fullTimer then fullTimer:Cancel() end
-    local waited = 0
-    if fullTick then fullTick:Cancel() end
-    fullTick = C_Timer.NewTicker(5, function(t)
-        waited = waited + 5
-        if fullWaiting then
-            SFP:Print(("Full scan: waiting for the auction house answer... %d s (gives up after 25 s)"):format(waited))
-        else
-            t:Cancel()
-        end
-    end)
+    -- no repeating chat messages: the bar at the auction house shows the progress
     fullTimer = C_Timer.NewTimer(25, function()
         if fullWaiting then
             -- no answer (scan cooldown?): fall back to searching the items one by one
