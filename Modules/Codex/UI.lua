@@ -61,7 +61,7 @@ end
 -- List building
 ------------------------------------------------------------------------
 local function sortEntries(cat, list)
-    if cat == "guide" or cat == "mats" then
+    if cat == "guide" or cat == "mats" or cat == "grind" then
         table.sort(list, function(a, b) return (a.order or 0) < (b.order or 0) end)
     elseif cat == "boss" then
         table.sort(list, function(a, b)
@@ -247,6 +247,10 @@ local function DetailText(e)
     end
     if c == "mats" and e.farm and ns.FarmText then
         return ns:FarmText(e)
+    end
+    if c == "grind" then
+        if e.grind and ns.GrindText then return ns:GrindText(e) end
+        return e.body or ""
     end
     if c == "guide" or c == "mats" then
         return e.body or ""

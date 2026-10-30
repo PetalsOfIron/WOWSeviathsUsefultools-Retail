@@ -9,6 +9,14 @@ local queue, qIndex = {}, 0
 local scanning, waitingFor, waitTimer = false, nil, nil
 local ahOpen = false
 
+-- what the scan bar on the auction house window shows (AuctionBar.lua draws it)
+local function setProgress(phase, done, total)
+    local old = SFP.scanState
+    SFP.scanState = { phase = phase, done = done or 0, total = total or 0,
+        t0 = (phase == "wait" and GetTime()) or (old and old.t0) or GetTime(), t = GetTime() }
+    if SFP.UpdateScanBar then SFP:UpdateScanBar() end
+end
+
 local function buildQueue()
     wipe(queue)
     -- one-by-one search is slow (the game throttles it): only the farm items themselves, never every item ever seen
@@ -43,6 +51,7 @@ step = function()
     if not scanning then return end
     if not ahOpen then
         scanning = false
+        setProgress("idle")
         SFP:Print(string.format("Price scan paused at %d/%d - it continues next time you open the auction house.", qIndex, #queue))
         SFP:RefreshAll()
         return
@@ -55,11 +64,13 @@ step = function()
     if not id then
         scanning = false
         markScanned()
+        setProgress("done", #queue, #queue)
         SFP:Print(string.format("Prices updated for %d items.", #queue))
         SFP:RefreshAll()
         return
     end
     waitingFor = id
+    setProgress("items", qIndex, #queue)
     local key = C_AuctionHouse.MakeItemKey(id)
     local sorts = { { sortOrder = Enum.AuctionHouseSortOrder.Price, reverseSort = false } }
     C_AuctionHouse.SendSearchQuery(key, sorts, true)
@@ -92,6 +103,7 @@ local function processReplicate()
                 if not best[itemID] or unit < best[itemID] then best[itemID] = unit end
             end
         end
+        setProgress("read", i, n)
         if i < n then
             local pct = math.floor(i * 100 / math.max(1, n))
             if pct >= nextPct then
@@ -103,6 +115,7 @@ local function processReplicate()
             for id, p in pairs(best) do savePrice(id, p); found = found + 1 end
             scanning = false
             markScanned()
+            setProgress("done", n, n)
             SFP:Print(("Full auction scan done: %d auctions read, prices for %d items."):format(n, found))
             SFP:RefreshAll()
         end
@@ -115,6 +128,7 @@ function SFP:TryFullScan()
     local ok = pcall(C_AuctionHouse.ReplicateItems)
     if not ok then return false end
     fullWaiting, scanning = true, true
+    setProgress("wait")
     self:Print("Full auction scan started (one request for the whole auction house)...")
     if fullTimer then fullTimer:Cancel() end
     local waited = 0

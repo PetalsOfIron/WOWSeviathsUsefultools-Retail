@@ -70,3 +70,10 @@
 - Codex quest pages explain more: "What the quest says" (the game's own quest text, while the quest is in your log), a "Next step" line for the objective you do next, and advice judged by that step. "Follow the flower trail" no longer shows escort advice - it now says to walk along the glowing trail.
 
 - Hover a quest in the quest log or the objective tracker: the tooltip now says what to do next, how, and where (Codex). `/codex hint` switches these hints (items and quests) on or off.
+
+- Codex: new tab "Best Grinding Spots" - a top 10 of the farm spots ranked by what the loot is worth on the auction house (monsters per kill, gathering per node), with the numbers behind each spot. Needs auction prices (scan, Auctionator or TradeSkillMaster).
+- Auction house: a "Scan prices" button and a progress bar below the auction house window (waiting for the answer, reading auctions %, items scanned, done, and when the last scan was).
+
+- Best Grinding Spots also ranks the spots the addon learned from your own kills, with your measured drop rates.
+
+- Items you collected in a zone now join that zone's item list and the item's "farm in" places when the addon loads (learned from your own loot, account-wide).
