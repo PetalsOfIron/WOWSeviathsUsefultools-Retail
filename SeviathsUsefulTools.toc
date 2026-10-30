@@ -1,0 +1,67 @@
+## Interface: 120007, 120100, 120105
+## Title: |cff00e5ffSeviaths|rUsefulTools
+## Notes: Everything Seviath in one addon for retail (Midnight): glowing farm spots, rares and gathering zones on the map, auction prices, crafting and farming profit on tooltips, auction/mail/vendor gold messages, the Codex encyclopedia (with Delves), Dungeons & Raids group tools and the Guild Helper.
+## Author: Seviath
+## Version: 2.0.0-retail
+## X-Formerly: SeviathsFarmPack, SeviathsCodex, SeviathsDungeonsRaids, SeviathsGuildHelper
+## Category: Professions
+## IconTexture: Interface\Icons\INV_Misc_Map_01
+## OptionalDeps: Auctionator, TradeSkillMaster
+## SavedVariables: SeviathsUsefulToolsDB, SeviathsCodexDB, SeviathsDungeonsRaidsDB, SeviathsGuildHelperDB
+## SavedVariablesPerCharacter: SeviathsGuildHelperCharDB
+## AddonCompartmentFunc: SeviathsUsefulTools_OnCompartmentClick
+## AddonCompartmentFuncOnEnter: SeviathsUsefulTools_OnCompartmentEnter
+## AddonCompartmentFuncOnLeave: SeviathsUsefulTools_OnCompartmentLeave
+## X-Website: https://github.com/PetalsOfIron/WOWSeviathsUsefultools-Retail
+## X-License: CC BY-NC 3.0
+## X-Data-Source: wowhead.com
+
+Core.lua
+Data\Items.lua
+Data\Expansions.lua
+Data\Spawns.lua
+Data\Rares.lua
+Data\Gathering.lua
+Data\GatherZones.lua
+Data\Seed.lua
+Auction.lua
+AuctionSold.lua
+Income.lua
+Profit.lua
+Instances.lua
+Learn.lua
+Collector.lua
+ItemInfo.lua
+MinimapPins.lua
+Guides.lua
+Scanner.lua
+WorldMap.lua
+MapMenu.lua
+Minimap.lua
+Browser.lua
+About.lua
+Modules\GuildHelper\GuildHelper.lua
+Modules\DungeonsRaids\Core.lua
+Modules\DungeonsRaids\Data.lua
+Modules\DungeonsRaids\History.lua
+Modules\DungeonsRaids\Collect.lua
+Modules\DungeonsRaids\Listing.lua
+Modules\DungeonsRaids\Apply.lua
+Modules\DungeonsRaids\Leader.lua
+Modules\DungeonsRaids\UI.lua
+Modules\Codex\Core.lua
+Modules\Codex\Guide.lua
+Modules\Codex\Special.lua
+Modules\Codex\Indexers.lua
+Modules\Codex\Quests.lua
+Modules\Codex\AchievementTips.lua
+Modules\Codex\Explain.lua
+Modules\Codex\Farming.lua
+Modules\Codex\Materials.lua
+Modules\Codex\DelveGuides.lua
+Modules\Codex\Delves.lua
+Modules\Codex\Vendors.lua
+Modules\Codex\UI.lua
+Modules\Codex\Hooks.lua
+Hub.lua
+Menu.lua
