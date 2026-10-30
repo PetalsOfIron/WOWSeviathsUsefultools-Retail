@@ -940,7 +940,9 @@ end
 function UI:Show(key)
   self:Build()
   Float(self.frame)
+  self.frame:SetFrameStrata("FULLSCREEN_DIALOG")   -- in front of the menu and other windows
   self.frame:Show()
+  self.frame:Raise()
   if key then self:Select(key) end
 end
 
