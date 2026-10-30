@@ -525,16 +525,20 @@ local buildDelve = simplePage("Delve Planner",
         infoText:SetSpacing(2)
         local delveRows = {}
         local function delveRow(i)
-            local b = delveRows[i]
-            if not b then
-                b = mkButton(c, "", 330, function(self)
-                    if self.pick == false then return end
-                    SFP.db.delveSel = self.pick
+            local r = delveRows[i]
+            if not r then
+                r = CreateFrame("CheckButton", nil, c, "UICheckButtonTemplate")
+                r:SetSize(24, 24)
+                r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                r.label:SetPoint("LEFT", r, "RIGHT", 2, 0)
+                r:SetScript("OnClick", function(self)
+                    -- ticking a delve selects it (only one at a time); unticking goes back to the default settings
+                    SFP.db.delveSel = self:GetChecked() and self.pick or nil
                     pane.refresh()
                 end)
-                delveRows[i] = b
+                delveRows[i] = r
             end
-            return b
+            return r
         end
         local listText = infoText
 
@@ -595,27 +599,37 @@ local buildDelve = simplePage("Delve Planner",
                 end
                 lines[#lines + 1] = "For your spec the best companion role is |cff40ff40" .. info.recommended .. "|r."
             else
-                lines[#lines + 1] = "|cff808080Showing the default settings. Pick a delve below to give it its own.|r"
+                lines[#lines + 1] = "|cff808080Showing the default settings. Pick a delve below to give it its own; untick it to go back to the default.|r"
             end
             infoText:SetText(table.concat(lines, "\n"))
             local top = listY - 22 - infoText:GetStringHeight() - 10
             local n = 0
-            local function row(text, pick)
+            local function row(text, pick, isHeader)
                 n = n + 1
-                local b = delveRow(n)
-                b:ClearAllPoints()
-                b:SetPoint("TOPLEFT", c, "TOPLEFT", 0, top - (n - 1) * 24)
-                b.pick = pick
-                b.text:SetText(text)
-                b:Show()
+                local r = delveRow(n)
+                r:ClearAllPoints()
+                r:SetPoint("TOPLEFT", c, "TOPLEFT", isHeader and 0 or 12, top - (n - 1) * 24)
+                r.pick = pick
+                r.label:SetText(text)
+                if not r.hdr then r.hdr = c:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall") end
+                if isHeader then
+                    r:Hide()
+                    r.hdr:ClearAllPoints()
+                    r.hdr:SetPoint("TOPLEFT", c, "TOPLEFT", 4, top - (n - 1) * 24 - 6)
+                    r.hdr:SetText(text)
+                    r.hdr:Show()
+                else
+                    r.hdr:Hide()
+                    r:SetChecked(pick ~= nil and sel == pick)
+                    r:Show()
+                end
             end
-            row((not sel and "|cff40ff40" or "") .. "All delves (default settings)", nil)
             local zone
             for _, dv in ipairs(list) do
-                if dv.zone ~= zone then zone = dv.zone; row("|cff00e5ff" .. zone .. "|r", false) end
-                row("    " .. (sel == dv.name and "|cff40ff40" or "") .. dv.name .. (dv.bountiful and "  |cffffd100bountiful today|r" or ""), dv.name)
+                if dv.zone ~= zone then zone = dv.zone; row("|cff00e5ff" .. zone .. "|r", nil, true) end
+                row(dv.name .. (dv.bountiful and "  |cffffd100bountiful today|r" or ""), dv.name)
             end
-            for i = n + 1, #delveRows do delveRows[i]:Hide() end
+            for i = n + 1, #delveRows do delveRows[i]:Hide(); if delveRows[i].hdr then delveRows[i].hdr:Hide() end end
             c:SetHeight(-top + n * 24 + 20)
         end
     end)
