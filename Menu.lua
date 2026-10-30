@@ -697,7 +697,7 @@ local buildDecor = simplePage("Housing Decor",
         mkText(pane, CYHEX .. "Your housing plan|r", 12, y, 400, "GameFontNormal")
         local plan = SFP.MakeRowList(pane, 8, y - 20, 500, 150, 22)
         local planInfo = mkText(pane, "", 12, y - 174, 480, "GameFontHighlightSmall")
-        mkText(pane, "Add decor - search by name or by where it comes from:", 12, y - 194, 400, "GameFontHighlightSmall")
+        mkText(pane, "Tick the decor you need (search by name or by where it comes from); untick to remove it:", 12, y - 194, 400, "GameFontHighlightSmall")
         local box = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
         box:SetSize(260, 20)
         box:SetPoint("TOPLEFT", 16, y - 212)
@@ -728,11 +728,12 @@ local buildDecor = simplePage("Housing Decor",
                 local src = e and e.source and e.source ~= "" and ("  |cff808080" .. e.source:sub(1, 90) .. "|r") or ""
                 items[#items + 1] = {
                     text = state .. " " .. (e and e.name or p.name) .. src,
-                    buttons = { { "Remove", 60, function() table.remove(planData(), i); fillPlan(); fillResults() end } },
+                    check = true,
+                    onToggle = function(on) if not on then table.remove(planData(), i); fillPlan(); fillResults() end end,
                 }
             end
             plan:Set(items)
-            planInfo:SetText(#items == 0 and "|cff808080Nothing planned yet. Search below and add decor.|r" or ("|cff808080" .. #items .. " planned, " .. have .. " owned.|r"))
+            planInfo:SetText(#items == 0 and "|cff808080Nothing planned yet. Search below and tick the decor you want.|r" or ("|cff808080" .. #items .. " planned, " .. have .. " owned.|r"))
         end
         fillResults = function()
             local q = (box:GetText() or ""):lower()
@@ -743,10 +744,16 @@ local buildDecor = simplePage("Housing Decor",
                         local idx = inPlan(e)
                         items[#items + 1] = {
                             text = e.name .. ((e.source and e.source ~= "") and ("  |cff808080" .. e.source:sub(1, 70) .. "|r") or ""),
-                            buttons = { idx and { "Added", 60, function() end } or { "Add", 60, function()
-                                table.insert(planData(), { id = e.itemID, name = e.name })
+                            check = idx ~= nil,
+                            onToggle = function(on)
+                                if on then
+                                    if not inPlan(e) then table.insert(planData(), { id = e.itemID, name = e.name }) end
+                                else
+                                    local k = inPlan(e)
+                                    if k then table.remove(planData(), k) end
+                                end
                                 fillPlan(); fillResults()
-                            end } },
+                            end,
                         }
                         if #items >= 60 then break end
                     end
