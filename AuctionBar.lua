@@ -52,7 +52,7 @@ end
 local function build()
     if bar or not AuctionHouseFrame then return end
     bar = CreateFrame("Frame", "SeviathsUsefulToolsScanBar", AuctionHouseFrame)
-    bar:SetSize(466, 22)
+    bar:SetSize(580, 22)
     bar:SetPoint("TOPLEFT", AuctionHouseFrame, "BOTTOMLEFT", 6, -40)   -- below the tab row, where Auctionator, TSM and others put their tabs
     bar:SetFrameStrata("HIGH")
 
@@ -86,6 +86,23 @@ local function build()
     deals:SetPoint("LEFT", status, "RIGHT", 6, 0)
     deals:SetText("BoE deals")
     deals:SetScript("OnClick", function() SFP:ShowDeals() end)
+
+    -- long scan: keep everything the auction house shows (all items, full details, all prices)
+    local long = CreateFrame("CheckButton", nil, bar, "UICheckButtonTemplate")
+    long:SetSize(22, 22)
+    long:SetPoint("LEFT", deals, "RIGHT", 4, 0)
+    long.label = long:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    long.label:SetPoint("LEFT", long, "RIGHT", 0, 0)
+    long.label:SetText("Long scan")
+    long:SetHitRectInsets(0, -60, 0, 0)
+    long:SetChecked(SFP.db.longScan and true or false)
+    long:SetScript("OnClick", function(self) SFP.db.longScan = self:GetChecked() and true or false end)
+    long:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine("Long scan: the next scans save the price and the full details of every item in the auction house, not only the ones the addon tracks. It makes the saved data bigger. Use it to collect everything, then switch it off.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    long:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
     local acc = 0
     bar:SetScript("OnUpdate", function(_, dt)
