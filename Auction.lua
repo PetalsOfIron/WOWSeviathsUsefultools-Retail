@@ -77,7 +77,6 @@ step = function()
     -- nothing listed -> no result event; move on after a short wait
     waitTimer = C_Timer.NewTimer(0.6, finishItem)
     if qIndex % 25 == 0 then
-        SFP:Print(string.format("Scanning prices... %d/%d (%d%%)", qIndex, #queue, math.floor(qIndex * 100 / math.max(1, #queue))))
         SFP:RefreshAll()
     end
 end
@@ -124,7 +123,7 @@ function SFP:TryFullScan()
     if not ok then return false end
     fullWaiting, scanning = true, true
     setProgress("wait")
-    self:Print("Full auction scan started (one request for the whole auction house)...")
+    self:Print("Scanning the auction house...")
     if fullTimer then fullTimer:Cancel() end
     -- no repeating chat messages: the bar at the auction house shows the progress
     fullTimer = C_Timer.NewTimer(25, function()
