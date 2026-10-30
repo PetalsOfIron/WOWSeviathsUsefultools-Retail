@@ -7,12 +7,23 @@ local _, SFP = ...
 local bar, status, label, button
 local doneUntil = 0
 
-local function ago(t)
+-- exact age: days, hours and minutes (and the date of the scan)
+local function ago(t, withDate)
     if not t or t <= 0 then return nil end
-    local mins = math.floor((time() - t) / 60)
-    if mins < 1 then return "just now" end
-    if mins < 120 then return mins .. " min ago" end
-    return math.floor(mins / 60) .. " h ago"
+    local mins = math.max(0, math.floor((time() - t) / 60))
+    local text
+    if mins < 1 then
+        text = "just now"
+    else
+        local d, h, m = math.floor(mins / 1440), math.floor(mins % 1440 / 60), mins % 60
+        local parts = {}
+        if d > 0 then parts[#parts + 1] = d .. (d == 1 and " day" or " days") end
+        if h > 0 then parts[#parts + 1] = h .. " h" end
+        if m > 0 and d == 0 then parts[#parts + 1] = m .. " min" end
+        text = table.concat(parts, " ") .. " ago"
+    end
+    if withDate and date then text = text .. " (" .. date("%d %b %H:%M", t) .. ")" end
+    return text
 end
 
 -- scans of other realms: { { realm, time }, ... } newest first (this realm's own scan is not in the list)
@@ -102,8 +113,8 @@ local function build()
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
         GameTooltip:AddLine("Auction prices", 1, 1, 1)
         local others = otherRealmScans()
-        GameTooltip:AddLine("This realm: " .. SFP:RealmKey() .. "  (" .. ((SFP.LastScan and SFP:LastScan() > 0) and ago(SFP:LastScan()) or "not scanned") .. ")", 0.4, 0.9, 1)
-        for _, o in ipairs(others) do GameTooltip:AddLine("Other realm: " .. o[1] .. "  (" .. (ago(o[2]) or "?") .. ")", 1, 0.8, 0.3) end
+        GameTooltip:AddLine("This realm: " .. SFP:RealmKey() .. "  (" .. ((SFP.LastScan and SFP:LastScan() > 0) and ago(SFP:LastScan(), true) or "not scanned") .. ")", 0.4, 0.9, 1)
+        for _, o in ipairs(others) do GameTooltip:AddLine("Other realm: " .. o[1] .. "  (" .. (ago(o[2], true) or "?") .. ")", 1, 0.8, 0.3) end
         if #others > 0 and (not SFP.LastScan or SFP:LastScan() == 0) then
             GameTooltip:AddLine("This realm has no scan, so prices shown come from another realm and may be wrong here.", 1, 0.8, 0.3, true)
         end
