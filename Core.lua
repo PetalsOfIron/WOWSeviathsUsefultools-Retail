@@ -68,6 +68,9 @@ local defaults = {
     showLabels   = false,  -- name / coordinate text next to the markers (off: info only on hover)
     showSpecial  = true,   -- magenta spots for special materials (rare hides, lures, special cloth)
     showGatherList = true, -- side list on zone maps: the expansion's ores/herbs + their best zone
+    greyKilled = true,     -- grey out rares you killed today on the map
+    rareAlerts = true,     -- chat line when a rare you still miss something from appears nearby
+    rareAlertSound = true, -- and a sound with it
     showSpotList = true,   -- side list on zone maps: every farm spot of the zone, each one can be switched off
     spotsCollapsed = false,
     hiddenSpots  = {},     -- [spot key] = true: switched off in the spot list (map and minimap)

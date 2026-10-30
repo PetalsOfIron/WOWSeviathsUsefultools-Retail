@@ -109,7 +109,7 @@ local function buildFarm(pane)
         { "mapOverlay", "Show farm layer" }, { "showSpawns", "Monster farm spots" }, { "showRares", "Rares (mounts, pets)" },
         { "showHunter", "Hunter tames" }, { "showMining", "Mining zones" }, { "showHerbs", "Herb zones" },
         { "showDungeons", "Dungeon entrances" }, { "showRaids", "Raid entrances" }, { "showSpecial", "Special materials" },
-        { "showGatherList", "Gathering list" }, { "showSpotList", "Farm spot list (switch single spots off)" }, { "showLabels", "Names on the map" }, { "learn", "Learn farm spots from my loot" },
+        { "showGatherList", "Gathering list" }, { "showSpotList", "Farm spot list (switch single spots off)" }, { "greyKilled", "Grey out rares killed today" }, { "rareAlerts", "Rare alerts (chat line)" }, { "rareAlertSound", "Rare alert sound" }, { "showLabels", "Names on the map" }, { "learn", "Learn farm spots from my loot" },
         { "exactSpots", "Exact spot markers (not areas)" }, { "continentSpots", "Also on continent maps (crowded)" }, { "minimapSpots", "Also show spots on the minimap" },
     }
     pane.checks = {}
@@ -120,7 +120,37 @@ local function buildFarm(pane)
             12 + col * 250, -116 - row * 26)
         pane.checks[#pane.checks + 1] = cb
     end
-    pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
+    -- read the game's own collections (transmog, mounts, pets): what you already own, from before the addon
+    local rows = math.ceil(#checks / 2)
+    local histY = -116 - rows * 26 - 14
+    local histText = mkText(pane, "", 12, histY - 30, 470, "GameFontHighlightSmall")
+    local function histStatus()
+        local h = SFP.db.history
+        if not h or not h.t or h.t == 0 then return "Not read yet. It also reads by itself about 40 seconds after you log in." end
+        local items, mons, mnt, pets = 0, 0, 0, 0
+        for _ in pairs(h.items or {}) do items = items + 1 end
+        for _, r in pairs(h.by or {}) do
+            mons = mons + 1
+            mnt = mnt + (r.mounts and #r.mounts or 0)
+            pets = pets + (r.pets and #r.pets or 0)
+        end
+        local mins = math.floor((time() - h.t) / 60)
+        return ("Last read %s: %d transmog items, %d mounts and %d pets from %d monsters and bosses."):format(
+            mins < 1 and "just now" or (mins < 120 and (mins .. " min ago") or (math.floor(mins / 60) .. " h ago")), items, mnt, pets, mons)
+    end
+    mkButton(pane, "Read my collections", 190, function()
+        SFP.db.historyReport = true
+        SFP:Print("Reading your transmog, mount and pet collections (in the background)...")
+        SFP:ScanTransmogHistory(true)
+        C_Timer.After(1, function() histText:SetText(histStatus()) end)
+    end, "Reads what the game says you already own - transmog, mounts and battle pets - so monster tooltips and the Codex can show it. Runs in the background."):SetPoint("TOPLEFT", 12, histY)
+    mkButton(pane, "Forget today's kills", 150, function() SFP:ClearKilled() end,
+        "The rares you killed today are greyed out on the map until the daily reset. This shows them all again."):SetPoint("TOPLEFT", 210, histY)
+    histText:SetText(histStatus())
+    pane.refresh = function()
+        for _, cb in ipairs(pane.checks) do cb.refresh() end
+        histText:SetText(histStatus())
+    end
 end
 
 local GUIDE_CATS = {

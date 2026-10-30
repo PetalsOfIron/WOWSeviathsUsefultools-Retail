@@ -102,3 +102,9 @@
 - /sfp weekly: Great Vault, raid lockouts and rares killed today for all your characters.
 - /sfp flip and a "BoE deals" button at the auction house: BoE items now against their typical price (the addon remembers each scan).
 - /sfp shop: crafting shopping list - pick recipes, get the reagent totals, prices, the profit and where to farm each reagent.
+
+- Rare alerts can be switched off (and the sound separately) in the menu; /sfp alerts still toggles them.
+
+- Menu: a "Read my collections" button (Farm & Map page) reads your transmog, mounts and pets again and shows when it last ran and what it found.
+
+- Menu: "Grey out rares killed today" switch and a "Forget today's kills" button (Farm & Map page).

@@ -419,7 +419,7 @@ local function spotText(s, px, py, more)
     -- BoE farm mobs get a purple "BoE" tag so they stand out on the map
     local tag, hex = "", SFP.CYAN_HEX
     if s.rare then tag, hex = " |cffff8000[Rare]|r", "ffff9933"
-        if s.npc and s.npc > 0 and SFP.RareKilledToday and SFP:RareKilledToday(s.npc) then tag = tag .. " |cff808080[killed today]|r" end
+        if SFP.db.greyKilled ~= false and s.npc and s.npc > 0 and SFP.RareKilledToday and SFP:RareKilledToday(s.npc) then tag = tag .. " |cff808080[killed today]|r" end
     elseif s.special then tag, hex = " |cffff4dd9[Special]|r", "ffff66e0" end
     if s.gather then
         local hx2 = s.gather == "ore" and "ffffb366" or "ff4dff8c"
@@ -535,7 +535,7 @@ local function drawAreas(zoneID, rect, unit, withLabels)
             { spawn = main, spawns = c.order, zoneID = zoneID, zx = c.x, zy = c.y, continent = rect ~= nil })
         markSymbol(p, c.order, sc)
         -- a rare you killed today: grey until the daily reset
-        if main.rare and main.npc and main.npc > 0 and SFP.RareKilledToday and SFP:RareKilledToday(main.npc) then
+        if SFP.db.greyKilled ~= false and main.rare and main.npc and main.npc > 0 and SFP.RareKilledToday and SFP:RareKilledToday(main.npc) then
             p.outer:SetVertexColor(0.55, 0.55, 0.55, 0.3)
             p.inner:SetVertexColor(0.6, 0.6, 0.6, 0.5)
         end
