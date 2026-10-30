@@ -108,3 +108,7 @@
 - Menu: a "Read my collections" button (Farm & Map page) reads your transmog, mounts and pets again and shows when it last ran and what it found.
 
 - Menu: "Grey out rares killed today" switch and a "Forget today's kills" button (Farm & Map page).
+
+- Menu: "Show the farm route on the map" switch (Farm & Map page).
+
+- Menu: two new pages - "Rares & Alerts" (rare alerts, alert sound, grey killed rares, farm route, spot list, read my collections, forget today's kills) and "Tools" (a button for every tool: farm session, what to farm next, weekly checklist, BoE deals, shopping list, route, export / import). Moved there from the Farm & Map page; the Settings page points to them.

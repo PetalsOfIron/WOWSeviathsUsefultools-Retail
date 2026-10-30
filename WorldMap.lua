@@ -759,7 +759,7 @@ local routeLines = {}
 local function drawRoute(mapID)
     for _, l in ipairs(routeLines) do l:Hide() end
     local r = SFP.route
-    if not r or r.map ~= mapID or #r.pts < 2 or not spawnLayer then return end
+    if SFP.db.showRoute == false or not r or r.map ~= mapID or #r.pts < 2 or not spawnLayer then return end
     local w, h = spawnLayer:GetWidth(), spawnLayer:GetHeight()
     for i = 1, #r.pts - 1 do
         local l = routeLines[i]
