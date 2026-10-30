@@ -981,7 +981,7 @@ local function knowRebuild(pane)
     elseif know.mode == "ah" then src = {}
         -- every item ID the auction house scan saw, grouped by its auction section
         for id, cls in pairs(db.ahItems or {}) do
-            local nm = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+            local nm = (db.ahNames and db.ahNames[id]) or (C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id))
             if not nm and C_Item and C_Item.RequestLoadItemDataByID and #src < 200 then pcall(C_Item.RequestLoadItemDataByID, id) end
             local cn = GetItemClassInfo and GetItemClassInfo(cls) or tostring(cls)
             src[id] = { n = (cn or "?") .. ": " .. (nm or ("item " .. id)) }
