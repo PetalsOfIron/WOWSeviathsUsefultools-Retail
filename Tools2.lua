@@ -977,6 +977,12 @@ local function decorEntries()
     return list, fromGame
 end
 
+-- learning needs no window: reads the housing catalog by itself
+function SFP:LearnDecor()
+    decorCache = nil
+    decorEntries()
+end
+
 local decorKind, decorPlace
 local decorFilterBox
 
@@ -1266,5 +1272,13 @@ function SFP:ShowAchPlanner()
     self:AchRefreshList()
 end
 
--- read the companion curios once after login (silent; the delve planner button does it again with a report)
-SFP:OnLogin(function() C_Timer.After(30, function() SFP:Safe("curio scan", SFP.ScanOwnedCurios, SFP) end) end)
+-- curios and decor are learned automatically (silent; the delve planner button reads the curios again with a report)
+SFP:OnLogin(function()
+    -- everything is learned by itself: a minute after login, then every 15 minutes while you play
+    local function learnAll()
+        SFP:Safe("curio scan", SFP.ScanOwnedCurios, SFP)
+        SFP:Safe("decor learning", SFP.LearnDecor, SFP)
+    end
+    C_Timer.After(45, learnAll)
+    C_Timer.NewTicker(900, learnAll)
+end)
