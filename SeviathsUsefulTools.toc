@@ -25,6 +25,7 @@ Data\Gathering.lua
 Data\GatherZones.lua
 Data\Seed.lua
 Auction.lua
+AuctionBar.lua
 AuctionSold.lua
 Income.lua
 Profit.lua
@@ -57,6 +58,7 @@ Modules\Codex\Quests.lua
 Modules\Codex\AchievementTips.lua
 Modules\Codex\Explain.lua
 Modules\Codex\Farming.lua
+Modules\Codex\Grind.lua
 Modules\Codex\Materials.lua
 Modules\Codex\DelveGuides.lua
 Modules\Codex\Delves.lua

@@ -730,6 +730,7 @@ ns.INDEXERS = {
     { name = "Loading vendors",               fn = function() if ns.IndexVendors then ns:IndexVendors() end end },
     { name = "Finding delves",                fn = function() if ns.IndexDelves then ns:IndexDelves() end end },
     { name = "Loading gold farms",            fn = function() if ns.LoadFarms then ns:LoadFarms() end end },
+    { name = "Ranking grinding spots",        fn = function() if ns.LoadGrind then ns:LoadGrind() end end },
     { name = "Loading hunter pets",           fn = function() if ns.LoadBeasts then ns:LoadBeasts() end end },
     { name = "Loading monsters",              fn = function() if ns.LoadMonsters then ns:LoadMonsters() end end },
     { name = "Reading your items",            fn = IndexSeenItems },

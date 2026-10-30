@@ -26,6 +26,7 @@ ns.CATEGORIES = {
     { key = "tset",       name = "Transmog Sets",           icon = "Interface\\Icons\\INV_Chest_Cloth_17" },
     { key = "material",   name = "Materials (what for)",   icon = "Interface\\Icons\\INV_Fabric_Linen_01" },
     { key = "mats",       name = "Gold Farming",            icon = "Interface\\Icons\\INV_Misc_Herb_Felblossom" },
+    { key = "grind",      name = "Best Grinding Spots",     icon = "Interface\\Icons\\INV_Misc_Coin_01" },
 }
 -- Mists of Pandaria has no transmog sets window: leave that section out
 if not (C_TransmogSets and C_TransmogSets.GetAllSets) then

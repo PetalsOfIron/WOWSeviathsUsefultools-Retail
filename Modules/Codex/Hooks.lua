@@ -251,3 +251,14 @@ SlashCmdList.SEVIATHSCODEX = function(msg)
     end
     return base(msg)
 end
+
+-- keep the Best Grinding Spots ranking current: recalculated when the Codex opens (at most every 20 s)
+do
+    local open = ns.Open
+    if open then
+        ns.Open = function(self, ...)
+            if self.RefreshGrind then pcall(self.RefreshGrind, self) end
+            return open(self, ...)
+        end
+    end
+end

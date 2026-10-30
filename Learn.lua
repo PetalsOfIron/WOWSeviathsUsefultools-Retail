@@ -81,6 +81,16 @@ local function updateSpot(map, npcID, rec)
         if info and info.special then s.special = true end
         if info and info.kind == "boe" then s.grind = true end
         SFP.trackedIDs[id] = true
+        -- what you collected here becomes part of the zone: its item list and the item's "farm in" list
+        local have = false
+        for _, z in ipairs(zone.items) do if z == id then have = true; break end end
+        if not have then table.insert(zone.items, id) end
+        local zname = SFP:ZoneName(map)
+        local src = SFP.itemSources[id]
+        if not src then src = {}; SFP.itemSources[id] = src end
+        local known = false
+        for _, l in ipairs(src) do if l == zname or l == zname .. " (best zone)" then known = true; break end end
+        if not known then src[#src + 1] = zname end
     end
     wipe(s.points)
     local sx, sy = 0, 0
