@@ -137,6 +137,96 @@ function SFP:TryFullScan()
     return true
 end
 
+-- section scan, the way Auctionator does it: open each auction house category and read its price list
+-- (browse results come in big batches with the lowest price per item), instead of one search per item
+local catQueue, catIndex, catSeen, catBest, catTimer, catBusy = {}, 0, 0, {}, nil, false
+local catNext
+
+local function catFinish()
+    if catTimer then catTimer:Cancel(); catTimer = nil end
+    local found = 0
+    for id, p in pairs(catBest) do savePrice(id, p); found = found + 1 end
+    scanning, catBusy = false, false
+    markScanned()
+    setProgress("done", 1, 1)
+    SFP:Print(("Auction scan done: prices for %d items."):format(found))
+    SFP:RefreshAll()
+end
+
+local function catRead()
+    if not catBusy then return end
+    local results = C_AuctionHouse.GetBrowseResults and C_AuctionHouse.GetBrowseResults() or {}
+    for i = catSeen + 1, #results do
+        local r = results[i]
+        local id = r and r.itemKey and r.itemKey.itemID
+        local price = r and r.minPrice
+        if id and price and price > 0 and SFP.trackedIDs[id] and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
+    end
+    catSeen = #results
+    if C_AuctionHouse.HasFullBrowseResults and C_AuctionHouse.HasFullBrowseResults() then
+        catNext()
+    elseif C_AuctionHouse.RequestMoreBrowseResults then
+        C_AuctionHouse.RequestMoreBrowseResults()
+    else
+        catNext()
+    end
+end
+
+local function catSend()
+    if not catBusy then return end
+    if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() then
+        C_Timer.After(0.3, catSend)   -- the game limits how fast we may ask; try again in a moment
+        return
+    end
+    local cid = catQueue[catIndex]
+    catSeen = 0
+    setProgress("section", catIndex, #catQueue)
+    C_AuctionHouse.SendBrowseQuery({
+        searchString = "", filters = {},
+        sorts = { { sortOrder = Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price or 0, reverseSort = false } },
+        itemClassFilters = { { classID = cid } },
+    })
+    if catTimer then catTimer:Cancel() end
+    catTimer = C_Timer.NewTimer(10, function() catNext() end)   -- an empty category sends no answer: go on
+end
+
+catNext = function()
+    if catTimer then catTimer:Cancel(); catTimer = nil end
+    catIndex = catIndex + 1
+    if catIndex > #catQueue then catFinish(); return end
+    catSend()
+end
+
+function SFP:StartCategoryScan()
+    local AH = C_AuctionHouse
+    if not (AH and AH.SendBrowseQuery and AH.GetBrowseResults and Enum and Enum.ItemClass) then return false end
+    wipe(catQueue)
+    for _, name in ipairs({ "Weapon", "Armor", "Container", "Gem", "ItemEnhancement", "Consumable", "Glyph", "Tradegoods", "Recipe",
+        "Profession", "Battlepet", "Questitem", "Miscellaneous", "Housing" }) do
+        local v = Enum.ItemClass[name]
+        if v then catQueue[#catQueue + 1] = v end
+    end
+    if #catQueue == 0 then return false end
+    catIndex, catSeen, catBusy = 0, 0, true
+    wipe(catBest)
+    scanning = true
+    self:Print("Scanning the auction house...")
+    catNext()
+    return true
+end
+
+SFP.StopCategoryScan = function()
+    if catBusy then
+        catBusy, scanning = false, false
+        if catTimer then catTimer:Cancel(); catTimer = nil end
+        setProgress("idle")
+    end
+end
+
+SFP.CategoryScanEvent = function(event)
+    if catBusy and (event == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" or event == "AUCTION_HOUSE_BROWSE_RESULTS_ADDED") then catRead() end
+end
+
 function SFP:StartScan(force, noFull)
     if not ahOpen then
         self:Print("Open the auction house first.")
@@ -151,7 +241,7 @@ function SFP:StartScan(force, noFull)
         end
         return
     end
-    if not noFull and self:TryFullScan() then return end
+    if not noFull and self:StartCategoryScan() then return end
     if not force and qIndex > 0 and qIndex < #queue then
         qIndex = qIndex - 1 -- resume the interrupted scan
     else
@@ -169,7 +259,13 @@ pcall(f.RegisterEvent, f, "COMMODITY_SEARCH_RESULTS_UPDATED")
 pcall(f.RegisterEvent, f, "ITEM_SEARCH_RESULTS_UPDATED")
 pcall(f.RegisterEvent, f, "AUCTION_HOUSE_THROTTLED_SYSTEM_READY")
 pcall(f.RegisterEvent, f, "REPLICATE_ITEM_LIST_UPDATE")
+pcall(f.RegisterEvent, f, "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED")
+pcall(f.RegisterEvent, f, "AUCTION_HOUSE_BROWSE_RESULTS_ADDED")
 f:SetScript("OnEvent", function(_, event, arg1)
+    if event == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" or event == "AUCTION_HOUSE_BROWSE_RESULTS_ADDED" then
+        if SFP.CategoryScanEvent then SFP.CategoryScanEvent(event) end
+        return
+    end
     if event == "AUCTION_HOUSE_SHOW" then
         ahOpen = true
         local age = time() - SFP:LastScan()
@@ -191,6 +287,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
         end
     elseif event == "AUCTION_HOUSE_CLOSED" then
         ahOpen = false
+        if SFP.StopCategoryScan then SFP.StopCategoryScan() end
     elseif event == "AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
         if scanning and not waitingFor then step() end
     elseif event == "COMMODITY_SEARCH_RESULTS_UPDATED" then
