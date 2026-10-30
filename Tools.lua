@@ -82,6 +82,23 @@ function SFP.MakeRowList(parent, x, y, w, h, rowH)
                 rows[i] = r
             end
             r.text:SetText(it.text or "")
+            -- an optional tick box in front of the row: it.check = true / false, it.onToggle(ticked)
+            if it.check ~= nil then
+                if not r.tick then
+                    r.tick = CreateFrame("CheckButton", nil, r, "UICheckButtonTemplate")
+                    r.tick:SetSize(20, 20)
+                    r.tick:SetPoint("LEFT", 0, 0)
+                end
+                r.tick:SetChecked(it.check and true or false)
+                r.tick:SetScript("OnClick", function(self) if it.onToggle then it.onToggle(self:GetChecked() and true or false) end end)
+                r.tick:Show()
+                r.text:ClearAllPoints()
+                r.text:SetPoint("LEFT", 24, 0)
+            else
+                if r.tick then r.tick:Hide() end
+                r.text:ClearAllPoints()
+                r.text:SetPoint("LEFT", 4, 0)
+            end
             local used = 0
             for j = #(it.buttons or {}), 1, -1 do
                 local def = it.buttons[j]
@@ -99,7 +116,7 @@ function SFP.MakeRowList(parent, x, y, w, h, rowH)
                 used = used + def[2] + 2
             end
             for j = #(it.buttons or {}) + 1, #r.btns do r.btns[j]:Hide() end
-            r.text:SetWidth(math.max(40, w - 24 - used - 8))
+            r.text:SetWidth(math.max(40, w - 24 - used - 8 - (it.check ~= nil and 24 or 0)))
             r:Show()
         end
         for i = #items + 1, #rows do rows[i]:Hide() end
