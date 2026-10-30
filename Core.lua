@@ -422,9 +422,10 @@ function SFP:LastScan()
 end
 
 -- remember a price: for this realm, and as the newest price seen anywhere
-function SFP:StorePrice(itemID, copper)
+function SFP:StorePrice(itemID, copper, fromOtherAddon)
     if not itemID or not copper or copper <= 0 then return end
-    local rec = { p = copper, t = time() }
+    -- a price from this addon's own scan stays until the next scan; one copied from Auctionator / TSM is marked and may be refreshed
+    local rec = { p = copper, t = time(), ext = fromOtherAddon or nil }
     self:RealmPrices()[itemID] = rec
     self.db.prices[itemID] = { p = copper, t = rec.t }
     -- remember how the price moves (for "typical price" in the BoE deals list): a sample when it changed or every 6 h
@@ -461,10 +462,10 @@ function SFP:GetPrice(itemID)
     local function consider(id)
         -- this realm's own price first; else the newest price any character saw
         local rec = here[id]
-        if not rec or time() - (rec.t or 0) > 3600 then
+        if not rec or (rec.ext and time() - (rec.t or 0) > 3600) then
             local v = self:ExternalPrice(id)
             if v then
-                self:StorePrice(id, v) -- their data only covers the realm they were scanned on: keep it for the other characters
+                self:StorePrice(id, v, true) -- their data only covers the realm they were scanned on: keep it for the other characters
                 rec = here[id]
             end
         end
