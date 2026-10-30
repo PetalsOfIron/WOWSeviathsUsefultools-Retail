@@ -36,6 +36,8 @@
 - Delve Planner: right-click a curio to mark that you own it; the suggested setup then picks the best curio of the ones you have, and the best one is marked.
 - Housing Decor browser: pick a type (quest, crafted, achievement, drop, vendor ...) and a place (zone, instance, profession) from lists, search by name or source, filter all/missing/owned.
 
+- Housing Decor: 491 more decor items added with their item and decor IDs (and a name where known); the game's housing catalog fills in missing names and sources and corrects wrong ones, and the corrections are saved.
+
 - War Within farm monsters: 22 more with real spawn points and Wowhead drop rates (Ringing Deeps, Hallowfall, Isle of Dorn, Azj-Kahet, Undermine, K'aresh).
 - 84 rare-drop mounts, pets and toys added to the item data (they now show their kind and icon on tooltips and the map).
 
