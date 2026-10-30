@@ -118,7 +118,12 @@ function SFP.RegisterWindow(f)
     f.SeviathsFront = true
     f:SetFrameStrata("DIALOG")
     if f.SetToplevel then f:SetToplevel(true) end
-    f:HookScript("OnShow", function(self) self:Raise() end)
+    -- raise now and again a moment later: the click that opened the window can raise the menu above it afterwards
+    f:HookScript("OnShow", function(self)
+        self:Raise()
+        C_Timer.After(0, function() if self:IsShown() then self:Raise() end end)
+        C_Timer.After(0.15, function() if self:IsShown() then self:Raise() end end)
+    end)
     f:HookScript("OnMouseDown", function(self) self:Raise() end)
 end
 
