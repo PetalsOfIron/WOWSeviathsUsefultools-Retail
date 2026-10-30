@@ -52,3 +52,5 @@
 - 20 Outland rares (Hellfire, Zangarmarsh, Nagrand, Terokkar, Blade's Edge, Netherstorm, Shadowmoon) with NPC IDs and spawn points; Topaz Skyfang added to the Coiled Isle rare drops; Satchel of Pilfered Recipes (Aberrus) added.
 
 - 21 more Northrend rares (Frostbitten / Northern Exposure) and 21 Thaldraszus rares with NPC IDs and spawn points from Wowhead.
+
+- NPC IDs filled in for 159 rares (Siren Isle, Isle of Dorn, Ringing Deeps, Hallowfall, Azj-Kahet, Undermine, Eversong, Voidstorm, Harandar, Zul'Aman, Coiled Isle ...); checked against Wowhead spawn maps. Blightpaw the Depraved added on the Ohn'ahran Plains.
