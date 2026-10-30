@@ -40,13 +40,23 @@ local function refresh()
         value, r, g, b = 1, 0.2, 0.85, 0.3
         text = "Scan done - prices updated"
     end
+    local old = false
     if not text then
-        local when = ago(SFP.LastScan and SFP:LastScan())
-        text = when and ("Prices: last scan " .. when) or "Prices: not scanned yet"
+        local last = SFP.LastScan and SFP:LastScan()
+        local when = ago(last)
+        local limit = (SFP.db.rescanHours or 12) * 3600
+        if not when or not last or last == 0 then
+            text, old = "Prices are old data - scan for current prices", true
+        elseif time() - last > limit then
+            text, old = "Prices: last scan " .. when .. " - scan for current", true
+        else
+            text = "Prices: last scan " .. when
+        end
     end
     status:SetValue(value)
     status:SetStatusBarColor(r, g, b)
     label:SetText(text)
+    if old then label:SetTextColor(1, 0.8, 0.3) else label:SetTextColor(1, 1, 1) end
 end
 
 local function build()
@@ -73,6 +83,14 @@ local function build()
     status:SetPoint("LEFT", button, "RIGHT", 6, 0)
     status:SetSize(272, 18)
     status:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    status:EnableMouse(true)
+    status:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:AddLine("Auction prices", 1, 1, 1)
+        GameTooltip:AddLine("Prices come from your last scan. If there is none or it is old, press Scan prices for current prices. Until then the addon uses Auctionator or TradeSkillMaster prices when you have them, also data they got from another PC or account.", 0.8, 0.8, 0.8, true)
+        GameTooltip:Show()
+    end)
+    status:SetScript("OnLeave", function() GameTooltip:Hide() end)
     status:SetMinMaxValues(0, 1)
     status:SetValue(0)
     local bg = status:CreateTexture(nil, "BACKGROUND")
