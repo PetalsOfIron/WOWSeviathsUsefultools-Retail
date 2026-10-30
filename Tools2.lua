@@ -915,18 +915,26 @@ end
 
 local function decorEntries()
     if decorCache and GetTime() - decorAt < 60 then return decorCache.list, decorCache.fromGame end
-    local list, byName, fromGame = {}, {}, false
+    local list, byName, byItem, fromGame = {}, {}, {}, false
     for _, d in ipairs(SFP.DecorData or {}) do
         local name = d[3] ~= "" and d[3] or ("Decor item " .. d[1])
         local e = { name = name, itemID = d[1], decorID = d[2] > 0 and d[2] or nil, source = d[4], unknownOwned = true }
         local own = decorOwned(d[1])
         if own ~= nil then e.owned, e.unknownOwned, fromGame = own > 0, false, true end
+        e.placeholder = d[3] == ""
         list[#list + 1] = e
         byName[name:lower()] = e
+        byItem[d[1]] = e
     end
+    -- decor shipped from a played account: fills names and sources and corrects the data
     for _, d in ipairs(SFP.DecorLearned or {}) do
         local name = d[3] ~= "" and d[3] or ("Decor item " .. d[1])
-        if not byName[name:lower()] then
+        local old = byItem[d[1]]
+        if old then
+            if d[3] ~= "" then old.name, old.placeholder = d[3], false; byName[d[3]:lower()] = old end
+            if d[4] ~= "" then old.source = d[4] end
+            if d[2] > 0 then old.decorID = d[2] end
+        elseif not byName[name:lower()] then
             local e = { name = name, itemID = d[1] > 0 and d[1] or nil, decorID = d[2] > 0 and d[2] or nil, source = d[4], unknownOwned = true }
             list[#list + 1] = e
             byName[name:lower()] = e
@@ -937,20 +945,24 @@ local function decorEntries()
     if cat then
         fromGame = true
         for _, c in ipairs(cat) do
-            local e = byName[c.name:lower()]
+            local e = (c.itemID and byItem[c.itemID]) or byName[c.name:lower()]
             local hadID = e and e.decorID
+            local changed = false
             if e then
                 e.owned, e.unknownOwned = c.owned, false
-                if (e.source or "") == "" then e.source = c.source end
-                if not e.decorID and c.decorID then e.decorID = c.decorID end
+                -- the game is right: fill what is empty and fix what differs
+                if c.name ~= e.name then e.name, changed = c.name, true end
+                if (c.source or "") ~= "" and c.source ~= e.source then e.source, changed = c.source, true end
+                if c.decorID and e.decorID ~= c.decorID then e.decorID, changed = c.decorID, true end
+                e.placeholder = false
             else
                 list[#list + 1] = c
             end
             -- learn what the addon's data lacks (new decor, missing decor IDs); saved with the account data
-            if SFP.db and (not e or (c.decorID and not hadID)) then
+            if SFP.db and (not e or changed or (c.decorID and not hadID)) then
                 SFP.db.learnedDecor = SFP.db.learnedDecor or {}
                 local key = c.itemID and tostring(c.itemID) or c.name
-                SFP.db.learnedDecor[key] = SFP.db.learnedDecor[key] or { item = c.itemID, decor = c.decorID, name = c.name, source = c.source }
+                SFP.db.learnedDecor[key] = { item = c.itemID, decor = c.decorID or (e and e.decorID), name = c.name, source = c.source }
             end
         end
     end
