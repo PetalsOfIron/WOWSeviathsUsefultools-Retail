@@ -38,6 +38,7 @@ local function playerPos()
     local pos = C_Map.GetPlayerMapPosition(map, "player")
     if not pos then return end
     local x, y = pos:GetXY()
+    if issecretvalue and (issecretvalue(x) or issecretvalue(y)) then return end
     if not x or x <= 0 or y <= 0 then return end
     return map, x, y
 end
@@ -76,7 +77,8 @@ local function initSpellNames()
 end
 
 function SFP:RecentCastTarget()
-    if lastCast.target and lastCast.target ~= "" and GetTime() - lastCast.t < 8 then return lastCast.target end
+    local t = lastCast.target
+    if t and not (issecretvalue and issecretvalue(t)) and t ~= "" and GetTime() - lastCast.t < 8 then return t end
 end
 
 ---------------------------------------------------------------------------
@@ -162,6 +164,7 @@ local function onLoot()
     local skin = lastCast.name and skinNames[lastCast.name] and GetTime() - lastCast.t < 8
     for slot = 1, GetNumLootItems() do
         local link = GetLootSlotLink and GetLootSlotLink(slot)
+        if link and issecretvalue and issecretvalue(link) then link = nil end
         local itemID = link and tonumber(link:match("item:(%d+)"))
         if itemID then recordItem(itemID) end
         local sources = { GetLootSourceInfo(slot) }
@@ -617,11 +620,13 @@ ev:SetScript("OnEvent", function(_, event, a, b, c, d)
     elseif event == "LOOT_READY" then
         SFP:Safe("record loot", onLoot)
     elseif event == "UNIT_SPELLCAST_SENT" then
-        if a == "player" then
+        -- the game hides some of these values (secret): then there is simply nothing to remember
+        local function open(v) return not (issecretvalue and issecretvalue(v)) end
+        if open(a) and a == "player" then
             local spellID = d or c
-            local nm = type(spellID) == "number" and spellName(spellID)
-            if nm and (gatherNames[nm] or skinNames[nm]) then
-                lastCast.name, lastCast.target, lastCast.t = nm, b, GetTime()
+            local nm = open(spellID) and type(spellID) == "number" and spellName(spellID)
+            if nm and open(nm) and (gatherNames[nm] or skinNames[nm]) then
+                lastCast.name, lastCast.target, lastCast.t = nm, open(b) and b or nil, GetTime()
             end
         end
     elseif event == "GET_ITEM_INFO_RECEIVED" then
