@@ -34,6 +34,8 @@
 - Fixed: the Learned data page was missing its code in the retail edition; map, minimap and menu tooltips now use the addon's own tooltip frame so Blizzard's map pins are no longer tainted by the addon.
 - Housing Decor now lists all 2027 decor items with item IDs and sources (data from Vamoose's Housing Decor Guide, MIT), owned or missing read from the game's housing catalog when it answers.
 - Delve Planner: right-click a curio to mark that you own it; the suggested setup then picks the best curio of the ones you have, and the best one is marked.
+- Housing Decor browser: pick a type (quest, crafted, achievement, drop, vendor ...) and a place (zone, instance, profession) from lists, search by name or source, filter all/missing/owned.
+
 - War Within farm monsters: 22 more with real spawn points and Wowhead drop rates (Ringing Deeps, Hallowfall, Isle of Dorn, Azj-Kahet, Undermine, K'aresh).
 - 84 rare-drop mounts, pets and toys added to the item data (they now show their kind and icon on tooltips and the map).
 
