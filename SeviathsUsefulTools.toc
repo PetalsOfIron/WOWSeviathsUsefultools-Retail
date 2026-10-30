@@ -32,6 +32,7 @@ Profit.lua
 Instances.lua
 Learn.lua
 Collector.lua
+TransmogHistory.lua
 ItemInfo.lua
 MinimapPins.lua
 Guides.lua

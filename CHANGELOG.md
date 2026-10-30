@@ -77,3 +77,5 @@
 - Best Grinding Spots also ranks the spots the addon learned from your own kills, with your measured drop rates.
 
 - Items you collected in a zone now join that zone's item list and the item's "farm in" places when the addon loads (learned from your own loot, account-wide).
+
+- Transmog history: the addon reads your transmog collection once in the background (never in combat) and learns which monsters and bosses you already own gear from, from before it was installed. Monster tooltips say "You already own N items from this monster". /sfp history shows the numbers, /sfp history rescan reads it again.

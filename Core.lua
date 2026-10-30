@@ -812,6 +812,18 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         if SFP.ToggleIncomeMessages then SFP:ToggleIncomeMessages() end
     elseif cmd == "sold" then
         if SFP.ToggleAuctionSold then SFP:ToggleAuctionSold() end
+    elseif cmd == "history" then
+        if rest == "rescan" then
+            SFP.db.historyReport = true
+            SFP:Print("Reading your transmog collection again (in the background)...")
+            SFP:ScanTransmogHistory(true)
+        else
+            local h = SFP.db.history
+            local items, mons = 0, 0
+            for _ in pairs(h and h.items or {}) do items = items + 1 end
+            for _ in pairs(h and h.by or {}) do mons = mons + 1 end
+            SFP:Print(("Transmog history: %d items you own, %d monsters and bosses they drop from. /sfp history rescan reads it again."):format(items, mons))
+        end
     elseif cmd == "tipdebug" then
         SFP.tipDebug = not SFP.tipDebug
         SFP:Print("Tooltip debug " .. (SFP.tipDebug and "ON - hover a monster" or "OFF"))
@@ -848,6 +860,7 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:Print("/sfp scan - rescan AH prices (auction house must be open)")
         SFP:Print("/sfp min <gold> - only light zones worth at least this much")
         SFP:Print("/sfp tooltip - toggle the item tooltip lines")
+        SFP:Print("/sfp history - what your transmog collection says you already looted (rescan to refresh)")
         SFP:Print("/sfp craft - the most profitable recipes you know")
         SFP:Print("/sfp income - toggle the gold messages (vendor, mail, quests)")
         SFP:Print("/sfp sold - toggle the chat message when an auction sells")
