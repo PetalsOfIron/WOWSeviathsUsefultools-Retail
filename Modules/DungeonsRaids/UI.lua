@@ -639,6 +639,11 @@ local function BuildGroup(p)
   p.text:SetSpacing(2)
   local b = UI.Button(p, "Refresh", 80, 20, function() UI:RefreshGroup() end)
   b:SetPoint("TOPRIGHT", -16, -8)
+  -- the window opens by itself in a group of 5 or more; close it with the X, or switch that off here
+  local S = _G.SeviathsUsefulTools
+  if S and S.db then
+    UI.Check(p, "Open this by itself in a group of 5 or more (close it with the X)", S.db, "autoGroupComp", 16, -380)
+  end
 end
 
 function UI:RefreshGroup()

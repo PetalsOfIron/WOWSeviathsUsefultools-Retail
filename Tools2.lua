@@ -44,46 +44,285 @@ function SFP:UpdateAlt()
         end
     end
     self.db.alts = self.db.alts or {}
+    local old = self.db.alts[charKey()]
+    if old then rec.bags, rec.bagsT, rec.bank, rec.bankT = old.bags, old.bagsT, old.bank, old.bankT end
     self.db.alts[charKey()] = rec
 end
 
-local altWin
+-- what is in the bags: { [itemID] = count }, read from the given bag slots
+local function readBags(ids)
+    local counts, any = {}, false
+    if not (C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerItemInfo) then return counts, false end
+    for _, bag in ipairs(ids) do
+        local okN, n = pcall(C_Container.GetContainerNumSlots, bag)
+        if okN and type(n) == "number" and n > 0 then
+            any = true
+            for slot = 1, n do
+                local okI, info = pcall(C_Container.GetContainerItemInfo, bag, slot)
+                if okI and type(info) == "table" and info.itemID and not secret(info.itemID) then
+                    counts[info.itemID] = (counts[info.itemID] or 0) + (tonumber(info.stackCount) or 1)
+                end
+            end
+        end
+    end
+    return counts, any
+end
+
+local function bagIDs(kind)
+    local first, prefix, n
+    if kind == "bags" then return { 0, 1, 2, 3, 4, 5 } end
+    if kind == "bank" then first, prefix, n = 6, "CharacterBankTab_", 6 else first, prefix, n = 12, "AccountBankTab_", 5 end
+    local ids = {}
+    for i = 1, n do
+        ids[#ids + 1] = (Enum and Enum.BagIndex and Enum.BagIndex[prefix .. i]) or (first + i - 1)
+    end
+    return ids
+end
+
+local bankOpen = false
+
+-- bags are read all the time; the bank and the warband bank only while the bank window is open
+function SFP:SnapshotBags()
+    if not self.db then return end
+    local key = charKey()
+    self.db.alts = self.db.alts or {}
+    if not self.db.alts[key] then self:UpdateAlt() end
+    local rec = self.db.alts[key]
+    if not rec then return end
+    rec.bags, rec.bagsT = readBags(bagIDs("bags")), time()
+    if bankOpen then
+        local cb, anyC = readBags(bagIDs("bank"))
+        if anyC then rec.bank, rec.bankT = cb, time() end
+        local wb, anyW = readBags(bagIDs("warband"))
+        if anyW then
+            self.db.warband = self.db.warband or {}
+            self.db.warband.items, self.db.warband.t = wb, time()
+        end
+        if C_Bank and C_Bank.FetchDepositedMoney and Enum and Enum.BankType then
+            local okM, m = pcall(C_Bank.FetchDepositedMoney, Enum.BankType.Account)
+            if okM and type(m) == "number" and not secret(m) then
+                self.db.warband = self.db.warband or {}
+                self.db.warband.money = m
+            end
+        end
+    end
+end
+
+local altWin, altRows, altBox
+local altView = "overview"
+local ALT_VIEWS = { { "overview", "Overview", 80 }, { "bags", "Bags", 60 }, { "bank", "Bank", 60 }, { "warband", "Warband bank", 100 }, { "gold", "All gold", 80 } }
+local altViewBtns = {}
+
+local function ago(t)
+    if not t then return "never" end
+    local m = math.floor((time() - t) / 60)
+    if m < 1 then return "just now" end
+    if m < 120 then return m .. " min ago" end
+    if m < 2880 then return math.floor(m / 60) .. " h ago" end
+    return math.floor(m / 1440) .. " days ago"
+end
+
+local function itemLines(counts, filter)
+    local list, distinct, value = {}, 0, 0
+    for id, cnt in pairs(counts or {}) do
+        distinct = distinct + 1
+        local unit = SFP:GetPrice(id) or 0
+        value = value + unit * cnt
+        local name = SFP:ItemName(id)
+        local plain = name:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
+        if filter == "" or plain:find(filter, 1, true) then list[#list + 1] = { name = name, plain = plain, cnt = cnt, unit = unit } end
+    end
+    table.sort(list, function(x, y) return x.plain < y.plain end)
+    local lines = {}
+    for i = 1, math.min(150, #list) do
+        local e = list[i]
+        lines[#lines + 1] = ("%dx %s%s"):format(e.cnt, e.name, e.unit > 0 and ("  |cff808080" .. money(e.unit) .. " each|r") or "")
+    end
+    if #list > 150 then lines[#lines + 1] = ("|cff808080+%d more - type part of a name in the search box|r"):format(#list - 150) end
+    if #list == 0 then lines[1] = filter ~= "" and "Nothing matches the search." or "Empty." end
+    return lines, distinct, value
+end
+
+local function altSelected()
+    local db = SFP.db
+    local keys = {}
+    for k in pairs(db.alts or {}) do keys[#keys + 1] = k end
+    table.sort(keys)
+    if not (db.altSel and db.alts and db.alts[db.altSel]) then
+        db.altSel = (db.alts and db.alts[charKey()]) and charKey() or keys[1]
+    end
+    return db.altSel, keys
+end
+
+local function altContent(key)
+    local db = SFP.db
+    local r = key and db.alts and db.alts[key]
+    local filter = (altBox and altBox:GetText() or ""):lower()
+    local lines = {}
+    if altView == "gold" then
+        local rows, total = {}, 0
+        for k, rec in pairs(db.alts or {}) do rows[#rows + 1] = { k = k, m = rec.money or 0 }; total = total + (rec.money or 0) end
+        table.sort(rows, function(x, y) return x.m > y.m end)
+        lines[1] = "|cff00e5ffGold on every character|r"
+        for _, e in ipairs(rows) do lines[#lines + 1] = ("%s   %s"):format(e.k, money(e.m)) end
+        local wb = db.warband and db.warband.money
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "Characters together: " .. money(total)
+        lines[#lines + 1] = "Warband bank: " .. (wb and money(wb) or "|cff808080not read yet - open the bank once|r")
+        lines[#lines + 1] = "|cff00e5ffTogether: " .. money(total + (wb or 0)) .. "|r"
+        return table.concat(lines, "\n")
+    end
+    if altView == "warband" then
+        local w = db.warband
+        lines[1] = "|cff00e5ffWarband bank (shared by all your characters)|r"
+        if not (w and w.items) then
+            lines[2] = "Not read yet. Open your bank (the Warband tabs) with any character once: the addon saves what is in it."
+        else
+            local list, distinct, value = itemLines(w.items, filter)
+            lines[2] = ("|cff808080Read %s. %d different items worth about %s. Gold in it: %s.|r"):format(ago(w.t), distinct, money(value), w.money and money(w.money) or "?")
+            lines[3] = ""
+            for _, l in ipairs(list) do lines[#lines + 1] = l end
+        end
+        return table.concat(lines, "\n")
+    end
+    if not r then return "No character saved yet. Log in with each character once." end
+    local short = key:match("^([^-]+)") or key
+    if altView == "bags" or altView == "bank" then
+        local data = altView == "bags" and r.bags or r.bank
+        lines[1] = ("|cff00e5ff%s - %s|r"):format(key, altView == "bags" and "bags" or "character bank")
+        if not data then
+            lines[2] = altView == "bags" and ("Not read yet. Log in with " .. short .. " once.") or
+                ("Not read yet. Open the bank with " .. short .. " once: the addon saves what is in it.")
+        else
+            local list, distinct, value = itemLines(data, filter)
+            lines[2] = ("|cff808080Read %s. %d different items worth about %s.|r"):format(ago(altView == "bags" and r.bagsT or r.bankT), distinct, money(value))
+            lines[3] = ""
+            for _, l in ipairs(list) do lines[#lines + 1] = l end
+        end
+        return table.concat(lines, "\n")
+    end
+    -- overview
+    local age = math.floor((time() - (r.t or 0)) / 3600)
+    lines[#lines + 1] = ("|cff00e5ff%s|r  |cff808080(%s)|r"):format(key, age < 1 and "now" or (age .. " h ago"))
+    lines[#lines + 1] = ("Level %s %s %s"):format(tostring(r.level or "?"), r.spec or "", r.class or "")
+    lines[#lines + 1] = ("Item level %s     Gold %s"):format(tostring(r.ilvl or "?"), money(r.money))
+    lines[#lines + 1] = "Professions: " .. (#(r.profs or {}) > 0 and table.concat(r.profs, ", ") or "none")
+    local w = db.weekly and db.weekly[key]
+    if w then
+        lines[#lines + 1] = "Weekly: Great Vault " .. (#w.vault > 0 and table.concat(w.vault, " ") or "no data") ..
+            "   Raid lockouts: " .. (#w.locks > 0 and #w.locks or "none") .. "   Rares today: " .. (w.rares or 0)
+    end
+    local function count(t) local n = 0 for _ in pairs(t or {}) do n = n + 1 end return n end
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = ("Bags: %s   Bank: %s"):format(r.bags and (count(r.bags) .. " different items, read " .. ago(r.bagsT)) or "not read yet",
+        r.bank and (count(r.bank) .. " different items, read " .. ago(r.bankT)) or "not read yet (open the bank once)")
+    lines[#lines + 1] = "Warband bank: " .. ((db.warband and db.warband.items) and (count(db.warband.items) .. " different items, " .. (db.warband.money and money(db.warband.money) or "?") .. " gold") or "not read yet")
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "|cff808080A character shows here after you log in with it. Use the buttons above to see its bags, bank, the warband bank and everybody's gold. Profession cooldowns are not shown.|r"
+    return table.concat(lines, "\n")
+end
+
+local function altRefresh()
+    if not altWin or not altWin:IsShown() then return end
+    SFP:UpdateAlt()
+    SFP:SnapshotBags()
+    if SFP.UpdateWeekly then pcall(SFP.UpdateWeekly, SFP) end
+    local sel, keys = altSelected()
+    local items = {}
+    for _, k in ipairs(keys) do
+        local short = k:match("^([^-]+)") or k
+        local rec = SFP.db.alts[k]
+        local label = (k == sel and "|cff40ff40> |r" or "") .. short .. (rec.level and (" " .. rec.level) or "")
+        items[#items + 1] = { text = "", buttons = { { label, 150, function() SFP.db.altSel = k; altRefresh() end } } }
+    end
+    altRows:Set(items)
+    for _, bt in ipairs(altViewBtns) do bt:SetText((bt.view == altView and "|cff40ff40" or "") .. bt.label) end
+    altWin:SetContent(altContent(sel))
+end
+
 function SFP:ShowAlts()
     self:UpdateAlt()
-    if self.UpdateWeekly then pcall(self.UpdateWeekly, self) end
-    altWin = altWin or window("SeviathsUsefulToolsAlts", "Alt overview - all your characters", 520, 420)
-    local keys, lines, totalGold = {}, {}, 0
-    for k in pairs(self.db.alts or {}) do keys[#keys + 1] = k end
-    table.sort(keys)
-    for _, k in ipairs(keys) do
-        local r = self.db.alts[k]
-        totalGold = totalGold + (r.money or 0)
-        local age = math.floor((time() - (r.t or 0)) / 3600)
-        lines[#lines + 1] = ("|cff00e5ff%s|r  level %s %s %s  |cff808080(%s)|r"):format(k, tostring(r.level or "?"), r.spec or "", r.class or "",
-            age < 1 and "now" or (age .. " h ago"))
-        lines[#lines + 1] = ("  Item level %s   Gold %s"):format(tostring(r.ilvl or "?"), money(r.money))
-        lines[#lines + 1] = "  Professions: " .. (#(r.profs or {}) > 0 and table.concat(r.profs, ", ") or "none")
-        local w = self.db.weekly and self.db.weekly[k]
-        if w then
-            lines[#lines + 1] = "  Weekly: Great Vault " .. (#w.vault > 0 and table.concat(w.vault, " ") or "no data") ..
-                "   Raid lockouts: " .. (#w.locks > 0 and #w.locks or "none") .. "   Rares today: " .. (w.rares or 0)
+    self:SnapshotBags()
+    if not altWin then
+        altWin = window("SeviathsUsefulToolsAlts", "Alt overview - all your characters", 700, 520)
+        altWin.scroll:ClearAllPoints()
+        altWin.scroll:SetPoint("TOPLEFT", 190, -94)
+        altWin.scroll:SetPoint("BOTTOMRIGHT", -30, 12)
+        altWin.child:SetWidth(450)
+        altWin.text:SetWidth(446)
+        local lbl = altWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        lbl:SetPoint("TOPLEFT", 14, -36)
+        lbl:SetText("Characters:")
+        altRows = SFP.MakeRowList(altWin, 10, -52, 176, 450, 24)
+        local x = 190
+        for _, v in ipairs(ALT_VIEWS) do
+            local bt = CreateFrame("Button", nil, altWin, "UIPanelButtonTemplate")
+            bt:SetSize(v[3], 22)
+            bt:SetPoint("TOPLEFT", x, -34)
+            bt.view, bt.label = v[1], v[2]
+            bt:SetText(v[2])
+            bt:SetScript("OnClick", function() altView = v[1]; altRefresh() end)
+            altViewBtns[#altViewBtns + 1] = bt
+            x = x + v[3] + 4
         end
-        lines[#lines + 1] = ""
+        local sl = altWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        sl:SetPoint("TOPLEFT", 194, -68)
+        sl:SetText("Search items:")
+        altBox = CreateFrame("EditBox", nil, altWin, "InputBoxTemplate")
+        altBox:SetSize(220, 20)
+        altBox:SetPoint("TOPLEFT", 280, -64)
+        altBox:SetAutoFocus(false)
+        altBox:SetScript("OnTextChanged", function() altRefresh() end)
+        altBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        local acc = 0
+        altWin:SetScript("OnUpdate", function(_, dt)
+            acc = acc + dt
+            if acc < 3 then return end
+            acc = 0
+            SFP:Safe("alt window", altRefresh)
+        end)
     end
-    if #lines == 0 then lines[1] = "No data yet." end
-    table.insert(lines, 1, "|cff808080Total gold on these characters: " .. money(totalGold) .. ". A character shows here after you log in with it. Profession cooldowns are not shown.|r\n")
-    altWin:SetContent(table.concat(lines, "\n"))
     altWin:Show()
+    altRefresh()
 end
 
 local af = CreateFrame("Frame")
-for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_LOGOUT", "TRADE_SKILL_LIST_UPDATE" }) do pcall(af.RegisterEvent, af, e) end
-local altTimer
-af:SetScript("OnEvent", function(_, event)
-    if event == "PLAYER_LOGOUT" then SFP:Safe("alt", SFP.UpdateAlt, SFP); return end
+for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "PLAYER_LOGOUT", "TRADE_SKILL_LIST_UPDATE", "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED",
+    "PLAYER_INTERACTION_MANAGER_FRAME_SHOW", "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" }) do pcall(af.RegisterEvent, af, e) end
+local altTimer, bagTimer
+local function isBankType(t)
+    local P = Enum and Enum.PlayerInteractionType
+    return P and t and (t == P.Banker or t == P.AccountBanker)
+end
+af:SetScript("OnEvent", function(_, event, arg1)
+    if event == "PLAYER_LOGOUT" then
+        SFP:Safe("alt", SFP.UpdateAlt, SFP)
+        SFP:Safe("bags", SFP.SnapshotBags, SFP)
+        return
+    end
+    if event == "BANKFRAME_OPENED" or (event == "PLAYER_INTERACTION_MANAGER_FRAME_SHOW" and isBankType(arg1)) then
+        bankOpen = true
+        C_Timer.After(1.5, function() SFP:Safe("bank", SFP.SnapshotBags, SFP) end)
+        return
+    end
+    if event == "BANKFRAME_CLOSED" or (event == "PLAYER_INTERACTION_MANAGER_FRAME_HIDE" and isBankType(arg1)) then
+        SFP:Safe("bank", SFP.SnapshotBags, SFP)   -- the last look before it closes
+        bankOpen = false
+        return
+    end
+    if event == "BAG_UPDATE_DELAYED" then
+        if bagTimer then return end
+        bagTimer = true
+        C_Timer.After(3, function() bagTimer = nil; SFP:Safe("bags", SFP.SnapshotBags, SFP) end)
+        return
+    end
     if altTimer then return end
     altTimer = true
-    C_Timer.After(10, function() altTimer = nil; SFP:Safe("alt", SFP.UpdateAlt, SFP) end)
+    C_Timer.After(10, function()
+        altTimer = nil
+        SFP:Safe("alt", SFP.UpdateAlt, SFP)
+        SFP:Safe("bags", SFP.SnapshotBags, SFP)
+    end)
 end)
 
 ---------------------------------------------------------------------------
@@ -151,45 +390,123 @@ end
 ---------------------------------------------------------------------------
 local HYBRID_SPECS = { [70] = true, [103] = true }   -- Retribution, Feral: tank companion (as the Codex says)
 
-function SFP:DelveAdvice()
-    local specIndex = GetSpecialization and GetSpecialization()
-    local specID, specName, role
-    if specIndex and GetSpecializationInfo then
-        specID, specName, _, _, role = GetSpecializationInfo(specIndex)
+-- Valeera's curios. Source: Icy Veins "Best Valeera Curios in Midnight Season 1" (March 2026), written in our own words.
+-- Later seasons add more curios; they are not listed here until they are checked.
+SFP.CURIOS = {
+    { "Holy Bounding Hand Grenade", "combat", "Now and then she throws a grenade: moderate Holy damage, 50% to stun for 1.5 sec, and it can bounce to another enemy (40%). Safe for the party. Good if your class has no stun." },
+    { "Mantle of Stars", "combat", "When a party member falls below 40% health in combat they get a shield worth 50% of their max health, and enemies around them are knocked up and take 25% more damage for 12 sec. An emergency button." },
+    { "Nether Entropic Kris", "combat", "She sometimes curses an enemy with Void damage over 30 sec. Each tick has a 15% chance to spread to a nearby enemy, up to 5 stacks. Good against groups." },
+    { "Porcelain Blade Tip", "combat", "Her spells and abilities sometimes weaken enemies: 10% more chance to be critically hit for 9 sec. Slightly the best combat curio at the start of Season 1." },
+    { "Sanctum's Edict", "combat", "She collects blessings in combat and on kills (1 per normal enemy, 5 per elite). Each blessing gives 1% more healing and damage. At 15 she turns 30% of her current health into a shield that boosts the blessings while it lasts." },
+    { "Ebon Crown of Subjugation", "utility", "Opening a Mislaid Curiosity summons a worshipper that adds 1% of your main stat in combat, up to 6 at once. With 6 the bonus per worshipper grows." },
+    { "Mandate of Sacred Death", "utility", "When Valeera casts Tools of the Trade (she does near profession nodes) the party's harmful spells get a 5% chance to deal 1% of the target's max health as Holy damage per Mandate, once per target every 2 sec. The strongest utility curio, but it does nothing in delves without profession nodes (for example the Nullaeus fight)." },
+    { "Motionless Nulltide", "utility", "Standing still in combat gives a stack every 6 sec (up to 10), each +1% movement speed. Jumping at 10 stacks turns them into 1% haste each for 10 sec and knocks up nearby enemies (once per 20 sec)." },
+    { "Overflowing Voidspire", "utility", "After 25 sec of combat you and Valeera deal 18% more damage and healing for 35 sec (35 sec cooldown). Recommended for the Nullaeus fight." },
+    { "Time Lost Edict", "utility", "She sometimes makes a zone at an ally: allies get 5% more movement speed, cooldown recharge and cast speed, enemies get the opposite, for 12 sec." },
+}
+SFP.CURIO_BEST = "Best at the start of Season 1 (Icy Veins): Porcelain Blade Tip (combat) and Mandate of Sacred Death (utility). For the Nullaeus fight take Overflowing Voidspire instead of the Mandate."
+
+local function recommendCompanion(spec)
+    if not spec then return "Healer" end
+    if spec.role == "TANK" or spec.role == "HEALER" then return "Damage" end
+    if HYBRID_SPECS[spec.id] then return "Tank" end
+    return "Healer"
+end
+
+-- class, all its specs, the spec you chose (or the one you play) and the companion role
+function SFP:DelveInfo()
+    local db = self.db
+    local info = { specs = {} }
+    local className, _, classID = UnitClass("player")
+    info.className, info.classID = className, classID
+    if db.delveClass ~= classID then db.delveClass = classID; db.delveSpec = nil end   -- another class: start again
+    local n = (GetNumSpecializationsForClassID and classID) and GetNumSpecializationsForClassID(classID) or 0
+    for i = 1, n do
+        local ok, id, name, _, _, role = pcall(GetSpecializationInfoForClassID, classID, i)
+        if ok and id then info.specs[#info.specs + 1] = { id = id, name = name, role = role } end
     end
+    local specIndex = GetSpecialization and GetSpecialization()
+    if specIndex and GetSpecializationInfo then info.currentID = (GetSpecializationInfo(specIndex)) end
+    local want = db.delveSpec or info.currentID
+    for _, sp in ipairs(info.specs) do if sp.id == want then info.spec = sp end end
+    info.following = db.delveSpec == nil
+    info.recommended = recommendCompanion(info.spec)
+    info.chosen = db.delveCompanion
+    info.companion = db.delveCompanion or info.recommended
+    return info
+end
+
+function SFP:DelveAdvice()
+    local info = self:DelveInfo()
     local lines = {}
-    if not role then
+    if not info.spec then
         lines[#lines + 1] = "Your specialization is not known yet."
     else
-        local companion
-        if role == "TANK" or role == "HEALER" then companion = "Damage"
-        elseif HYBRID_SPECS[specID] then companion = "Tank"
-        else companion = "Healer" end
-        lines[#lines + 1] = ("You play %s (%s). Set your companion to |cff40ff40%s|r."):format(specName or "?", role:lower(), companion)
-        lines[#lines + 1] = "Curios: one Combat and one Utility slot. If your class has no crowd control, take a slow or stun curio. Tanks and healers: a damage curio helps the run go faster."
+        lines[#lines + 1] = ("You play %s (%s). Valeera should be |cff40ff40%s|r%s."):format(info.spec.name or "?", (info.spec.role or "?"):lower(), info.companion,
+            info.chosen and (info.chosen ~= info.recommended and (" - your choice; the best for this spec is " .. info.recommended) or " - your choice, also the best for this spec") or " - the best for this spec")
+        lines[#lines + 1] = "Curios: one Combat and one Utility slot. If your class has no crowd control, take a stun or slow curio. Tanks and healers: a damage curio helps the run go faster."
+    end
+    local cur = self.db.delveCurios or {}
+    if cur.combat or cur.utility then
+        lines[#lines + 1] = "Your curios: " .. (cur.combat or "no combat curio") .. " + " .. (cur.utility or "no utility curio")
     end
     local tier = self.db.delveTier
     lines[#lines + 1] = tier and ("Comfortable tier (you set it): |cffffd100" .. tier .. "|r. Use bountiful keys at this tier or one above.")
-        or "Set the tier you can do safely below; the addon remembers it."
+        or "Type the tier you can do safely into the box; the addon remembers it."
     return table.concat(lines, "\n\n")
 end
 
-function SFP:SetDelveTier(delta)
-    local t = (self.db.delveTier or 1) + delta
-    self.db.delveTier = math.max(1, math.min(11, t))
+-- text typed into the tier box: a number from 1 to 11, empty clears it
+function SFP:SetDelveTier(text)
+    local n = tonumber(text)
+    if n then n = math.max(1, math.min(11, math.floor(n))) end
+    self.db.delveTier = n
+    return n
+end
+
+-- every delve: the Codex seed list plus what the game's map shows now (with bountiful)
+local delveCache, delveAt
+function SFP:DelveList()
+    if delveCache and GetTime() - delveAt < 60 then return delveCache end
+    local out, seen = {}, {}
+    local function add(name, zone, bountiful, live)
+        if type(name) ~= "string" or secret(name) then return end
+        local k = name:lower()
+        local e = seen[k]
+        if not e then e = { name = name, zone = zone or "?" }; seen[k] = e; out[#out + 1] = e end
+        if live then e.live, e.bountiful, e.zone = true, bountiful, zone or e.zone end
+    end
+    local okM, _, cns = pcall(SFP_Module, "Codex")
+    for _, d in ipairs((okM and cns and cns.DELVE_LIST) or {}) do add(d[1], d[2], nil, false) end
+    local okZ, zones = pcall(C_Map.GetMapChildrenInfo, 946, Enum.UIMapType.Zone, true)
+    if okZ and type(zones) == "table" and C_AreaPoiInfo and C_AreaPoiInfo.GetDelvesForMap then
+        for _, z in ipairs(zones) do
+            local ok, ids = pcall(C_AreaPoiInfo.GetDelvesForMap, z.mapID)
+            for _, poiID in ipairs((ok and ids) or {}) do
+                local okI, info = pcall(C_AreaPoiInfo.GetAreaPOIInfo, z.mapID, poiID)
+                if okI and info and info.name then
+                    local bountiful = info.atlasName and not secret(info.atlasName) and info.atlasName:lower():find("bountiful") and true or false
+                    add(info.name, z.name, bountiful, true)
+                end
+            end
+        end
+    end
+    table.sort(out, function(x, y) if x.zone ~= y.zone then return x.zone < y.zone end return x.name < y.name end)
+    delveCache, delveAt = out, GetTime()
+    return out
 end
 
 ---------------------------------------------------------------------------
 -- 9. missing here: mounts, pets and toys of the rares and bosses of this zone or instance
 ---------------------------------------------------------------------------
-local function missingHere(mapID, instName)
+local function missingHere(mapID, instName, limit)
     local names, count = {}, 0
     local function check(itemIDs, label)
         for _, itemID in ipairs(itemIDs or {}) do
             local own = SFP.OwnedStatus and SFP:OwnedStatus(itemID)
             if own == false then
                 count = count + 1
-                if #names < 3 then names[#names + 1] = SFP:ItemName(itemID) .. " (" .. label .. ")" end
+                if not limit or #names < limit then names[#names + 1] = SFP:ItemName(itemID) .. " (" .. label .. ")" end
             end
         end
     end
@@ -208,13 +525,30 @@ function SFP:ZoneCheck(quiet)
     if not mapID then return end
     local inInstance, itype = IsInInstance()
     local instName = (inInstance and (itype == "party" or itype == "raid")) and (GetInstanceInfo()) or nil
-    local count, names = missingHere(mapID, instName)
+    local count, names = missingHere(mapID, instName, 3)
     if count > 0 then
         self:Print(("Missing here: %d collectible%s - %s%s"):format(count, count == 1 and "" or "s", table.concat(names, ", "),
             count > #names and (" and " .. (count - #names) .. " more") or ""))
     elseif not quiet then
         self:Print("Nothing missing here that the addon knows about (mounts, pets, toys of rares and bosses).")
     end
+end
+
+-- the same check as a text for the menu page: every missing collectible with where it comes from
+function SFP:ZoneCheckReport()
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if not mapID then return "Your zone is not known yet." end
+    local inInstance, itype = IsInInstance()
+    local instName = (inInstance and (itype == "party" or itype == "raid")) and (GetInstanceInfo()) or nil
+    local count, names = missingHere(mapID, instName)
+    local lines = { "|cff00e5ff" .. (instName or self:ZoneName(mapID)) .. "|r", "" }
+    if count == 0 then
+        lines[#lines + 1] = "Nothing missing here that the addon knows about (mounts, pets and toys of the rares and bosses here)."
+    else
+        lines[#lines + 1] = ("You still miss %d collectible%s here:"):format(count, count == 1 and "" or "s")
+        for _, n in ipairs(names) do lines[#lines + 1] = "  - " .. n end
+    end
+    return table.concat(lines, "\n")
 end
 
 local zf = CreateFrame("Frame")
@@ -252,26 +586,132 @@ local DECOR = {
     { 1246903, "Ren'dorei Postage Repository", "Voidstorm treasures" },
 }
 
-local decorWin
-function SFP:ShowDecor()
-    decorWin = decorWin or window("SeviathsUsefulToolsDecor", "Housing decor you can craft", 500, 380)
-    local lines = { "|cff808080Crafting recipes for housing decor and where they drop (from the profession guides). Only recipes are checked: the game does not tell addons which decor items you own in your house.|r\n" }
-    local known = 0
-    for _, d in ipairs(DECOR) do
-        local ok, has = pcall(function() return IsPlayerSpell and IsPlayerSpell(d[1]) or (IsSpellKnown and IsSpellKnown(d[1])) end)
-        has = ok and has
-        if has then known = known + 1 end
-        lines[#lines + 1] = ("%s %s  |cff808080- %s|r"):format(has and "|cff40ff40known|r" or "|cffff6060missing|r", d[2], d[3])
+local decorWin, decorBox, decorSearcher, decorCache, decorAt
+local decorMode = "all"
+local decorBtns = {}
+
+local function plainText(t)
+    return (tostring(t or ""):gsub("|n", "  "):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""))
+end
+
+-- every decor the game's own housing catalog lists, with the source the game gives for it
+local function catalogEntries()
+    local H = C_HousingCatalog
+    if not (H and H.CreateCatalogSearcher and H.GetCatalogEntryInfo) then return nil end
+    if not decorSearcher then
+        local ok, srch = pcall(H.CreateCatalogSearcher)
+        if not ok or type(srch) ~= "table" then return nil end
+        for _, m in ipairs({ { "SetOwnedOnly", false }, { "SetCollected", true }, { "SetUncollected", true },
+            { "SetAllowedIndoors", true }, { "SetAllowedOutdoors", true } }) do
+            if type(srch[m[1]]) == "function" then pcall(srch[m[1]], srch, m[2]) end
+        end
+        if type(srch.RunSearch) == "function" then pcall(srch.RunSearch, srch) end
+        decorSearcher = srch
     end
-    table.insert(lines, 2, ("You know %d of %d recipes.\n"):format(known, #DECOR))
+    if type(decorSearcher.GetCatalogSearchResults) ~= "function" then return nil end
+    local ok, ids = pcall(decorSearcher.GetCatalogSearchResults, decorSearcher)
+    if not ok or type(ids) ~= "table" or #ids == 0 then return nil end
+    local out = {}
+    for _, entryID in ipairs(ids) do
+        local okI, info = pcall(H.GetCatalogEntryInfo, entryID)
+        if okI and type(info) == "table" and type(info.name) == "string" and not secret(info.name) then
+            local qty = (tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0)
+            out[#out + 1] = { name = info.name, owned = qty > 0, source = plainText(info.sourceText), itemID = tonumber(info.itemID) }
+        end
+    end
+    return out
+end
+
+local function decorEntries()
+    if decorCache and GetTime() - decorAt < 20 then return decorCache.list, decorCache.fromGame end
+    local list = catalogEntries()
+    local fromGame = list ~= nil
+    if not list then
+        list = {}
+        for _, d in ipairs(DECOR) do
+            local ok, has = pcall(function() return IsPlayerSpell and IsPlayerSpell(d[1]) or (IsSpellKnown and IsSpellKnown(d[1])) end)
+            list[#list + 1] = { name = d[2], owned = ok and has and true or false, source = d[3], recipe = true }
+        end
+    end
+    table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
+    decorCache, decorAt = { list = list, fromGame = fromGame }, GetTime()
+    return list, fromGame
+end
+
+local function decorRefresh()
+    if not decorWin or not decorWin:IsShown() then return end
+    local list, fromGame = decorEntries()
+    local filter = (decorBox:GetText() or ""):lower()
+    local lines, shown, own = {}, 0, 0
+    for _, e in ipairs(list) do if e.owned then own = own + 1 end end
+    lines[1] = fromGame and ("|cff808080%d decor items in the game's catalog, you own %d. Where to find them is the game's own source text; the green 'farm' part is added from the addon's farm data when it knows a place.|r"):format(#list, own)
+        or ("|cffffd100The game's housing catalog could not be read here, so this shows the " .. #list .. " craftable decor recipes the addon knows (you know " .. own .. ").|r")
+    lines[2] = ""
+    for _, e in ipairs(list) do
+        local pass = (decorMode == "all") or (decorMode == "missing" and not e.owned) or (decorMode == "owned" and e.owned)
+        if pass and filter ~= "" then
+            pass = e.name:lower():find(filter, 1, true) or (e.source or ""):lower():find(filter, 1, true)
+        end
+        if pass then
+            shown = shown + 1
+            if shown <= 80 then
+                local farm = ""
+                local src = e.itemID and SFP.itemSources and SFP.itemSources[e.itemID]
+                if src and src[1] then farm = "  |cff80ff80farm: " .. src[1] .. "|r" end
+                lines[#lines + 1] = ("%s %s%s%s"):format(e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r", e.name,
+                    (e.source and e.source ~= "") and ("  |cff808080- " .. e.source .. "|r") or "", farm)
+            end
+        end
+    end
+    if shown > 80 then lines[#lines + 1] = ("|cff808080+%d more - use the search box to narrow it down|r"):format(shown - 80) end
+    if shown == 0 then lines[#lines + 1] = "Nothing matches." end
+    for _, bt in ipairs(decorBtns) do bt:SetText((bt.mode == decorMode and "|cff40ff40" or "") .. bt.label) end
     decorWin:SetContent(table.concat(lines, "\n"))
+end
+
+function SFP:ShowDecor()
+    if not decorWin then
+        decorWin = window("SeviathsUsefulToolsDecor", "Housing decor - all of it, and where to get it", 640, 520)
+        decorWin.scroll:SetPoint("TOPLEFT", 12, -66)
+        decorWin.child:SetWidth(590)
+        decorWin.text:SetWidth(586)
+        local sl = decorWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        sl:SetPoint("TOPLEFT", 14, -40)
+        sl:SetText("Search:")
+        decorBox = CreateFrame("EditBox", nil, decorWin, "InputBoxTemplate")
+        decorBox:SetSize(220, 20)
+        decorBox:SetPoint("TOPLEFT", 64, -37)
+        decorBox:SetAutoFocus(false)
+        decorBox:SetScript("OnTextChanged", function() decorRefresh() end)
+        decorBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        local x = 300
+        for _, m in ipairs({ { "all", "All", 60 }, { "missing", "Missing", 70 }, { "owned", "Owned", 70 } }) do
+            local bt = CreateFrame("Button", nil, decorWin, "UIPanelButtonTemplate")
+            bt:SetSize(m[3], 22)
+            bt:SetPoint("TOPLEFT", x, -36)
+            bt.mode, bt.label = m[1], m[2]
+            bt:SetText(m[2])
+            bt:SetScript("OnClick", function() decorMode = m[1]; decorRefresh() end)
+            decorBtns[#decorBtns + 1] = bt
+            x = x + m[3] + 4
+        end
+        local acc = 0
+        decorWin:SetScript("OnUpdate", function(_, dt)
+            acc = acc + dt
+            if acc < 3 then return end
+            acc = 0
+            SFP:Safe("decor", decorRefresh)
+        end)
+    end
     decorWin:Show()
+    decorRefresh()
 end
 
 ---------------------------------------------------------------------------
 -- 8. achievement planner
 ---------------------------------------------------------------------------
-local achWin, achBox, achResults, achSelected = nil, nil, {}, nil
+local achWin, achBox, achResults, achRows, achAddBtn = nil, nil, {}, nil, nil
+local achCur
 local npcIndex
 
 local function npcWhere(npcID)
@@ -321,11 +761,68 @@ local function achDetail(id)
 end
 
 local achWay
+
+-- the saved list lives with the addon's data: { { id =, name = }, ... }
+local function achData()
+    SFP.db.achList = SFP.db.achList or {}
+    return SFP.db.achList
+end
+
+local function achIndex(id)
+    for i, e in ipairs(achData()) do if e.id == id then return i end end
+end
+
+local function achProgress(id)
+    local ok, _, name, _, completed = pcall(GetAchievementInfo, id)
+    if not ok or not name then return nil end
+    local n = GetAchievementNumCriteria and GetAchievementNumCriteria(id) or 0
+    local done = 0
+    for i = 1, n do
+        local ok2, _, _, ccomplete = pcall(GetAchievementCriteriaInfo, id, i)
+        if ok2 and ccomplete then done = done + 1 end
+    end
+    return name, completed, n, done
+end
+
+local function achOpen(id, name)
+    achCur = { id = id, name = name }
+    local text, where = achDetail(id)
+    achWay = where
+    achWin:SetContent(text)
+    SFP:AchRefreshList()
+end
+
+function SFP:AchRefreshList()
+    if not achWin then return end
+    local items = {}
+    for _, e in ipairs(achData()) do
+        local name, completed, n, done = achProgress(e.id)
+        local state = completed and "|cff40ff40completed|r" or (n and n > 0 and ("|cff808080" .. done .. "/" .. n .. " steps|r") or "")
+        local id, saved = e.id, e.name
+        items[#items + 1] = {
+            text = (name or saved or ("#" .. id)) .. "  " .. state,
+            buttons = {
+                { "Open", 50, function() achOpen(id, name or saved) end },
+                { "Remove", 60, function()
+                    local i = achIndex(id)
+                    if i then table.remove(achData(), i) end
+                    SFP:AchRefreshList()
+                end },
+            },
+        }
+    end
+    achRows:Set(items)
+    if achAddBtn then
+        achAddBtn:SetEnabled(achCur ~= nil)
+        achAddBtn:SetText((achCur and achIndex(achCur.id)) and "Remove from list" or "Add to list")
+    end
+end
+
 local function achSearch(text)
     local found = {}
     local _, ns = SFP_Module("Codex")
     if ns and ns.Search and #(text or "") >= 3 then
-        local ok, res = pcall(ns.Search, ns, text, "achievement", 8)
+        local ok, res = pcall(ns.Search, ns, text, "achievement", 6)
         if ok and type(res) == "table" then found = res end
     end
     for i, b in ipairs(achResults) do
@@ -337,35 +834,49 @@ end
 
 function SFP:ShowAchPlanner()
     if not achWin then
-        achWin = window("SeviathsUsefulToolsAch", "Achievement planner", 520, 440)
-        achWin.scroll:SetPoint("TOPLEFT", 12, -200)
+        achWin = window("SeviathsUsefulToolsAch", "Achievement planner", 560, 580)
+        achWin.scroll:SetPoint("TOPLEFT", 12, -300)
         achBox = CreateFrame("EditBox", nil, achWin, "InputBoxTemplate")
-        achBox:SetSize(300, 22)
+        achBox:SetSize(220, 22)
         achBox:SetPoint("TOPLEFT", 22, -34)
         achBox:SetAutoFocus(false)
         achBox:SetScript("OnTextChanged", function(self) achSearch(self:GetText()) end)
         achBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        achAddBtn = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
+        achAddBtn:SetSize(120, 22)
+        achAddBtn:SetPoint("LEFT", achBox, "RIGHT", 10, 0)
+        achAddBtn:SetText("Add to list")
+        achAddBtn:SetScript("OnClick", function()
+            if not achCur then return end
+            local i = achIndex(achCur.id)
+            if i then table.remove(achData(), i) else achData()[#achData() + 1] = { id = achCur.id, name = achCur.name } end
+            SFP:AchRefreshList()
+        end)
         local way = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
         way:SetSize(150, 22)
-        way:SetPoint("LEFT", achBox, "RIGHT", 10, 0)
+        way:SetPoint("LEFT", achAddBtn, "RIGHT", 6, 0)
         way:SetText("Waypoint to first step")
         way:SetScript("OnClick", function()
             if achWay and SFP.SetWaypoint then SFP:SetWaypoint(achWay.map, achWay.x, achWay.y, achWay.label) end
         end)
-        for i = 1, 8 do
+        for i = 1, 6 do
             local b = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
-            b:SetSize(470, 18)
+            b:SetSize(510, 18)
             b:SetPoint("TOPLEFT", 22, -62 - (i - 1) * 16)
             b:SetScript("OnClick", function(self)
                 if not self.e then return end
-                local text, where = achDetail(tonumber(self.e.id) or 0)
-                achWay = where
-                achWin:SetContent(text)
+                achOpen(tonumber(self.e.id) or 0, self.e.name)
             end)
             b:Hide()
             achResults[i] = b
         end
-        achWin:SetContent("Type part of an achievement name above, then click a result. You get what is left, where each step is when the addon knows the place, and what to do first.")
+        local label = achWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        label:SetPoint("TOPLEFT", 22, -168)
+        label:SetText("Your list (saved - add or remove whenever you want):")
+        achRows = SFP.MakeRowList(achWin, 18, -186, 530, 104, 20)
+        achWin:SetContent("Type part of an achievement name above and click a result. You get what is left, where each step is when the addon knows the place, and what to do first. Press Add to list to keep it: the list is saved and shows your progress each time you open this window.")
+        achWin:HookScript("OnShow", function() SFP:Safe("ach list", SFP.AchRefreshList, SFP) end)
     end
     achWin:Show()
+    self:AchRefreshList()
 end

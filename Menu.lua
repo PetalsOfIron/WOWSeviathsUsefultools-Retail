@@ -52,12 +52,12 @@ local function mkButton(parent, text, w, fn, tip)
     b:SetScript("OnEnter", function(self)
         self:SetBackdropColor(0.1, 0.35, 0.42, 1)
         if tip then
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:AddLine(tip, 1, 1, 1, true)
-            GameTooltip:Show()
+            SFP.Tip():SetOwner(self, "ANCHOR_RIGHT")
+            SFP.Tip():AddLine(tip, 1, 1, 1, true)
+            SFP.Tip():Show()
         end
     end)
-    b:SetScript("OnLeave", function(self) self:SetBackdropColor(0.06, 0.18, 0.22, 0.95); GameTooltip:Hide() end)
+    b:SetScript("OnLeave", function(self) self:SetBackdropColor(0.06, 0.18, 0.22, 0.95); SFP.Tip():Hide() end)
     return b
 end
 
@@ -153,6 +153,14 @@ local function simplePage(title, desc, fill)
         local y = pageHead(pane, title, desc)
         local refresh = fill(pane, y) or function() end
         pane.refresh = function() refresh() end
+        -- live: the page redraws itself every couple of seconds while it is shown
+        local acc = 0
+        pane:SetScript("OnUpdate", function(_, dt)
+            acc = acc + dt
+            if acc < 2 then return end
+            acc = 0
+            SFP:Safe("page update", pane.refresh)
+        end)
     end
 end
 
@@ -199,57 +207,114 @@ local buildKilled = simplePage("Killed Today",
     end)
 
 local buildRoute = simplePage("Farm Route",
-    "Pick a zone from the list: the addon orders its farm spots into a short loop, opens the map there, draws the route as a yellow line and sets a waypoint to the first stop. " ..
-    "Spots you switched off in the spot list on the map are left out. The switch to show or hide the line is on the Settings page.",
+    "The addon detects the zone you are in and lists its farm spots. Tick the ones you want, then Build route: they are ordered into a short loop starting next to you, " ..
+    "drawn as a yellow line on the map, and a waypoint is set to the first stop. To plan another zone, pick it in the list at the bottom. The switch to show or hide the line is on the Settings page.",
     function(pane, y)
-        mkButton(pane, "Route for the open map / this zone", 250, function()
-            local m = WorldMapFrame and WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() or C_Map.GetBestMapForUnit("player")
-            if m then SFP:BuildRoute(m) end
-        end, "Uses the zone map that is open, or the zone you are in."):SetPoint("TOPLEFT", 12, y)
-        mkButton(pane, "Clear route", 130, function() SFP:ClearRoute() end):SetPoint("TOPLEFT", 270, y)
-        mkText(pane, "Search a zone:", 12, y - 38, 120, "GameFontHighlightSmall")
+        local state = { map = nil, sel = {}, spots = {} }
+        local zoneText = mkText(pane, "", 12, y, 360, "GameFontNormal")
+        local spotRows = {}
+        local spotScroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
+        spotScroll:SetPoint("TOPLEFT", 12, y - 26)
+        spotScroll:SetSize(470, 150)
+        local spotChild = CreateFrame("Frame", nil, spotScroll)
+        spotChild:SetSize(460, 10)
+        spotScroll:SetScrollChild(spotChild)
+
+        local function fillSpots()
+            local n = 0
+            for _, sp in ipairs(state.spots) do
+                n = n + 1
+                local r = spotRows[n]
+                if not r then
+                    r = CreateFrame("CheckButton", nil, spotChild, "UICheckButtonTemplate")
+                    r:SetSize(22, 22)
+                    r.label = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+                    r.label:SetPoint("LEFT", r, "RIGHT", 2, 0)
+                    r:SetScript("OnClick", function(self) state.sel[self.key] = self:GetChecked() and true or nil end)
+                    spotRows[n] = r
+                end
+                r:ClearAllPoints()
+                r:SetPoint("TOPLEFT", spotChild, "TOPLEFT", 0, -(n - 1) * 22)
+                r.key = SFP.SpotKey(sp)
+                r:SetChecked(state.sel[r.key] and true or false)
+                local kind = sp.gather and (sp.gather == "ore" and "mining" or "herbs") or (sp.rare and "rare") or (sp.hunter and "hunter tame") or (sp.special and "special") or "monsters"
+                r.label:SetText(("%s  |cff808080%s|r"):format(sp.name or "?", kind))
+                r:Show()
+            end
+            for i = n + 1, #spotRows do spotRows[i]:Hide() end
+            spotChild:SetHeight(n * 22 + 6)
+        end
+
+        local function setZone(mapID)
+            local zone = mapID and SFP.zoneByMap and SFP.zoneByMap[mapID]
+            state.map, state.spots, state.sel = mapID, {}, {}
+            if zone then
+                for _, sp in ipairs(zone.spawns or {}) do
+                    if sp.hx and sp.hy then state.spots[#state.spots + 1] = sp; state.sel[SFP.SpotKey(sp)] = true end
+                end
+                table.sort(state.spots, function(a, b) return tostring(a.name) < tostring(b.name) end)
+            end
+            zoneText:SetText(zone and ("Zone: " .. SFP:ZoneName(mapID) .. "  |cff808080(" .. #state.spots .. " farm spots)|r") or "No farm spots found here - pick a zone below.")
+            fillSpots()
+        end
+
+        mkButton(pane, "Use the zone I am in", 160, function() setZone(SFP:PlayerFarmZone()) end):SetPoint("TOPLEFT", 330, y + 4)
+        local by = y - 184
+        mkButton(pane, "Select all", 90, function()
+            for _, sp in ipairs(state.spots) do state.sel[SFP.SpotKey(sp)] = true end
+            fillSpots()
+        end):SetPoint("TOPLEFT", 12, by)
+        mkButton(pane, "Select none", 90, function() wipe(state.sel); fillSpots() end):SetPoint("TOPLEFT", 108, by)
+        mkButton(pane, "Build route", 120, function()
+            if not state.map then return end
+            if SFP.OpenMapTo then SFP:OpenMapTo(state.map) end
+            SFP:BuildRoute(state.map, state.sel)
+        end, "Orders the ticked spots into a loop, draws it on the map and sets a waypoint to the first stop."):SetPoint("TOPLEFT", 204, by)
+        mkButton(pane, "Clear route", 100, function() SFP:ClearRoute() end):SetPoint("TOPLEFT", 330, by)
+
+        mkText(pane, "Another zone:", 12, by - 34, 110, "GameFontHighlightSmall")
         local filter = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
-        filter:SetSize(220, 22)
-        filter:SetPoint("TOPLEFT", 110, y - 34)
+        filter:SetSize(200, 22)
+        filter:SetPoint("TOPLEFT", 100, by - 30)
         filter:SetAutoFocus(false)
         filter:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-        local scroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
-        scroll:SetPoint("TOPLEFT", 12, y - 66)
-        scroll:SetPoint("BOTTOMRIGHT", -30, 10)
-        local child = CreateFrame("Frame", nil, scroll)
-        child:SetSize(470, 10)
-        scroll:SetScrollChild(child)
-        local rows = {}
-        local function fill()
+        local zScroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
+        zScroll:SetPoint("TOPLEFT", 12, by - 58)
+        zScroll:SetPoint("BOTTOMRIGHT", -30, 8)
+        local zChild = CreateFrame("Frame", nil, zScroll)
+        zChild:SetSize(460, 10)
+        zScroll:SetScrollChild(zChild)
+        local zRows = {}
+        local function fillZones()
             local text = (filter:GetText() or ""):lower()
             local n = 0
             for _, z in ipairs(SFP:RouteZones()) do
                 if text == "" or z.name:lower():find(text, 1, true) or z.exp:lower():find(text, 1, true) then
                     n = n + 1
-                    local b = rows[n]
+                    local b = zRows[n]
                     if not b then
-                        b = mkButton(child, "", 460, function(self)
-                            local zone = self.zone
-                            if not zone then return end
-                            if SFP.OpenMapTo then SFP:OpenMapTo(zone.map) end
-                            SFP:BuildRoute(zone.map)
-                        end)
+                        b = mkButton(zChild, "", 450, function(self) if self.zone then setZone(self.zone.map) end end)
                         b.text:ClearAllPoints()
                         b.text:SetPoint("LEFT", 8, 0)
-                        rows[n] = b
+                        zRows[n] = b
                     end
                     b:ClearAllPoints()
-                    b:SetPoint("TOPLEFT", child, "TOPLEFT", 0, -(n - 1) * 24)
+                    b:SetPoint("TOPLEFT", zChild, "TOPLEFT", 0, -(n - 1) * 24)
                     b.zone = z
                     b.text:SetText(("%s  |cff808080%s  -  %d spots|r"):format(z.name, z.exp, z.count))
                     b:Show()
                 end
             end
-            for i = n + 1, #rows do rows[i]:Hide() end
-            child:SetHeight(n * 24 + 6)
+            for i = n + 1, #zRows do zRows[i]:Hide() end
+            zChild:SetHeight(n * 24 + 6)
         end
-        filter:SetScript("OnTextChanged", fill)
-        return fill
+        filter:SetScript("OnTextChanged", fillZones)
+        fillZones()
+
+        return function()
+            -- each time the page opens: detect the zone you are in (unless you already picked one)
+            if not state.map then setZone(SFP:PlayerFarmZone()) end
+        end
     end)
 
 local buildSession = simplePage("Farm Session",
@@ -302,14 +367,7 @@ local buildNext = simplePage("What To Farm Next",
                 end
             end
         end
-        return function()
-            fill()
-            -- item names and ownership arrive a moment after the first request: look again
-            if not retry then
-                retry = true
-                C_Timer.After(1.5, function() retry = nil; if pane:IsShown() then fill() end end)
-            end
-        end
+        return function() fill() end
     end)
 
 local buildWeekly = simplePage("Weekly Checklist",
@@ -369,15 +427,136 @@ local buildShare = simplePage("Share Data",
     end)
 
 local buildDelve = simplePage("Delve Planner",
-    "Suggests the role for your delve companion and curio hints from your specialization, and remembers the delve tier you can do safely. The suggestions follow the Codex delve guides.",
+    "Your class and specializations are detected (change class and it follows). Type the tier you can do safely, choose the companion role and Valeera's curios, and see every delve. " ..
+    "Everything is saved. The game's own companion window sets the real role; here you keep your choice and see what is best.",
     function(pane, y)
-        local txt = mkText(pane, "", 12, y - 40, 500, "GameFontHighlightSmall")
-        local tierText = mkText(pane, "", 150, y - 4, 200, "GameFontNormal")
-        mkButton(pane, "Tier -", 60, function() SFP:SetDelveTier(-1); pane.refresh() end):SetPoint("TOPLEFT", 12, y)
-        mkButton(pane, "Tier +", 60, function() SFP:SetDelveTier(1); pane.refresh() end):SetPoint("TOPLEFT", 80, y)
+        local scroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 12, y)
+        scroll:SetPoint("BOTTOMRIGHT", -30, 8)
+        local c = CreateFrame("Frame", nil, scroll)
+        c:SetSize(480, 10)
+        scroll:SetScrollChild(c)
+
+        local classText = mkText(c, "", 0, 0, 480, "GameFontNormal")
+        mkText(c, "Specialization (it follows the spec you play unless you pick one here):", 0, -22, 480, "GameFontHighlightSmall")
+        local specBtns = {}
+        for i = 1, 5 do
+            local b = mkButton(c, "", 152, function(self)
+                if self.follow then SFP.db.delveSpec = nil elseif self.specID then SFP.db.delveSpec = self.specID end
+                pane.refresh()
+            end)
+            b:SetPoint("TOPLEFT", ((i - 1) % 3) * 156, -42 - math.floor((i - 1) / 3) * 26)
+            specBtns[i] = b
+        end
+
+        mkText(c, "Tier you are comfortable with (1-11):", 0, -104, 280, "GameFontHighlightSmall")
+        local tierBox = CreateFrame("EditBox", nil, c, "InputBoxTemplate")
+        tierBox:SetSize(46, 22)
+        tierBox:SetPoint("TOPLEFT", 250, -100)
+        tierBox:SetAutoFocus(false)
+        tierBox:SetNumeric(true)
+        tierBox:SetMaxLetters(2)
+        local function saveTier(self)
+            SFP:SetDelveTier(self:GetText())
+            self:ClearFocus()
+            pane.refresh()
+        end
+        tierBox:SetScript("OnEnterPressed", saveTier)
+        tierBox:SetScript("OnEditFocusLost", function(self) SFP:SetDelveTier(self:GetText()) end)
+        tierBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        mkText(c, "Press Enter to save. Empty = not set.", 306, -104, 190, "GameFontHighlightSmall"):SetTextColor(0.6, 0.6, 0.6)
+
+        mkText(c, "Companion role (Valeera):", 0, -134, 480, "GameFontHighlightSmall")
+        local roleBtns = {}
+        local ROLES = { { nil, "Best for my spec", 140 }, { "Healer", "Healer", 96 }, { "Tank", "Tank", 96 }, { "Damage", "Damage", 96 } }
+        local rx = 0
+        for i, r in ipairs(ROLES) do
+            local b = mkButton(c, r[2], r[3], function() SFP.db.delveCompanion = r[1]; pane.refresh() end)
+            b:SetPoint("TOPLEFT", rx, -154)
+            b.role, b.label = r[1], r[2]
+            roleBtns[i] = b
+            rx = rx + r[3] + 4
+        end
+        local advice = mkText(c, "", 0, -186, 480, "GameFontHighlightSmall")
+        advice:SetSpacing(2)
+
+        local curioBtns, curioText = {}, {}
+        local function curioBlock(slot, label, topY)
+            mkText(c, label, 0, topY, 480, "GameFontNormal")
+            local n = 0
+            for _, cu in ipairs(SFP.CURIOS or {}) do
+                if cu[2] == slot then
+                    n = n + 1
+                    local b = mkButton(c, cu[1], 156, function()
+                        SFP.db.delveCurios = SFP.db.delveCurios or {}
+                        SFP.db.delveCurios[slot] = (SFP.db.delveCurios[slot] == cu[1]) and nil or cu[1]
+                        pane.refresh()
+                    end, cu[3])
+                    b:SetPoint("TOPLEFT", ((n - 1) % 3) * 160, topY - 22 - math.floor((n - 1) / 3) * 26)
+                    b.curio = cu[1]
+                    b.slot = slot
+                    curioBtns[#curioBtns + 1] = b
+                end
+            end
+            local t = mkText(c, "", 0, topY - 22 - math.ceil(n / 3) * 26 - 4, 480, "GameFontHighlightSmall")
+            t:SetSpacing(2)
+            curioText[slot] = t
+        end
+        curioBlock("combat", "Combat curio (pick one, hover for the bonus)", -290)
+        curioBlock("utility", "Utility curio (pick one, hover for the bonus)", -468)
+        local best = mkText(c, SFP.CURIO_BEST or "", 0, -640, 480, "GameFontHighlightSmall")
+        best:SetTextColor(0.8, 0.8, 0.5)
+        local listHead = mkText(c, "", 0, -700, 480, "GameFontNormal")
+        local listText = mkText(c, "", 0, -722, 470, "GameFontHighlightSmall")
+        listText:SetSpacing(2)
+
         return function()
-            tierText:SetText("Comfortable tier: " .. (SFP.db.delveTier or "not set"))
-            txt:SetText(SFP:DelveAdvice())
+            local info = SFP:DelveInfo()
+            classText:SetText("Class: " .. (info.className or "?") .. (info.spec and ("     Spec used: " .. info.spec.name) or ""))
+            for i, b in ipairs(specBtns) do
+                local sp = info.specs[i]
+                b.specID, b.follow = nil, nil
+                if sp then
+                    b.specID = sp.id
+                    local sel = info.spec and info.spec.id == sp.id and not info.following
+                    b.text:SetText((sel and "|cff40ff40" or "") .. sp.name .. (sp.id == info.currentID and " |cff808080(playing)|r" or ""))
+                    b:Show()
+                elseif i == #info.specs + 1 then
+                    b.follow = true
+                    b.text:SetText((info.following and "|cff40ff40" or "") .. "Follow my spec")
+                    b:Show()
+                else
+                    b:Hide()
+                end
+            end
+            if not tierBox:HasFocus() then tierBox:SetText(SFP.db.delveTier and tostring(SFP.db.delveTier) or "") end
+            for _, b in ipairs(roleBtns) do
+                local sel = (b.role == SFP.db.delveCompanion)
+                local mark = (b.role and b.role == info.recommended) and " |cff808080(best)|r" or ""
+                b.text:SetText((sel and "|cff40ff40" or "") .. b.label .. mark)
+            end
+            advice:SetText(SFP:DelveAdvice())
+            local chosen = SFP.db.delveCurios or {}
+            for _, b in ipairs(curioBtns) do
+                b.text:SetText((chosen[b.slot] == b.curio and "|cff40ff40" or "") .. b.curio)
+            end
+            for slot, t in pairs(curioText) do
+                local name = chosen[slot]
+                local bonus
+                for _, cu in ipairs(SFP.CURIOS or {}) do if cu[1] == name then bonus = cu[3] end end
+                t:SetText(bonus and ("|cff40ff40" .. name .. ":|r " .. bonus) or "|cff808080Nothing chosen yet.|r")
+            end
+            local list = SFP:DelveList()
+            listHead:SetText(("All delves (%d) - from the game's map and the Codex list"):format(#list))
+            local lines, zone = {}, nil
+            for _, d in ipairs(list) do
+                if d.zone ~= zone then zone = d.zone; lines[#lines + 1] = "|cff00e5ff" .. zone .. "|r" end
+                lines[#lines + 1] = "    " .. d.name .. (d.bountiful and "  |cffffd100bountiful today|r" or "")
+            end
+            lines[#lines + 1] = ""
+            lines[#lines + 1] = "|cff808080Delves of other expansions show up here once the game's map reports them. Guides for each delve are in the Codex (Guides).|r"
+            listText:SetText(table.concat(lines, "\n"))
+            c:SetHeight(722 + listText:GetStringHeight() + 20)
         end
     end)
 
@@ -394,20 +573,34 @@ local buildAch = simplePage("Achievement Planner",
     end)
 
 local buildZone = simplePage("Zone Check",
-    "When you enter a zone or an instance, one chat line says how many mounts, pets and toys of its rares and bosses you still miss, with the first few names. The switch is on the Settings page.",
+    "What you still miss in the zone or instance you are in: mounts, pets and toys from its rares and bosses. This page updates by itself. The switch for the one chat line when you enter a zone is on the Settings page.",
     function(pane, y)
-        mkButton(pane, "Check this zone now", 190, function() SFP:ZoneCheck(false) end):SetPoint("TOPLEFT", 12, y)
-        mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 214, y)
+        mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 12, y)
+        local scroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
+        scroll:SetPoint("TOPLEFT", 12, y - 34)
+        scroll:SetPoint("BOTTOMRIGHT", -30, 10)
+        local child = CreateFrame("Frame", nil, scroll)
+        child:SetSize(480, 10)
+        scroll:SetScrollChild(child)
+        local txt = child:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        txt:SetPoint("TOPLEFT")
+        txt:SetWidth(470)
+        txt:SetJustifyH("LEFT")
+        txt:SetSpacing(3)
+        return function()
+            txt:SetText(SFP:ZoneCheckReport())
+            child:SetHeight(txt:GetStringHeight() + 10)
+        end
     end)
 
 local buildDecor = simplePage("Housing Decor",
-    "Midnight housing decor that you craft: where each recipe drops and whether you know it. The game does not tell addons which decor you own in your house, so only the recipes are checked.",
+    "Every housing decor the game lists, whether you own it, and where to get it (the game's own source text, plus the addon's farm places when it knows them). Search it, or show only what you miss.",
     function(pane, y)
         mkButton(pane, "Open decor list", 170, function() SFP:ShowDecor() end):SetPoint("TOPLEFT", 12, y)
     end)
 
 local buildAlts = simplePage("Alt Overview",
-    "One window with every character you logged in with: level, item level, gold, professions and the weekly activities. Profession cooldowns are not shown.",
+    "Every character you logged in with, in a list you can pick from: overview, bags, bank, the warband bank and all the gold. Bags are saved while you play; a bank is saved when you open it. Profession cooldowns are not shown.",
     function(pane, y)
         mkButton(pane, "Open alt overview", 170, function() SFP:ShowAlts() end):SetPoint("TOPLEFT", 12, y)
     end)
@@ -454,11 +647,12 @@ end
 
 local function buildGroups(pane)
     mkText(pane, CYHEX .. "Groups|r", 12, -10, 480, "GameFontNormalLarge")
-    mkText(pane, "Tools for dungeon and raid groups: your group's raid buffs and tier tokens, tags and notes on players you met, filters for Premade Groups when the game offers them.", 12, -34, 500, "GameFontHighlightSmall")
+    mkText(pane, "Tools for dungeon and raid groups: your group's raid buffs and tier tokens, tags and notes on players you met, filters for Premade Groups when the game offers them. " ..
+        "The group makeup opens by itself when you are in a group of 5 or more (dungeon, raid or open world); the switch is on the Settings page.", 12, -34, 500, "GameFontHighlightSmall")
     mkButton(pane, "Open Dungeons & Raids", 190, function() SFP:RunModule("SEVIATHSDUNGEONSRAIDS", "") end):SetPoint("TOPLEFT", 12, -90)
     mkButton(pane, "My group's makeup", 190, function() SFP:RunModule("SEVIATHSDUNGEONSRAIDS", "comp") end, "Roles, Bloodlust, battle res, missing raid buffs, tier tokens"):SetPoint("TOPLEFT", 12, -120)
     mkButton(pane, "Rate my last group", 190, function() SFP:RunModule("SEVIATHSDUNGEONSRAIDS", "rate") end):SetPoint("TOPLEFT", 12, -150)
-    mkText(pane, "Tag a player: /sdr tag Name-Realm good|bad|fav|block", 12, -190, 500, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
+    mkText(pane, "Tag a player: /sdr tag Name-Realm good|bad|fav|block", 12, -210, 500, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
 end
 
 local function buildGuild(pane)
@@ -504,8 +698,120 @@ local function buildSettings(pane)
     local zc = mkCheck(pane, "Zone check: say what I still miss when I enter a zone", function() return SFP.db.zoneCheck ~= false end,
         function(v) SFP.db.zoneCheck = v end, 12, -306)
     pane.checks[#pane.checks + 1] = zc
-    mkText(pane, "Each tool has its own page in the list on the left.", 12, -336, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
+    pane.checks[#pane.checks + 1] = mkCheck(pane, "Open my group's makeup by itself in a group of 5 or more", function() return SFP.db.autoGroupComp ~= false end,
+        function(v) SFP.db.autoGroupComp = v end, 12, -332)
+    mkText(pane, "Each tool has its own page in the list on the left.", 12, -362, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
     pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
+end
+
+---------------------------------------------------------------------------
+-- Learned data browser
+---------------------------------------------------------------------------
+local know = { mode = "npc", offset = 0, list = {}, sel = nil }
+local ROWS = 16
+
+local function zoneNames(rec)
+    local out = {}
+    for map in pairs(rec.m or {}) do out[#out + 1] = SFP:ZoneName(map) end
+    table.sort(out)
+    return table.concat(out, ", ")
+end
+
+local function dropLines(tbl, kills)
+    local list = {}
+    for id, n in pairs(tbl or {}) do list[#list + 1] = { id, n } end
+    table.sort(list, function(a, b) return a[2] > b[2] end)
+    local out = {}
+    for i = 1, math.min(14, #list) do
+        local pct = kills and kills > 0 and (" " .. math.min(100, math.floor(list[i][2] * 100 / kills + 0.5)) .. "%") or (" x" .. list[i][2])
+        out[#out + 1] = "  " .. SFP:ItemName(list[i][1]) .. "|cff909090" .. pct .. "|r"
+    end
+    if #list > 14 then out[#out + 1] = "  |cff808080+" .. (#list - 14) .. " more|r" end
+    return table.concat(out, "\n")
+end
+
+local function detailText(mode, key)
+    local db = SFP.db
+    if mode == "npc" then
+        local r = db.npcs[key]
+        if not r then return "" end
+        local lvl = r.lmin and (r.lmin == r.lmax and tostring(r.lmin) or (r.lmin .. "-" .. r.lmax)) or "?"
+        local t = CYHEX .. r.n .. "|r  |cff808080NPC ID " .. key .. "|r\n"
+        t = t .. "Level " .. lvl .. (r.t and ("  " .. r.t) or "") .. (r.f and ("  " .. r.f) or "") .. (r.c and ("  " .. r.c) or "") .. "\n"
+        local z = zoneNames(r)
+        if z ~= "" then t = t .. "Seen in: " .. z .. "\n" end
+        if r.a then
+            local al = {}
+            for n in pairs(r.a) do al[#al + 1] = n end
+            t = t .. "|cff808080Also seen as: " .. table.concat(al, ", ") .. "|r\n"
+        end
+        t = t .. "\n" .. (r.k or 0) .. " kills seen"
+        if r.d and next(r.d) then t = t .. "\n\nDrops:\n" .. dropLines(r.d, r.k) end
+        if r.s and next(r.s) then t = t .. "\n\nSkinning:\n" .. dropLines(r.s, r.sk) end
+        return t
+    elseif mode == "obj" then
+        local r = db.objects[key]
+        if not r then return "" end
+        local t = CYHEX .. r.n .. "|r  |cff808080object ID " .. key .. "|r\n"
+        local z = zoneNames(r)
+        if z ~= "" then t = t .. "Seen in: " .. z .. "\n" end
+        t = t .. "\n" .. (r.k or 0) .. " times gathered"
+        if r.d and next(r.d) then t = t .. "\n\nGave:\n" .. dropLines(r.d, r.k) end
+        return t
+    elseif mode == "item" then
+        local r = db.knownItems[key]
+        if not r then return "" end
+        local t = SFP:ItemName(key) .. "  |cff808080item ID " .. key .. "|r\n"
+        t = t .. (r.t or "") .. (r.st and (" - " .. r.st) or "") .. (r.i and r.i > 0 and ("  item level " .. r.i) or "") .. "\n"
+        for _, l in ipairs(SFP:ItemTipLines(key)) do t = t .. "\n" .. l[1] end
+        return t
+    elseif mode == "recipe" then
+        local r = db.recipes[key]
+        if not r then return "" end
+        local t = CYHEX .. r.n .. "|r  |cff808080" .. (r.p or "") .. "|r\n"
+        if r.o then t = t .. "Makes: " .. SFP:ItemName(r.o) .. "\n" end
+        t = t .. "\nReagents:\n"
+        for _, rg in ipairs(r.r or {}) do t = t .. "  " .. rg[2] .. "x " .. SFP:ItemName(rg[1]) .. "\n" end
+        return t
+    end
+    return ""
+end
+
+local function knowRebuild(pane)
+    local db = SFP.db
+    local q = (pane.search:GetText() or ""):lower()
+    local list = {}
+    local src, nameOf
+    if know.mode == "npc" then src = db.npcs
+    elseif know.mode == "obj" then src = db.objects
+    elseif know.mode == "item" then src = db.knownItems
+    else src = db.recipes end
+    for key, r in pairs(src) do
+        local name = r.n or ""
+        if q == "" or name:lower():find(q, 1, true) or tostring(key):find(q, 1, true) then
+            list[#list + 1] = { key = key, name = name }
+        end
+    end
+    table.sort(list, function(a, b) return a.name < b.name end)
+    know.list = list
+    know.offset = 0
+    pane.count:SetText(#list .. " found")
+end
+
+local function knowRefresh(pane)
+    for i = 1, ROWS do
+        local row = pane.rows[i]
+        local e = know.list[know.offset + i]
+        if e then
+            row.key = e.key
+            row.text:SetText(e.name)
+            row.hl:SetShown(know.sel == e.key)
+            row:Show()
+        else
+            row:Hide()
+        end
+    end
+    pane.detail:SetText(know.sel and detailText(know.mode, know.sel) or "|cff808080Pick an entry on the left. Everything here was learned while you played, and is saved for all your characters.|r")
 end
 
 local function buildKnow(pane)

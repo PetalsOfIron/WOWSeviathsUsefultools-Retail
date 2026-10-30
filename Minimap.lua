@@ -82,22 +82,22 @@ SFP:OnLogin(function()
     btn:SetScript("OnDragStop", function(self) self:SetScript("OnUpdate", nil) end)
 
     btn:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-        GameTooltip:AddDoubleLine("|c" .. SFP.CYAN_HEX .. "SeviathsUsefulTools|r", "|cff808080v" .. SFP.VERSION .. "|r")
+        SFP.Tip():SetOwner(self, "ANCHOR_LEFT")
+        SFP.Tip():AddDoubleLine("|c" .. SFP.CYAN_HEX .. "SeviathsUsefulTools|r", "|cff808080v" .. SFP.VERSION .. "|r")
         if self.inFarm then
-            GameTooltip:AddLine("You're in a farm zone: " .. SFP:ZoneName(self.inFarm), 0, 0.9, 1)
+            SFP.Tip():AddLine("You're in a farm zone: " .. SFP:ZoneName(self.inFarm), 0, 0.9, 1)
             local zone = SFP.zoneByMap[self.inFarm]
             for _, id in ipairs(zone.items) do
-                GameTooltip:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":14|t " .. SFP:ItemName(id),
+                SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":14|t " .. SFP:ItemName(id),
                     SFP:FormatPrice(SFP:GetPrice(id)), 1, 1, 1, 1, 1, 1)
             end
-            GameTooltip:AddLine(" ")
+            SFP.Tip():AddLine(" ")
         end
-        GameTooltip:AddLine("Click: open the main menu (everything in one place)", 1, 1, 1)
-        GameTooltip:AddLine("Drag: move button", 0.6, 0.6, 0.6)
-        GameTooltip:Show()
+        SFP.Tip():AddLine("Click: open the main menu (everything in one place)", 1, 1, 1)
+        SFP.Tip():AddLine("Drag: move button", 0.6, 0.6, 0.6)
+        SFP.Tip():Show()
     end)
-    btn:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    btn:SetScript("OnLeave", function() SFP.Tip():Hide() end)
 
     placeButton()
     updateButton()

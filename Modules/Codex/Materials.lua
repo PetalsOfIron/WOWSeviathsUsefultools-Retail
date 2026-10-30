@@ -163,7 +163,7 @@ function ns:MaterialText(e)
     out[#out + 1] = ns:BestPlace(e, e.itemID)
 
     local price = ns.LivePrice and ns:LivePrice(e.name)
-    if price then out[#out + 1] = C .. "Auction price (Auctionator)|r\n" .. price end
+    if price then out[#out + 1] = C .. "Auction price|r\n" .. price end
 
     -- link farm spots + the item page
     if not e._linked then

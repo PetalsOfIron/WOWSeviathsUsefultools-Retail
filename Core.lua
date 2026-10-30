@@ -69,6 +69,7 @@ local defaults = {
     showSpecial  = true,   -- magenta spots for special materials (rare hides, lures, special cloth)
     showGatherList = true, -- side list on zone maps: the expansion's ores/herbs + their best zone
     showRoute = true,      -- draw the farm route (spot list: Route button) on the map
+    autoGroupComp = true,  -- open the group makeup by itself in a group of 5 or more
     zoneCheck = true,      -- one line about what you still miss when you enter a zone
     greyKilled = true,     -- grey out rares you killed today on the map
     rareAlerts = true,     -- chat line when a rare you still miss something from appears nearby
@@ -119,6 +120,17 @@ function SFP.RegisterWindow(f)
     if f.SetToplevel then f:SetToplevel(true) end
     f:HookScript("OnShow", function(self) self:Raise() end)
     f:HookScript("OnMouseDown", function(self) self:Raise() end)
+end
+
+-- Our own tooltip for our own frames (map spots, menus, minimap). Using the shared GameTooltip from addon code
+-- taints it, and Blizzard's map pins and widgets then fail with 'execution tainted by SeviathsUsefulTools'.
+local ownTip
+function SFP.Tip()
+    if not ownTip then
+        ownTip = CreateFrame("GameTooltip", "SeviathsUsefulToolsTip", UIParent, "GameTooltipTemplate")
+        ownTip:SetFrameStrata("TOOLTIP")
+    end
+    return ownTip
 end
 
 function SFP:Print(msg)
@@ -630,9 +642,10 @@ local function OnItemTooltip(tooltip, data)
         local more = #sources > 4 and (" +" .. (#sources - 4) .. " more") or ""
         tooltip:AddLine("Farm: " .. table.concat(shown, ", ") .. more, 0.8, 0.8, 0.8, true)
     end
-    local rec = SFP:RealmPrices()[itemID] or SFP.db.prices[itemID]
-    if rec and rec.p then
-        tooltip:AddDoubleLine("AH (unit):", SFP:FormatPrice(rec.p), 0.8, 0.8, 0.8, 1, 1, 1)
+    -- own scan first; Auctionator / TradeSkillMaster when there is none of our own
+    local ahPrice = SFP:GetPrice(itemID)
+    if ahPrice and ahPrice > 0 then
+        tooltip:AddDoubleLine("AH (unit):", SFP:FormatPrice(ahPrice), 0.8, 0.8, 0.8, 1, 1, 1)
     end
     local extra = SFP:ItemExtra(base)
     if extra then tooltip:AddLine(extra, 1, 1, 1, true) end

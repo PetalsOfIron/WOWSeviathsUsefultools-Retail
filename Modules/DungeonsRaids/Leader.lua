@@ -107,7 +107,37 @@ ns:RequestHook("LFGListApplicationViewer_UpdateApplicantMember", function(member
   member.SDRText:SetText(table.concat(parts, " "))
 end)
 
+-- the makeup opens by itself when a group of 5 or more forms or you enter a dungeon or raid with it
+-- (also in the open world); once per group and per instance, not again after you close it
+local autoKey, autoPending
+local function AutoComp()
+  local S = _G.SeviathsUsefulTools
+  if S and S.db and S.db.autoGroupComp == false then return end
+  local n = IsInGroup() and GetNumGroupMembers() or 0
+  if n < 5 then autoKey = nil; return end
+  if InCombatLockdown() then return end   -- tried again when combat ends
+  local inInst = IsInInstance()
+  local okI, instID = pcall(function() return select(8, GetInstanceInfo()) end)
+  local key = tostring(inInst and okI and instID or 0)
+  if autoKey == key then return end
+  autoKey = key
+  if ns.UI and ns.UI.Show then ns.UI:Show("group") end
+end
+
+local function ScheduleAuto()
+  if autoPending then return end
+  autoPending = true
+  C_Timer.After(2.5, function()
+    autoPending = false
+    local ok, err = pcall(AutoComp)
+    if not ok then geterrorhandler()(err) end
+  end)
+end
+
 ns:On("GROUP_ROSTER_UPDATE", function()
   compCache = nil
   if ns.UI and ns.UI.RefreshGroup then ns.UI:RefreshGroup() end
+  ScheduleAuto()
 end)
+ns:On("PLAYER_ENTERING_WORLD", ScheduleAuto)
+ns:On("PLAYER_REGEN_ENABLED", ScheduleAuto)
