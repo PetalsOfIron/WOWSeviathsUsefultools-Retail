@@ -886,10 +886,10 @@ local function buildSettings(pane)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Use Auctionator prices when I have not scanned", function() return SFP.db.useAuctionator ~= false end,
         function(v) SFP.db.useAuctionator = v; SFP:RefreshAll() end, 12, -358)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Use TradeSkillMaster prices when I have not scanned", function() return SFP.db.useTSM ~= false end,
-        function(v) SFP.db.useTSM = v; SFP:RefreshAll() end, 260, -358)
+        function(v) SFP.db.useTSM = v; SFP:RefreshAll() end, 12, -384)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Open my group's makeup by itself in a group of 5 or more", function() return SFP.db.autoGroupComp ~= false end,
         function(v) SFP.db.autoGroupComp = v end, 12, -332)
-    mkText(pane, "Each tool has its own page in the list on the left.", 12, -392, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
+    mkText(pane, "Each tool has its own page in the list on the left.", 12, -418, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
     pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
 end
 
