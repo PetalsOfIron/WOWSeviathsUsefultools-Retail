@@ -128,6 +128,7 @@ local function buildFrame()
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    SFP.RegisterWindow(frame)   -- remembers where the session window was put
     text = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     text:SetPoint("TOPLEFT", 8, -6)
     text:SetJustifyH("LEFT")

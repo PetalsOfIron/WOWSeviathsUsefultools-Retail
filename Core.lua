@@ -58,15 +58,15 @@ local defaults = {
     mapOverlay   = true,   -- cyan zones on the world map
     zonePanel    = false,  -- optional item panel when viewing a farm zone
     zoneFill     = false,  -- optional: light whole zones instead of just the farm spots
-    showSpawns   = true,   -- cyan glowing monster spawn spots with coordinates
+    showSpawns   = false,  -- cyan farm monster spots (off at the start: only rares are on, turn the rest on in the map's layer menu)
     showRares    = true,   -- orange glowing rare spawns (mounts, pets, toys)
-    showHunter   = true,   -- green hunter tames (spirit beasts, unique-look pets)
-    showMining   = true,   -- best zone for each ore (amber glow)
-    showHerbs    = true,   -- best zone for each herb (mint glow)
-    showDungeons = true,   -- dungeon entrance icons with their loot
-    showRaids    = true,   -- raid entrance icons with their loot
+    showHunter   = false,  -- green hunter tames (spirit beasts, unique-look pets)
+    showMining   = false,  -- (off at the start) best zone for each ore (amber glow)
+    showHerbs    = false,  -- (off at the start, everyone can turn it on) best zone for each herb (mint glow)
+    showDungeons = false,  -- (off at the start) dungeon entrance icons with their loot
+    showRaids    = false,  -- (off at the start) raid entrance icons with their loot
     showLabels   = false,  -- name / coordinate text next to the markers (off: info only on hover)
-    showSpecial  = true,   -- magenta spots for special materials (rare hides, lures, special cloth)
+    showSpecial  = false,  -- magenta spots for special materials (rare hides, lures, special cloth)
     showGatherList = true, -- side list on zone maps: the expansion's ores/herbs + their best zone
     showRoute = true,      -- draw the farm route (spot list: Route button) on the map
     autoGroupComp = true,  -- open the group makeup by itself in a group of 5 or more
@@ -603,7 +603,7 @@ function SFP:SetWaypoint(mapID, x, y, label)
     end
 end
 
--- right-click on the waypoint pin of the world map removes it (the pin is hooked, not replaced)
+-- a click (left or right) on the waypoint pin of the world map removes it (the pin is hooked, not replaced)
 local function hookWaypointPins()
     if not (WorldMapFrame and WorldMapFrame.EnumeratePinsByTemplate) then return end
     local ok, iter, a, b = pcall(WorldMapFrame.EnumeratePinsByTemplate, WorldMapFrame, "UserWaypointPinTemplate")
@@ -613,7 +613,7 @@ local function hookWaypointPins()
             pin.sfpRightClick = true
             if pin.EnableMouse then pcall(pin.EnableMouse, pin, true) end
             pin:HookScript("OnMouseUp", function(self, button)
-                if button == "RightButton" and C_Map.ClearUserWaypoint then
+                if (button == "RightButton" or button == "LeftButton") and C_Map.ClearUserWaypoint then
                     C_Map.ClearUserWaypoint()
                     SFP:Print("Waypoint removed.")
                 end
@@ -678,7 +678,7 @@ function SFP:FlashMapSpot(mapID, x, y)
         flash.arrow, flash.arrowAnim = arrow, bag
         flash:EnableMouse(true)
         flash:SetScript("OnMouseUp", function(self, button)
-            if button == "RightButton" and C_Map.ClearUserWaypoint then
+            if (button == "RightButton" or button == "LeftButton") and C_Map.ClearUserWaypoint then
                 C_Map.ClearUserWaypoint()
                 SFP:Print("Waypoint removed.")
                 self.untilT = 0
@@ -837,8 +837,26 @@ local itemInfoPending = false
 events:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         SeviathsUsefulToolsDB = SeviathsUsefulToolsDB or {}
+        local freshInstall = next(SeviathsUsefulToolsDB) == nil
         copyDefaults(defaults, SeviathsUsefulToolsDB)
         SFP.db = SeviathsUsefulToolsDB
+        -- the map texts (names and coordinates next to the markers) are hidden again after every update and on a new install;
+        -- they can be turned on again in the map's layer menu ("Labels")
+        if SFP.db.labelsVersion ~= SFP.VERSION then
+            SFP.db.showLabels = false
+            if not freshInstall then
+                -- after an update every pin except the rares starts hidden, on the world map and on the minimap; the player turns on what they want
+                for _, k in ipairs({ "showSpawns", "showSpecial", "showHunter", "showMining", "showHerbs",
+                    "showDungeons", "showRaids" }) do
+                    SFP.db[k] = false
+                end
+                SFP.db.showRares = true       -- only rares stay on
+                SFP.db.minimapSpots = true    -- and they show on the minimap too
+            end
+            -- every single farm spot starts unticked in the spot list, after an update and on a new install (WorldMap.lua)
+            SFP.db.hideSpotsPending = true
+            SFP.db.labelsVersion = SFP.VERSION
+        end
         -- what the addon learned elsewhere (Data/Learned.lua, see tools/merge_learned.py): fill in what this account lacks
         local seed = SFP.Seed
         if seed and SFP.db.seedStamp ~= seed.stamp then
@@ -1095,7 +1113,7 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:Print("/sfp decor - Midnight housing decor recipes")
         SFP:Print("/sfp weekly - Great Vault, raid lockouts and rare kills of all your characters")
         SFP:Print("/sfp flip - BoE items now against their typical price")
-        SFP:Print("/sfp shop - crafting shopping list: reagents, prices, where to farm them")
+        SFP:Print("/sfp shop - recipe planner: reagents, prices, where to farm them")
         SFP:Print("/sfp route [clear] - loop through the ticked spots of this map")
         SFP:Print("/sfp session - start / stop a farm session (kills, gold, loot, per hour); /sfp session hide")
         SFP:Print("/sfp next - which rare to farm next (missing mounts, pets, toys; nearest first)")

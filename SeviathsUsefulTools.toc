@@ -2,7 +2,7 @@
 ## Title: |cff00e5ffSeviaths|rUsefulTools
 ## Notes: Everything Seviath in one addon for retail (Midnight): glowing farm spots, rares and gathering zones on the map, auction prices, crafting and farming profit on tooltips, auction/mail/vendor gold messages, the Codex encyclopedia (with Delves), Dungeons & Raids group tools and the Guild Helper.
 ## Author: Seviath
-## Version: 2.0.0-retail
+## Version: 1.7
 ## X-Formerly: SeviathsFarmPack, SeviathsCodex, SeviathsDungeonsRaids, SeviathsGuildHelper
 ## Category: Professions
 ## IconTexture: Interface\Icons\INV_Misc_Map_01
@@ -24,6 +24,7 @@ Data\Rares.lua
 Data\Gathering.lua
 Data\GatherZones.lua
 Data\Seed.lua
+Data\RecipeData.lua
 Data\DecorData.lua
 Data\DecorNPCs.lua
 Data\CuriosLearned.lua
@@ -61,6 +62,8 @@ Modules\DungeonsRaids\Leader.lua
 Modules\DungeonsRaids\UI.lua
 Modules\Codex\Core.lua
 Modules\Codex\Guide.lua
+Modules\Codex\Veterans.lua
+Modules\Codex\RaidMplus.lua
 Modules\Codex\Special.lua
 Modules\Codex\Indexers.lua
 Modules\Codex\Quests.lua

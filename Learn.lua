@@ -46,6 +46,32 @@ end
 ---------------------------------------------------------------------------
 -- turn learned records into map spots
 ---------------------------------------------------------------------------
+-- the name of a monster: from the monsters the addon already named, from the game's tooltip of that very creature,
+-- or from any unit token that points at it
+local function realName(n)
+    return type(n) == "string" and n ~= "" and not n:find("^NPC ") and not (issecretvalue and issecretvalue(n))
+end
+
+function SFP:NpcNameFor(npcID, guid)
+    local known = self.db and self.db.npcs and self.db.npcs[npcID]
+    if known and realName(known.n) then return known.n end
+    if guid and C_TooltipInfo and C_TooltipInfo.GetHyperlink then
+        local ok, data = pcall(C_TooltipInfo.GetHyperlink, "unit:" .. guid)
+        local lt = ok and data and data.lines and data.lines[1] and data.lines[1].leftText
+        if realName(lt) then return lt end
+    end
+    if guid then
+        for _, u in ipairs({ "target", "mouseover", "focus", "softenemy", "softtarget" }) do
+            local okG, g = pcall(UnitGUID, u)
+            if okG and g == guid and not (issecretvalue and issecretvalue(g)) then
+                local okN, n = pcall(UnitName, u)
+                if okN and realName(n) then return n end
+            end
+        end
+    end
+    return nil
+end
+
 local function spotFor(map, npcID, rec)
     local zone = SFP.zoneByMap[map]
     if not zone then
@@ -68,6 +94,8 @@ end
 
 local function updateSpot(map, npcID, rec)
     if (rec.kills or 0) < MIN_KILLS then return end
+    -- no spot for things without a real name ("NPC 240103") or for objects ("o547829"): nothing the player could look for
+    if type(rec.name) ~= "string" or rec.name == "" or rec.name:find("^NPC ") or tostring(npcID):find("^o") then return end
     local s, zone = spotFor(map, npcID, rec)
     if not s then return end
     s.name = rec.name or s.name
@@ -103,8 +131,13 @@ local function updateSpot(map, npcID, rec)
 end
 
 function SFP:ApplyLearned()
+    self._bestDone = nil   -- the "best of each zone" choice is made again with the learned spots
     for map, mobs in pairs(self.db.learned or {}) do
-        for npcID, rec in pairs(mobs) do updateSpot(map, npcID, rec) end
+        for npcID, rec in pairs(mobs) do
+            -- monsters recorded before their name was known get it now, when it is known by any means
+            if not realName(rec.name) and type(npcID) == "number" then rec.name = self:NpcNameFor(npcID) end
+            updateSpot(map, npcID, rec)
+        end
     end
 end
 
@@ -133,6 +166,7 @@ local function onLoot()
                 end
                 do local ok, tg = pcall(UnitGUID, "target"); if ok and not (issecretvalue and issecretvalue(tg)) and tg == sources[i] then rec.name = UnitName("target") end end
                 if not rec.name and type(npcID) == "string" and SFP.RecentCastTarget then rec.name = SFP:RecentCastTarget() end
+                if not rec.name and type(npcID) == "number" then rec.name = SFP:NpcNameFor(npcID, sources[i]) end
                 if not seenMob[sources[i]] then
                     seenMob[sources[i]] = true
                     rec.kills = rec.kills + 1

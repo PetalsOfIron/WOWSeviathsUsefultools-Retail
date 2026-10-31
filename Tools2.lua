@@ -349,6 +349,70 @@ end)
 ---------------------------------------------------------------------------
 -- 6. delve keys and bountiful delves
 ---------------------------------------------------------------------------
+-- the 10 best farm spots of the game by auction house prices, live: it refreshes itself every few seconds and after each scan
+local topWin, topList, topTicker
+local function topSpots()
+    local out = {}
+    for mapID, zone in pairs(SFP.zoneByMap or {}) do
+        for _, s in ipairs(zone.spawns or {}) do
+            if s.hx and not (s.gather or s.rare or s.special or s.hunter) and s.items and #s.items > 0 then
+                local v = 0
+                for _, id in ipairs(s.items) do v = v + (SFP:GetPrice(id) or 0) end
+                if v > 0 then out[#out + 1] = { s = s, map = mapID, v = v } end
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        if a.v ~= b.v then return a.v > b.v end
+        return tostring(a.s.name) < tostring(b.s.name)
+    end)
+    local top, seen = {}, {}
+    for _, e in ipairs(out) do
+        local k = tostring(e.s.name) .. "|" .. e.map
+        if not seen[k] then
+            seen[k] = true
+            top[#top + 1] = e
+            if #top >= 10 then break end
+        end
+    end
+    return top
+end
+
+local function topRefresh()
+    if not (topWin and topWin:IsShown()) then return end
+    local items = {}
+    for i, e in ipairs(topSpots()) do
+        items[i] = {
+            text = ("%d. |cff00e5ff%s|r  |cff808080%s|r  %s"):format(i, tostring(e.s.name), SFP:ZoneName(e.map), SFP:FormatPrice(e.v)),
+            buttons = { { "Waypoint", 70, function() SFP:SetWaypoint(e.map, e.s.hx, e.s.hy, e.s.name) end } },
+        }
+    end
+    if #items == 0 then items[1] = { text = "|cff808080No auction prices yet - scan the auction house once.|r", buttons = {} } end
+    topList:Set(items)
+end
+
+function SFP:ShowTopSpots()
+    if not topWin then
+        topWin = window("SeviathsUsefulToolsTopSpots", "The 10 best farm spots (auction house prices)", 520, 300)
+        topWin.scroll:Hide()
+        local info = topWin:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        info:SetPoint("TOPLEFT", 14, -32)
+        info:SetWidth(490)
+        info:SetJustifyH("LEFT")
+        info:SetText("Worth = what the items of one monster sell for. It updates by itself with the auction prices. Waypoint: go to the spot.")
+        topList = SFP.MakeRowList(topWin, 10, -64, 500, 226, 20)
+        topWin:SetScript("OnShow", function()
+            topRefresh()
+            if topTicker then topTicker:Cancel() end
+            topTicker = C_Timer.NewTicker(5, topRefresh)
+        end)
+        topWin:SetScript("OnHide", function() if topTicker then topTicker:Cancel(); topTicker = nil end end)
+    end
+    topWin:Show()
+    topRefresh()
+end
+function SFP:TopSpotsChanged() topRefresh() end
+
 local DELVE_MAPS = { 2248, 2214, 2215, 2255, 2395, 2437, 2413, 2405, 2393 }
 
 local function keyCurrencies()
@@ -381,9 +445,16 @@ local function bountiful()
     return out
 end
 
-local keyWin
+local keyWin, keyRares
 function SFP:ShowKeys()
-    keyWin = keyWin or window("SeviathsUsefulToolsKeys", "Delve keys and bountiful delves", 480, 340)
+    if not keyWin then
+        keyWin = window("SeviathsUsefulToolsKeys", "Delve keys and bountiful delves", 480, 650)
+        keyWin.scroll:SetPoint("BOTTOMRIGHT", -30, 330)
+        local rl = keyWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        rl:SetPoint("TOPLEFT", 14, -326)
+        rl:SetText("Rares of the Midnight zones (50 shards each): press Waypoint for the nearest spot")
+        keyRares = SFP.MakeRowList(keyWin, 10, -346, 460, 296, 20)
+    end
     local lines = { "|cff00e5ffKeys and delve currencies|r" }
     local cur = keyCurrencies()
     for _, c in ipairs(cur) do
@@ -403,12 +474,49 @@ function SFP:ShowKeys()
         for _, d in ipairs(b) do lines[#lines + 1] = ("  %s - %s"):format(d.name, d.zone) end
     end
     lines[#lines + 1] = ""
-    lines[#lines + 1] = "|cff00e5ffHow to get keys|r"
-    lines[#lines + 1] = "  - A bountiful delve needs a Restored Coffer Key and gives an extra chest."
-    lines[#lines + 1] = "  - Keys are made from Coffer Key Shards: 100 shards make 1 key (that is how it worked in The War Within)."
-    lines[#lines + 1] = "  - Shards come from delve activity (finishing delves, delve bosses and chests) and from the weekly delve quest."
-    lines[#lines + 1] = "  - There is a weekly limit on how many keys you can earn; the currency list above shows how many you earned this week."
-    lines[#lines + 1] = "|cff808080The shard amounts and weekly limits come from the War Within rules and may differ in Midnight; the addon could not verify them against the current game.|r"
+    lines[#lines + 1] = "|cff00e5ffHow keys work|r"
+    lines[#lines + 1] = "  - A bountiful delve gives a Bountiful Coffer at the end; opening it needs one Restored Coffer Key."
+    lines[#lines + 1] = "  - 100 Coffer Key Shards make 1 key. The conversion happens by itself when you enter a delve, or by talking to Naleidea Rivergleam."
+    lines[#lines + 1] = "  - You can earn up to 600 shards a week (6 keys). Shards over the limit are lost, so spend keys before the next reset."
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "|cff00e5ffWhere to get shards (activity - amount)|r"
+    lines[#lines + 1] = "  - Delver's Starter Kit (one time only) - 200"
+    lines[#lines + 1] = "  - Prey hunt quests - 75 each (Astalor Bloodsworn, Silvermoon)"
+    lines[#lines + 1] = "  - Rares in the Midnight zones - 50 each (list below)"
+    lines[#lines + 1] = "  - World quests that offer shards as a reward - 50 each (look at the reward on the map)"
+    lines[#lines + 1] = "  - Weekly zone events such as Abundance and Saltheril's Soiree - a chest with shards"
+    lines[#lines + 1] = "  - Treasures in the Midnight zones - about 5 each"
+    lines[#lines + 1] = "  - Void Motes - 1 each"
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "|cff00e5ffWhere to buy keys|r"
+    lines[#lines + 1] = "  - Naleidea Rivergleam, Delver's Headquarters, Silvermoon City: sells Restored Coffer Keys (a small number per week, with Undercoin, once you have ranked up the Delver's Journey)."
+    lines[#lines + 1] = "|cff808080Amounts come from the Warcraft Wiki and a Midnight Season 2 key guide; they can change with patches. The addon could not verify them in the game.|r"
+    -- rares of the Midnight zones, from the addon's own data: a list with a waypoint button for each
+    local rareItems, zones = {}, {}
+    for mapID, list in pairs(SFP.Rares or {}) do
+        if type(list) == "table" and list.exp == "midnight" then zones[#zones + 1] = { map = mapID, zn = SFP:ZoneName(mapID), list = list } end
+    end
+    table.sort(zones, function(p1, p2) return p1.zn < p2.zn end)
+    for _, z in ipairs(zones) do
+        local rows = {}
+        for _, sp in ipairs(z.list) do
+            if sp.name then rows[#rows + 1] = sp end
+        end
+        table.sort(rows, function(p1, p2) return p1.name < p2.name end)
+        if #rows > 0 then
+            rareItems[#rareItems + 1] = { text = "|cffffd100" .. z.zn .. "|r", buttons = {} }
+            for _, sp in ipairs(rows) do
+                local x, y = (sp.pts or ""):match("([%d%.]+),([%d%.]+)")
+                local map, pts, nm = z.map, sp.pts, sp.name
+                rareItems[#rareItems + 1] = {
+                    text = "  " .. nm .. (x and ("  |cff808080" .. x .. ", " .. y .. "|r") or ""),
+                    buttons = (pts and pts ~= "") and { { "Waypoint", 70, function() SFP:ZoneCheckWaypoint({ map = map, pts = pts, name = nm }) end } } or {},
+                }
+            end
+        end
+    end
+    if #rareItems == 0 then rareItems[1] = { text = "|cff808080No Midnight rare data found.|r", buttons = {} } end
+    keyRares:Set(rareItems)
     keyWin:SetContent(table.concat(lines, "\n"))
     keyWin:Show()
 end
@@ -889,6 +997,70 @@ local function buildCollect()
         local ok, got = pcall(MJ.GetMountIDs)
         if ok and type(got) == "table" then ids = got end
     end
+    local function finish()
+        collList, collBuilding = list, false
+        if SFP.CollPlanChanged then pcall(SFP.CollPlanChanged) end
+    end
+    -- every toy of the game: the toy box lists only what its filters show, so open them fully, read, and put the player's filters back
+    local function readToys()
+        local TB = C_ToyBox
+        if not (TB and TB.GetToyFromIndex and TB.GetToyInfo) then return end
+        local saved = { src = {} }
+        local nSrc = (C_PetJournal and C_PetJournal.GetNumPetSources and C_PetJournal.GetNumPetSources()) or 0
+        pcall(function()
+            saved.col, saved.unc = TB.GetCollectedShown(), TB.GetUncollectedShown()
+            for s = 1, nSrc do saved.src[s] = TB.IsSourceTypeFilterChecked(s) end
+        end)
+        pcall(function()
+            TB.SetCollectedShown(true)
+            TB.SetUncollectedShown(true)
+            TB.SetAllSourceTypeFilters(true)
+        end)
+        local okN, n = pcall(function() return TB.GetNumFilteredToys and TB.GetNumFilteredToys() or TB.GetNumTotalDisplayedToys() end)
+        for t = 1, (okN and tonumber(n)) or 0 do
+            local okT, itemID = pcall(TB.GetToyFromIndex, t)
+            if okT and type(itemID) == "number" and itemID > 0 then
+                local okI, _, name = pcall(TB.GetToyInfo, itemID)
+                local e = add({ key = "i:" .. itemID, kind = "toy", itemID = itemID, source = "" })
+                if okI and type(name) == "string" and not secret(name) and not e.name then e.name = name end
+            end
+        end
+        pcall(function()
+            if saved.col ~= nil then TB.SetCollectedShown(saved.col) end
+            if saved.unc ~= nil then TB.SetUncollectedShown(saved.unc) end
+            for s = 1, nSrc do
+                if saved.src[s] ~= nil then TB.SetSourceTypeFilter(s, saved.src[s]) end
+            end
+        end)
+    end
+    -- every collectible battle pet: walk the species numbers (the pet journal list depends on the player's filters)
+    local function readPets()
+        local PJ = C_PetJournal
+        if not (PJ and PJ.GetPetInfoBySpeciesID) then return finish() end
+        local byName = {}
+        for _, e in ipairs(list) do
+            if e.kind == "pet" and not e.speciesID then byName[SFP:CollEntryName(e):lower()] = e end
+        end
+        local sp, PCH = 1, 200
+        local function pstep()
+            local stop = math.min(6000, sp + PCH - 1)
+            while sp <= stop do
+                local ok, name, _, _, _, src, _, _, _, _, _, obtainable = pcall(PJ.GetPetInfoBySpeciesID, sp)
+                if ok and type(name) == "string" and not secret(name) and obtainable ~= false then
+                    local e = byName[name:lower()]
+                    if e then
+                        e.speciesID, e.name = sp, name
+                        if src and src ~= "" then e.source = cleanSource(src) end
+                    else
+                        add({ key = "p:" .. sp, kind = "pet", speciesID = sp, name = name, source = cleanSource(src or "") })
+                    end
+                end
+                sp = sp + 1
+            end
+            if sp <= 6000 then C_Timer.After(0, pstep) else finish() end
+        end
+        pstep()
+    end
     local i, CH = 1, 120
     local function step()
         local stop = math.min(#ids, i + CH - 1)
@@ -906,8 +1078,8 @@ local function buildCollect()
         if i <= #ids then
             C_Timer.After(0, step)
         else
-            collList, collBuilding = list, false
-            if SFP.CollPlanChanged then pcall(SFP.CollPlanChanged) end
+            pcall(readToys)
+            readPets()
         end
     end
     step()
@@ -929,13 +1101,140 @@ function SFP:CollOwned(e)
         local ok, _, _, _, _, _, _, _, _, _, _, collected = pcall(C_MountJournal.GetMountInfoByID, e.mountID)
         if ok then return collected and true or false end
     end
+    if e.speciesID and C_PetJournal and C_PetJournal.GetNumCollectedInfo then
+        local ok, n = pcall(C_PetJournal.GetNumCollectedInfo, e.speciesID)
+        if ok and type(n) == "number" then return n > 0 end
+    end
+    if e.kind == "toy" and e.itemID and PlayerHasToy then
+        local ok, has = pcall(PlayerHasToy, e.itemID)
+        if ok then return has and true or false end
+    end
     if e.itemID and self.OwnedStatus then return self:OwnedStatus(e.itemID) end
     return nil
 end
 
+-- delve entrances from the map's own points of interest: { { name, map, x, y }, ... }
+local delveIndex
+local function delveEntrances()
+    if delveIndex then return delveIndex end
+    delveIndex = {}
+    if not (C_AreaPoiInfo and C_AreaPoiInfo.GetDelvesForMap and C_AreaPoiInfo.GetAreaPOIInfo) then return delveIndex end
+    for _, mapID in ipairs(DELVE_MAPS) do
+        local ok, ids = pcall(C_AreaPoiInfo.GetDelvesForMap, mapID)
+        if ok and type(ids) == "table" then
+            for _, poiID in ipairs(ids) do
+                local ok2, info = pcall(C_AreaPoiInfo.GetAreaPOIInfo, mapID, poiID)
+                if ok2 and type(info) == "table" and type(info.name) == "string" and not secret(info.name) and info.position then
+                    local x, y = info.position:GetXY()
+                    if x and y then delveIndex[#delveIndex + 1] = { name = info.name, map = mapID, x = x, y = y } end
+                end
+            end
+        end
+    end
+    return delveIndex
+end
+
+-- the entrance of the raid, dungeon or delve that a source text talks about: { map, x, y, label } or nil
+function SFP:EntranceInText(text)
+    if type(text) ~= "string" or text == "" or secret(text) then return nil end
+    local bestInst
+    for _, exp in ipairs(self.Expansions or {}) do
+        for _, inst in ipairs(exp.instances or {}) do
+            if inst.name and #inst.name >= 4 and text:find(inst.name, 1, true) and (not bestInst or #inst.name > #bestInst.name) then bestInst = inst end
+        end
+    end
+    local bestDelve
+    for _, d in ipairs(delveEntrances()) do
+        if #d.name >= 4 and text:find(d.name, 1, true) and (not bestDelve or #d.name > #bestDelve.name) then bestDelve = d end
+    end
+    if bestDelve and (not bestInst or #bestDelve.name > #bestInst.name) then
+        return { map = bestDelve.map, x = bestDelve.x, y = bestDelve.y, label = bestDelve.name .. " (delve entrance)" }
+    end
+    if bestInst then
+        local en = self.FindEntrance and self:FindEntrance(bestInst)
+        if en then return { map = en.map, x = en.x, y = en.y, label = bestInst.name .. " (entrance)" } end
+    end
+    return nil
+end
+
+-- the vendor, quest giver or boss that a source text names, when the addon knows where that NPC stands
+-- (Data/DecorNPCs.lua, read from Wowhead NPC pages): { map, x, y, label } or nil
+local monsterIndex, questByTitle
+local function monsters()
+    if monsterIndex then return monsterIndex end
+    monsterIndex = {}
+    for _, src in ipairs({ SFP.Rares or {}, SFP.Spawns or {} }) do
+        for mapID, list in pairs(src) do
+            for _, sp in ipairs(type(list) == "table" and list or {}) do
+                if type(sp.name) == "string" and sp.hx and not monsterIndex[sp.name] then
+                    monsterIndex[sp.name] = { map = mapID, x = sp.hx, y = sp.hy }
+                end
+            end
+        end
+    end
+    return monsterIndex
+end
+
+-- the place where the Codex saw the giver of a quest of this title (recorded when any of your characters did it)
+local function questGiver(title)
+    local _, cns = SFP_Module("Codex")
+    local db = cns and cns.db
+    if not (db and db.quests and db.qloc) then return nil end
+    if not questByTitle then
+        questByTitle = {}
+        for id, q in pairs(db.quests) do
+            if type(q) == "table" and q.t then questByTitle[q.t] = id end
+        end
+    end
+    local id = questByTitle[title]
+    local g = id and db.qloc[id] and db.qloc[id].g
+    if g and g.m and g.x then return { map = g.m, x = g.x, y = g.y, label = (g.n or "Quest giver") .. " (starts " .. title .. ")" } end
+end
+
+-- the vendor, quest giver or monster that a source text names, when a place is known:
+-- NPC positions (Data/DecorNPCs.lua), rare and farm-mob spawns, quest givers the Codex recorded
+function SFP:NpcInText(text)
+    if type(text) ~= "string" or secret(text) then return nil end
+    local known = self.DecorNPCs or {}
+    local mons = monsters()
+    for seg in (text .. "  "):gmatch("(.-)%s%s+") do
+        local kind = seg:match("^%s*([%a ]+):")
+        seg = seg:gsub("^%s*[%a ]+:%s*", "")
+        kind = kind and kind:lower() or ""
+        if kind:find("quest", 1, true) then
+            local g = questGiver(seg:gsub("%s*$", ""))
+            if g then return g end
+        end
+        for part in (seg .. ","):gmatch("%s*(.-)%s*[,;]") do
+            local p = known[part]
+            if p and p.map then
+                return { map = p.map, x = p.x, y = p.y, label = part .. " (" .. (kind:find("vendor", 1, true) and "vendor" or "NPC") .. ")" }
+            end
+            local m = mons[part]
+            if m then return { map = m.map, x = m.x, y = m.y, label = part } end
+        end
+    end
+    return nil
+end
+
+-- where to go for a collection entry: the rare's spawn spots, else the entrance of the instance in its source text
+function SFP:CollTarget(e)
+    if e.pts and e.spotMap then return "spots" end
+    if e._ent == nil then
+        local text = (e.source or "") .. " " .. (e.rareSource or "")
+        e._ent = self:NpcInText(text) or self:EntranceInText(text) or false
+    end
+    return e._ent or nil
+end
+
 function SFP:CollWaypoint(e)
-    if not (e and e.pts and e.spotMap) then return end
-    self:ZoneCheckWaypoint({ map = e.spotMap, pts = e.pts, name = e.spotName or self:CollEntryName(e) })
+    if not e then return end
+    if e.pts and e.spotMap then
+        self:ZoneCheckWaypoint({ map = e.spotMap, pts = e.pts, name = e.spotName or self:CollEntryName(e) })
+        return
+    end
+    local t = self:CollTarget(e)
+    if type(t) == "table" then self:SetWaypoint(t.map, t.x, t.y, t.label) end
 end
 
 function SFP:ZoneCheck(quiet)
@@ -1441,7 +1740,7 @@ end
 ---------------------------------------------------------------------------
 -- 8. achievement planner
 ---------------------------------------------------------------------------
-local achWin, achBox, achResults, achRows, achAddBtn = nil, nil, {}, nil, nil
+local achWin, achBox, achResults, achRows, achAddBtn, achResRows = nil, nil, {}, nil, nil, nil
 local achCur
 local npcIndex
 
@@ -1462,6 +1761,27 @@ local function npcWhere(npcID)
     return npcIndex[npcID]
 end
 
+-- an instance of the addon's data that the text talks about (raid / dungeon achievements)
+local function achInstance(text)
+    local best
+    for _, exp in ipairs(SFP.Expansions or {}) do
+        for _, inst in ipairs(exp.instances or {}) do
+            if inst.name and text:find(inst.name, 1, true) and (not best or #inst.name > #best.name) then best = inst end
+        end
+    end
+    return best
+end
+
+-- the zone that the text names (longest name wins), for an estimate waypoint
+local function achZone(text)
+    local bestMap, bestLen
+    for mapID in pairs(SFP.zoneByMap or {}) do
+        local zn = SFP:ZoneName(mapID)
+        if type(zn) == "string" and #zn >= 5 and text:find(zn, 1, true) and (not bestLen or #zn > bestLen) then bestMap, bestLen = mapID, #zn end
+    end
+    return bestMap
+end
+
 local function achDetail(id)
     local ok, _, name, points, completed, _, _, _, desc = pcall(GetAchievementInfo, id)
     if not ok or not name then return "Could not read that achievement.", nil end
@@ -1470,6 +1790,7 @@ local function achDetail(id)
     if completed then lines[#lines + 1] = "|cff40ff40Completed on this account.|r"; return table.concat(lines, "\n"), nil end
     local n = GetAchievementNumCriteria and GetAchievementNumCriteria(id) or 0
     local left, done, firstWhere = {}, 0, nil
+    local blob = { name, desc or "" }
     for i = 1, n do
         local ok2, cname, ctype, ccomplete, qty, req, _, _, assetID = pcall(GetAchievementCriteriaInfo, id, i)
         if ok2 then
@@ -1477,6 +1798,7 @@ local function achDetail(id)
             else
                 local where = (ctype == 0 and assetID and assetID > 0) and npcWhere(assetID) or nil
                 local label = (cname and cname ~= "") and cname or ("step " .. i)
+                if cname and cname ~= "" and not secret(cname) then blob[#blob + 1] = cname end
                 local prog = (req and req > 1) and ("  " .. (qty or 0) .. "/" .. req) or ""
                 local loc = where and ("  |cff80ff80" .. SFP:ZoneName(where.map) .. (where.x and (" %.1f, %.1f"):format(where.x * 100, where.y * 100) or "") .. "|r") or ""
                 left[#left + 1] = "• " .. label .. prog .. loc
@@ -1487,11 +1809,48 @@ local function achDetail(id)
     lines[#lines + 1] = ("%d of %d steps done, %d left:"):format(done, n, n - done)
     for i = 1, math.min(25, #left) do lines[#lines + 1] = left[i] end
     if #left > 25 then lines[#lines + 1] = "+" .. (#left - 25) .. " more" end
-    if firstWhere then lines[#lines + 1] = "\n|cffffd100Do first:|r " .. firstWhere.label .. " - the nearest step with a known place (button: waypoint)." end
-    return table.concat(lines, "\n"), firstWhere
+    local codexQuery
+    if firstWhere then
+        lines[#lines + 1] = "\n|cffffd100Do first:|r " .. firstWhere.label .. " - the nearest step with a known place (button: waypoint)."
+    else
+        local text = table.concat(blob, " ")
+        local inst = achInstance(text)
+        local low = text:lower()
+        if inst or low:find("raid", 1, true) or low:find("dungeon", 1, true) then
+            -- raid and dungeon achievements: the bosses, loot and entrance are in the Codex
+            codexQuery = inst and inst.name or name
+            if inst then
+                local e = SFP.FindEntrance and SFP:FindEntrance(inst)
+                if e then firstWhere = { map = e.map, x = e.x, y = e.y, label = inst.name .. " (entrance)" } end
+            end
+            lines[#lines + 1] = "\n|cffffd100Raid / dungeon achievement:|r the bosses, abilities, loot and the way in are in the Codex (button: Codex info)" ..
+                (firstWhere and "; the waypoint goes to the entrance." or ".")
+        else
+            -- other achievements: an estimate, the middle of the zone the text names
+            local map = achZone(text)
+            if map then
+                firstWhere = { map = map, x = 0.5, y = 0.5, label = SFP:ZoneName(map) .. " (estimate)", estimate = true }
+                lines[#lines + 1] = "\n|cffffd100Estimate:|r this achievement names " .. SFP:ZoneName(map) .. "; the waypoint goes to the middle of that zone, not to an exact spot."
+            end
+        end
+    end
+    -- the first thing to read: where to go
+    local go
+    if firstWhere and firstWhere.estimate then
+        go = "|cffffd100Where to go (estimate):|r the middle of " .. SFP:ZoneName(firstWhere.map)
+    elseif firstWhere then
+        go = ("|cffffd100Where to go:|r %s, %s%s"):format(firstWhere.label or "first step", SFP:ZoneName(firstWhere.map),
+            firstWhere.x and (" %.1f, %.1f"):format(firstWhere.x * 100, firstWhere.y * 100) or "")
+    elseif codexQuery then
+        go = "|cffffd100Where to go:|r see the Codex (button: Codex info) for the dungeon or raid, its entrance and its bosses."
+    else
+        go = "|cffffd100Where to go:|r the addon does not know a place for this achievement yet."
+    end
+    table.insert(lines, 2, go)
+    return table.concat(lines, "\n"), firstWhere, codexQuery
 end
 
-local achWay
+local achWay, achCodexQ, achWayBtn, achCodexBtn
 
 -- the saved list lives with the addon's data: { { id =, name = }, ... }
 local function achData()
@@ -1517,8 +1876,13 @@ end
 
 local function achOpen(id, name)
     achCur = { id = id, name = name }
-    local text, where = achDetail(id)
-    achWay = where
+    local text, where, cq = achDetail(id)
+    achWay, achCodexQ = where, cq
+    if achWayBtn then
+        achWayBtn:SetText(where and where.estimate and "Waypoint (estimate)" or "Waypoint to first step")
+        achWayBtn:SetEnabled(where ~= nil)
+    end
+    if achCodexBtn then achCodexBtn:SetEnabled(cq ~= nil) end
     achWin:SetContent(text)
     SFP:AchRefreshList()
 end
@@ -1532,50 +1896,133 @@ function SFP:AchRefreshList()
         local id, saved = e.id, e.name
         items[#items + 1] = {
             text = (name or saved or ("#" .. id)) .. "  " .. state,
-            buttons = {
-                { "Open", 50, function() achOpen(id, name or saved) end },
-                { "Remove", 60, function()
+            check = true,
+            onToggle = function(on)
+                if not on then
                     local i = achIndex(id)
                     if i then table.remove(achData(), i) end
-                    SFP:AchRefreshList()
-                end },
+                end
+                SFP:AchRefreshList()
+            end,
+            buttons = {
+                { "Open info", 80, function() achOpen(id, name or saved) end },
             },
         }
     end
     achRows:Set(items)
+    if SFP.AchShowResults then SFP:AchShowResults() end
     if achAddBtn then
         achAddBtn:SetEnabled(achCur ~= nil)
         achAddBtn:SetText((achCur and achIndex(achCur.id)) and "Remove from list" or "Add to list")
     end
 end
 
+local achFound, achQuery = {}, ""
+
+-- the search results: tick one to put it in your list, untick to take it out
+function SFP:AchShowResults()
+    if not achResRows then return end
+    local items = {}
+    for _, e in ipairs(achFound) do
+        local id = tonumber(e.id) or 0
+        local name = e.name
+        items[#items + 1] = {
+            text = name .. "  |cff808080#" .. tostring(e.id) .. "|r",
+            check = achIndex(id) ~= nil,
+            onToggle = function(on)
+                local i = achIndex(id)
+                if on and not i then
+                    achData()[#achData() + 1] = { id = id, name = name }
+                elseif not on and i then
+                    table.remove(achData(), i)
+                end
+                SFP:AchRefreshList()
+            end,
+            buttons = { { "Open info", 80, function() achOpen(id, name) end } },
+        }
+    end
+    if #items == 0 and achQuery and #achQuery >= 3 then
+        items[1] = { text = "|cff808080" .. (achAll and "No achievement matches that." or "Reading the achievement list...") .. "|r", buttons = {} }
+    elseif #items > 0 then
+        table.insert(items, 1, { text = "|cff808080" .. #items .. " found - tick the ones you want|r", buttons = {} })
+    end
+    achResRows:Set(items)
+end
+
+-- every achievement of the game (id and name), read once in small steps; the search does not depend on the Codex being indexed
+local achAll, achReading
+local function achReadAll()
+    if achAll or achReading then return end
+    achReading = true
+    local idx, seen = {}, {}
+    local cats = (GetCategoryList and GetCategoryList()) or {}
+    local ci, ai = 1, 1
+    local function step()
+        local t0 = debugprofilestop()
+        while ci <= #cats do
+            local n = (GetCategoryNumAchievements and GetCategoryNumAchievements(cats[ci], true)) or 0
+            while ai <= n do
+                local ok, id, name = pcall(GetAchievementInfo, cats[ci], ai)
+                if ok and id and not seen[id] and type(name) == "string" and not secret(name) then
+                    seen[id] = true
+                    idx[#idx + 1] = { id = id, name = name, lname = name:lower() }
+                end
+                ai = ai + 1
+                if debugprofilestop() - t0 > 12 then C_Timer.After(0, step); return end
+            end
+            ci, ai = ci + 1, 1
+        end
+        achAll, achReading = idx, false
+        if achBox then
+            local fn = achBox:GetScript("OnTextChanged")
+            if fn then fn(achBox) end
+        end
+    end
+    step()
+end
+
 local function achSearch(text)
-    local found = {}
-    local _, ns = SFP_Module("Codex")
-    if ns and ns.Search and #(text or "") >= 3 then
-        local ok, res = pcall(ns.Search, ns, text, "achievement", 6)
-        if ok and type(res) == "table" then found = res end
+    achFound = {}
+    achQuery = text or ""
+    local q = (text or ""):lower()
+    if #q >= 3 then
+        if achAll then
+            for _, e in ipairs(achAll) do
+                if e.lname:find(q, 1, true) then
+                    achFound[#achFound + 1] = e
+                    if #achFound >= 200 then break end
+                end
+            end
+        else
+            achReadAll()
+            -- until the list is read, the Codex answers if it already has the achievements
+            local _, ns = SFP_Module("Codex")
+            if ns and ns.Search then
+                local ok, res = pcall(ns.Search, ns, text, "achievement", 8)
+                if ok and type(res) == "table" then achFound = res end
+            end
+        end
     end
-    for i, b in ipairs(achResults) do
-        local e = found[i]
-        b.e = e
-        if e then b:SetText(e.name .. "  |cff808080#" .. tostring(e.id) .. "|r"); b:Show() else b:Hide() end
-    end
+    SFP:AchShowResults()
 end
 
 function SFP:ShowAchPlanner()
     if not achWin then
-        achWin = window("SeviathsUsefulToolsAch", "Achievement planner", 560, 580)
-        achWin.scroll:SetPoint("TOPLEFT", 12, -300)
+        achWin = window("SeviathsUsefulToolsAch", "Achievement planner", 560, 720)
+        achWin.scroll:SetPoint("TOPLEFT", 12, -500)
         achBox = CreateFrame("EditBox", nil, achWin, "InputBoxTemplate")
         achBox:SetSize(220, 22)
         achBox:SetPoint("TOPLEFT", 22, -34)
         achBox:SetAutoFocus(false)
-        achBox:SetScript("OnTextChanged", function(self) achSearch(self:GetText()) end)
+        achBox:SetScript("OnTextChanged", function(self)
+            local ok, err = pcall(achSearch, self:GetText())
+            if not ok then SFP:Print("Achievement search error: " .. tostring(err)) end
+        end)
         achBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
         achAddBtn = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
         achAddBtn:SetSize(120, 22)
         achAddBtn:SetPoint("LEFT", achBox, "RIGHT", 10, 0)
+        achAddBtn:Hide()   -- the tick boxes of the results add and remove now
         achAddBtn:SetText("Add to list")
         achAddBtn:SetScript("OnClick", function()
             if not achCur then return end
@@ -1584,28 +2031,55 @@ function SFP:ShowAchPlanner()
             SFP:AchRefreshList()
         end)
         local way = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
-        way:SetSize(150, 22)
-        way:SetPoint("LEFT", achAddBtn, "RIGHT", 6, 0)
+        achWayBtn = way
+        way:SetSize(160, 22)
+        way:SetPoint("LEFT", achBox, "RIGHT", 10, 0)
         way:SetText("Waypoint to first step")
+        way:SetEnabled(false)
+        achCodexBtn = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
+        achCodexBtn:SetSize(100, 22)
+        achCodexBtn:SetPoint("LEFT", way, "RIGHT", 6, 0)
+        achCodexBtn:SetText("Codex info")
+        achCodexBtn:SetEnabled(false)
+        achCodexBtn:SetScript("OnClick", function()
+            local okM, _, cns = pcall(SFP_Module, "Codex")
+            if okM and cns and cns.Toggle and achCodexQ then
+                if cns.StartIndexing then cns:StartIndexing() end
+                cns:Toggle(achCodexQ)
+            else
+                SFP:Print("The Codex is not loaded.")
+            end
+        end)
         way:SetScript("OnClick", function()
             if achWay and SFP.SetWaypoint then SFP:SetWaypoint(achWay.map, achWay.x, achWay.y, achWay.label) end
         end)
-        for i = 1, 6 do
-            local b = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
-            b:SetSize(510, 18)
-            b:SetPoint("TOPLEFT", 22, -62 - (i - 1) * 16)
-            b:SetScript("OnClick", function(self)
-                if not self.e then return end
-                achOpen(tonumber(self.e.id) or 0, self.e.name)
-            end)
-            b:Hide()
-            achResults[i] = b
-        end
+        achResRows = SFP.MakeRowList(achWin, 18, -62, 530, 180, 20)
+        achReadAll()
         local label = achWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("TOPLEFT", 22, -168)
-        label:SetText("Your list (saved - add or remove whenever you want):")
-        achRows = SFP.MakeRowList(achWin, 18, -186, 530, 104, 20)
-        achWin:SetContent("Type part of an achievement name above and click a result. You get what is left, where each step is when the addon knows the place, and what to do first. Press Add to list to keep it: the list is saved and shows your progress each time you open this window.")
+        label:SetPoint("TOPLEFT", 22, -252)
+        label:SetText("Your list (saved - tick to keep, untick to remove):")
+        local function bulk(text, x, add)
+            local b = CreateFrame("Button", nil, achWin, "UIPanelButtonTemplate")
+            b:SetSize(120, 20)
+            b:SetPoint("TOPLEFT", x, -246)
+            b:SetText(text)
+            b:SetScript("OnClick", function()
+                for _, e in ipairs(achFound) do
+                    local id = tonumber(e.id) or 0
+                    local i = achIndex(id)
+                    if add and not i then
+                        achData()[#achData() + 1] = { id = id, name = e.name }
+                    elseif not add and i then
+                        table.remove(achData(), i)
+                    end
+                end
+                SFP:AchRefreshList()
+            end)
+        end
+        bulk("Add all shown", 300, true)
+        bulk("Remove all shown", 424, false)
+        achRows = SFP.MakeRowList(achWin, 18, -274, 530, 210, 20)
+        achWin:SetContent("Type part of an achievement name above, tick the ones you want in your list (untick to remove them); press Open info on any of them to see its details and press Open info to see what is left and where to go. You get what is left, where each step is when the addon knows the place, and what to do first. The list is saved and shows your progress each time you open this window.")
         achWin:HookScript("OnShow", function() SFP:Safe("ach list", SFP.AchRefreshList, SFP) end)
     end
     achWin:Show()
@@ -1621,4 +2095,6 @@ SFP:OnLogin(function()
     end
     C_Timer.After(45, learnAll)
     C_Timer.NewTicker(900, learnAll)
+    -- the achievement planner's search list is read in the background, so it is ready when you open the window
+    C_Timer.After(25, function() SFP:Safe("achievement list", achReadAll) end)
 end)

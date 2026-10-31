@@ -455,11 +455,33 @@ function SFP:ShowDeals()
 end
 
 ---------------------------------------------------------------------------
--- crafting shopping list
+-- recipe planner (the crafting shopping list)
 ---------------------------------------------------------------------------
-local shopWin, shopBox, shopResults, shopRows = nil, nil, {}, nil
+local shopWin, shopBox, shopRows = nil, nil, nil
+local shopOff = {}   -- recipe keys that are unticked: they stay in the list but are left out of the breakdown
+local shopFound = {}  -- the recipes the search found
+local shopProf        -- search only this profession (nil = all)
+local shopTruncated    -- how many recipes matched when the list shows only the first ones
+local shopShowResults   -- defined further down; shopRefresh calls it
 
 -- the list is saved with the addon's data, so it is still there after a relog and on every character
+-- recipes: the ones your characters learned (saved), and the shipped list of every recipe of the nine crafting professions
+local shipped
+local function shippedRecipes()
+    if shipped then return shipped end
+    shipped = {}
+    for _, r in ipairs(SFP.RecipeData or {}) do
+        local reag = {}
+        for i, rg in ipairs(r[5]) do reag[i] = { rg[1], rg[2] } end
+        shipped["s" .. r[1]] = { n = r[3], p = r[2], o = (r[4] and r[4] > 0) and r[4] or nil, r = reag }
+    end
+    return shipped
+end
+
+local function recipeOf(key)
+    return (SFP.db.recipes and SFP.db.recipes[key]) or shippedRecipes()[key]
+end
+
 local function shopData()
     SFP.db.shopList = SFP.db.shopList or {}
     return SFP.db.shopList
@@ -469,8 +491,8 @@ local function shopTotals()
     local need, order = {}, {}
     local products, productValue = {}, 0
     for _, entry in ipairs(shopData()) do
-        local rec = SFP.db.recipes[entry.key]
-        if rec then
+        local rec = recipeOf(entry.key)
+        if rec and not shopOff[entry.key] then
             for _, rg in ipairs(rec.r or {}) do
                 local id, cnt = rg[1], rg[2] or 1
                 if not need[id] then need[id] = 0; order[#order + 1] = id end
@@ -490,17 +512,21 @@ local shopRefresh
 local function shopFillRows()
     local items = {}
     for i, entry in ipairs(shopData()) do
-        local rec = SFP.db.recipes[entry.key]
+        local rec = recipeOf(entry.key)
+        local key = entry.key
         items[#items + 1] = {
             text = ("%dx %s%s"):format(entry.qty, (rec and rec.n) or entry.key, rec and "" or "  |cffff6060(recipe not known on this account)|r"),
+            check = not shopOff[key],
+            onToggle = function(on) shopOff[key] = (not on) or nil; shopRefresh() end,
             buttons = {
                 { "-", 24, function()
                     entry.qty = entry.qty - 1
                     if entry.qty < 1 then table.remove(shopData(), i) end
                     shopRefresh()
                 end },
+                { tostring(entry.qty), 34, function() end },   -- the amount, between - and +
                 { "+", 24, function() entry.qty = entry.qty + 1; shopRefresh() end },
-                { "Remove", 60, function() table.remove(shopData(), i); shopRefresh() end },
+                { "Remove", 60, function() shopOff[key] = nil; table.remove(shopData(), i); shopRefresh() end },
             },
         }
     end
@@ -515,7 +541,7 @@ shopRefresh = function()
         lines[1] = "Type part of a recipe name above and click a result to add it. The list is saved: you can add, remove or change the amount of each entry whenever you want. The recipes are the ones the addon learned when you opened your professions."
     else
         local need, order, products, productValue = shopTotals()
-        lines[#lines + 1] = "|cff00e5ffMaking:|r " .. table.concat(products, ", ")
+        lines[#lines + 1] = "|cff00e5ffMaking:|r " .. (#products > 0 and table.concat(products, ", ") or "|cff808080nothing ticked - tick the recipes you want in the list above|r")
         lines[#lines + 1] = ""
         local total, unknown = 0, 0
         for _, id in ipairs(order) do
@@ -538,64 +564,183 @@ shopRefresh = function()
             "Green 'farm:' marks reagents the addon knows a place for.|r"
     end
     shopWin:SetContent(table.concat(lines, "\n"))
+    shopShowResults()
 end
 
+local function shopIndex(key)
+    for i, e in ipairs(shopData()) do if e.key == key then return i end end
+end
+
+local shopResRows
+shopShowResults = function()
+    if not shopResRows then return end
+    local items = {}
+    for _, key in ipairs(shopFound) do
+        local rec = recipeOf(key)
+        items[#items + 1] = {
+            text = ((rec and rec.n) or key) .. "  |cff808080" .. ((rec and rec.p) or "") .. "|r",
+            check = shopIndex(key) ~= nil,
+            onToggle = function(on)
+                local i = shopIndex(key)
+                if on and not i then
+                    shopData()[#shopData() + 1] = { key = key, qty = 1 }
+                elseif not on and i then
+                    shopOff[key] = nil
+                    table.remove(shopData(), i)
+                end
+                shopRefresh()
+            end,
+        }
+    end
+    if #items == 0 then
+        items[1] = { text = shopProf and ("|cff808080No " .. shopProf .. " recipes found.|r")
+            or "|cff808080No recipes yet. Open your professions once so the addon learns their recipes.|r", buttons = {} }
+    else
+        table.insert(items, 1, { text = "|cff808080" .. (shopTruncated and ("first " .. #shopFound .. " of " .. shopTruncated .. " - type or pick a profession to narrow it") or (#shopFound .. " recipes")) .. " - click a recipe to add it, click again to remove it|r", buttons = {} })
+    end
+    shopResRows:Set(items)
+end
+
+local SHOP_MAX = 400
+
+-- with nothing typed this is the browse menu: every recipe the addon knows (or the chosen profession's), just click to add
 local function shopSearch(text)
     text = (text or ""):lower()
-    local found = {}
-    if #text >= 2 then
-        for key, rec in pairs(SFP.db.recipes or {}) do
-            if (rec.n or ""):lower():find(text, 1, true) then found[#found + 1] = key end
+    shopFound = {}
+    shopTruncated = false
+    local learnedNames = {}
+    local function consider(key, rec)
+        if (#text >= 2 or not shopProf or rec.p == shopProf) and (#text < 2 or (rec.n or ""):lower():find(text, 1, true)) then
+            shopFound[#shopFound + 1] = key
         end
-        table.sort(found)
     end
-    for i, b in ipairs(shopResults) do
-        local key = found[i]
-        b.key = key
-        if key then
-            local rec = SFP.db.recipes[key]
-            b:SetText((rec.n or key) .. "  |cff808080" .. (rec.p or "") .. "|r")
-            b:Show()
-        else
-            b:Hide()
-        end
+    for key, rec in pairs(SFP.db.recipes or {}) do
+        learnedNames[(rec.p or "") .. "|" .. (rec.n or "")] = true
+        consider(key, rec)
+    end
+    -- the shipped recipes; one your characters learned themselves is not listed twice
+    for key, rec in pairs(shippedRecipes()) do
+        if not learnedNames[(rec.p or "") .. "|" .. (rec.n or "")] then consider(key, rec) end
+    end
+    table.sort(shopFound, function(x, y)
+        local rx, ry = recipeOf(x), recipeOf(y)
+        local px, py = (rx and rx.p) or "", (ry and ry.p) or ""
+        if px ~= py then return px < py end
+        local nx, ny = (rx and rx.n) or x, (ry and ry.n) or y
+        if nx ~= ny then return nx < ny end
+        return x < y
+    end)
+    if #shopFound > SHOP_MAX then
+        shopTruncated = #shopFound
+        while #shopFound > SHOP_MAX do table.remove(shopFound) end
+    end
+    shopShowResults()
+end
+-- an auction scan finished (or prices changed): redraw what shows prices
+function SFP:PricesChanged()
+    -- new auction prices: choose the best 5 farm spots of each zone again
+    SFP._bestDone = nil
+    for _, z in pairs(SFP.zoneByMap or {}) do z._areas, z._clusters = nil, nil end
+    SFP.hiddenVer = (SFP.hiddenVer or 0) + 1
+    if SFP.RefreshWorldMap then pcall(SFP.RefreshWorldMap) end
+    if SFP.TopSpotsChanged then pcall(SFP.TopSpotsChanged) end
+    if shopWin and shopWin:IsShown() then shopRefresh() end
+    local okM, _, cns = pcall(SFP_Module, "Codex")
+    if okM and cns then
+        cns.grindTime = nil
+        if cns.LoadGrind then cns:LoadGrind() end
+        if cns.RefreshList then cns:RefreshList(true) end
     end
 end
 
 function SFP:ShowShop()
     if not shopWin then
-        shopWin = makeWindow("SeviathsUsefulToolsShop", "Crafting shopping list", 540, 540)
-        shopWin.scroll:SetPoint("TOPLEFT", 12, -300)
+        local acc = 0
+        shopWin = makeWindow("SeviathsUsefulToolsShop", "Recipe planner", 540, 740)
+        shopWin.scroll:SetPoint("TOPLEFT", 12, -520)
         shopBox = CreateFrame("EditBox", nil, shopWin, "InputBoxTemplate")
-        shopBox:SetSize(300, 22)
+        shopBox:SetSize(240, 22)
         shopBox:SetPoint("TOPLEFT", 22, -34)
         shopBox:SetAutoFocus(false)
         shopBox:SetScript("OnTextChanged", function(self) shopSearch(self:GetText()) end)
         shopBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-        local clear = CreateFrame("Button", nil, shopWin, "UIPanelButtonTemplate")
-        clear:SetSize(110, 22)
-        clear:SetPoint("LEFT", shopBox, "RIGHT", 10, 0)
-        clear:SetText("Remove all")
-        clear:SetScript("OnClick", function() wipe(shopData()); shopRefresh() end)
-        for i = 1, 6 do
+        local function bar(text, w, x, y, h, fn)
             local b = CreateFrame("Button", nil, shopWin, "UIPanelButtonTemplate")
-            b:SetSize(490, 18)
-            b:SetPoint("TOPLEFT", 22, -62 - (i - 1) * 16)
-            b:SetScript("OnClick", function(self)
-                if not self.key then return end
-                for _, e in ipairs(shopData()) do if e.key == self.key then e.qty = e.qty + 1; shopRefresh(); return end end
-                shopData()[#shopData() + 1] = { key = self.key, qty = 1 }
-                shopRefresh()
-            end)
-            b:Hide()
-            shopResults[i] = b
+            b:SetSize(w, h)
+            b:SetPoint("TOPLEFT", x, y)
+            b:SetText(text)
+            b:SetScript("OnClick", fn)
+            return b
         end
+        bar("Add all shown", 110, 272, -34, 22, function()
+            for _, key in ipairs(shopFound) do
+                if not shopIndex(key) then shopData()[#shopData() + 1] = { key = key, qty = 1 } end
+            end
+            shopRefresh()
+        end)
+        bar("Remove all", 100, 386, -34, 22, function() wipe(shopData()); wipe(shopOff); shopRefresh() end)
+        shopWin.tabs = {}
+        shopResRows = SFP.MakeRowList(shopWin, 18, -118, 510, 160, 20)
         local label = shopWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("TOPLEFT", 22, -168)
-        label:SetText("Your list (saved):")
-        shopRows = SFP.MakeRowList(shopWin, 18, -186, 510, 104, 20)
+        label:SetPoint("TOPLEFT", 22, -290)
+        label:SetText("Your list (saved)")
+        local expl = shopWin:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        expl:SetPoint("TOPLEFT", 22, -308)
+        expl:SetWidth(490)
+        expl:SetJustifyH("LEFT")
+        expl:SetText("|cff00e5ffTick a recipe|r to show the reagents to buy for it below. Tick one for that recipe alone, several for those together, or press |cff00e5ffTick all|r for everything on the list.")
+        bar("Tick all", 70, 380, -286, 20, function() wipe(shopOff); shopRefresh() end)
+        bar("Tick none", 70, 454, -286, 20, function()
+            for _, e in ipairs(shopData()) do shopOff[e.key] = true end
+            shopRefresh()
+        end)
+        shopRows = SFP.MakeRowList(shopWin, 18, -342, 510, 170, 20)
+        -- prices come from the auction scans and from Auctionator / TSM: redraw every few seconds while it is open
+        shopWin:SetScript("OnUpdate", function(_, dt)
+            acc = acc + dt
+            if acc >= 5 then acc = 0; shopRefresh() end
+        end)
+    end
+    -- one tab per profession the addon knows recipes for, all visible at once (typing searches every profession)
+    do
+        -- every crafting profession gets a tab, learned or not; others the addon learned are added
+        local names, seen = {}, {}
+        for _, nm in ipairs({ "Alchemy", "Blacksmithing", "Cooking", "Enchanting", "Engineering", "Inscription", "Jewelcrafting", "Leatherworking", "Tailoring" }) do
+            seen[nm] = true; names[#names + 1] = nm
+        end
+        for _, rec in pairs(SFP.db.recipes or {}) do
+            if rec.p and not seen[rec.p] then seen[rec.p] = true; names[#names + 1] = rec.p end
+        end
+        table.sort(names)
+        table.insert(names, 1, false)
+        local x, y = 22, -62
+        for i, nm in ipairs(names) do
+            local label = nm or "All"
+            local width = math.max(54, #label * 7 + 16)
+            if x + width > 520 then x, y = 22, y - 26 end
+            local tb = shopWin.tabs[i]
+            if not tb then
+                tb = CreateFrame("Button", nil, shopWin, "UIPanelButtonTemplate")
+                shopWin.tabs[i] = tb
+            end
+            tb:SetSize(width, 22)
+            tb:ClearAllPoints()
+            tb:SetPoint("TOPLEFT", x, y)
+            tb.prof = nm or nil
+            tb:SetText(label)
+            tb:SetScript("OnClick", function(self)
+                shopProf = self.prof
+                for _, t in ipairs(shopWin.tabs) do t:SetEnabled(t.prof ~= shopProf) end
+                shopSearch(shopBox:GetText())
+            end)
+            tb:SetEnabled(tb.prof ~= shopProf)
+            tb:Show()
+            x = x + width + 4
+        end
+        for i = #names + 1, #shopWin.tabs do shopWin.tabs[i]:Hide() end
     end
     shopWin:Show()
+    shopSearch(shopBox:GetText())   -- recipes learned since the last time show up
     shopRefresh()
 end
 

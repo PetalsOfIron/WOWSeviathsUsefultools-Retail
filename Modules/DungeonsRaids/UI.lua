@@ -948,7 +948,10 @@ function UI:Show(key)
 end
 
 function UI:Toggle()
+  -- a window built just now is already shown; the first call must open it, not close it again
+  local fresh = not self.frame
   self:Build()
+  if fresh then self.frame:Hide() end
   if self.frame:IsShown() then
     self.frame:Hide()
   elseif CurrentSection() and ns.db.dock ~= "OFF" then
