@@ -926,13 +926,13 @@ local function decorEntries()
     local list, byName, byItem, fromGame = {}, {}, {}, false
     for _, d in ipairs(SFP.DecorData or {}) do
         local name = d[3] ~= "" and d[3] or ("Decor item " .. d[1])
-        local e = { name = name, itemID = d[1], decorID = d[2] > 0 and d[2] or nil, source = d[4], unknownOwned = true }
+        local e = { name = name, itemID = d[1] > 0 and d[1] or nil, decorID = d[2] > 0 and d[2] or nil, source = d[4], unknownOwned = true }
         local own = decorOwned(d[1])
         if own ~= nil then e.owned, e.unknownOwned, fromGame = own > 0, false, true end
         e.placeholder = d[3] == ""
         list[#list + 1] = e
         byName[name:lower()] = e
-        byItem[d[1]] = e
+        if d[1] > 0 then byItem[d[1]] = e end
     end
     -- decor shipped from a played account: fills names and sources and corrects the data
     for _, d in ipairs(SFP.DecorLearned or {}) do
