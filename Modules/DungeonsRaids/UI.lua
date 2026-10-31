@@ -448,6 +448,38 @@ local function BuildDelve(p)
   BuildPicker(p, "delve", -212, "Delves")
 end
 
+-- One checkbox per class: only groups that already have a ticked class are listed (nothing ticked = every group)
+local CLASS_ORDER = { "DEATHKNIGHT", "DEMONHUNTER", "DRUID", "EVOKER", "HUNTER", "MAGE", "MONK", "PALADIN", "PRIEST", "ROGUE", "SHAMAN", "WARLOCK", "WARRIOR" }
+local function BuildClassPicks(p, o, y)
+  o.classPicked = o.classPicked or {}
+  Header(p, "Classes in the group", 16, y)
+  local all = UI.Button(p, "Show all", 76, 18, function()
+    wipe(o.classPicked)
+    for _, cb in ipairs(p.classChecks) do cb:SetChecked(false) end
+    UI:Changed()
+  end)
+  all:SetPoint("TOPLEFT", COL2, y + 2)
+  Label(p, "|cff999999Tick the classes you want in the group - only groups with one of them show.|r", 16, y - 18, "GameFontHighlightSmall")
+  p.classChecks = {}
+  local names = LOCALIZED_CLASS_NAMES_MALE or {}
+  for i, token in ipairs(CLASS_ORDER) do
+    local col, row = (i - 1) % 3, math.floor((i - 1) / 3)
+    local cb = CreateFrame("CheckButton", nil, p, "UICheckButtonTemplate")
+    cb:SetSize(22, 22)
+    cb:SetPoint("TOPLEFT", 16 + col * 170, y - 38 - row * 22)
+    local fs = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    fs:SetPoint("LEFT", cb, "RIGHT", 2, 0)
+    local col2 = RAID_CLASS_COLORS and RAID_CLASS_COLORS[token]
+    fs:SetText((col2 and ("|c" .. (col2.colorStr or "ffffffff")) or "") .. (names[token] or token) .. "|r")
+    cb:SetChecked(o.classPicked[token] and true or false)
+    cb:SetScript("OnClick", function(s)
+      o.classPicked[token] = s:GetChecked() and true or nil
+      UI:Changed()
+    end)
+    p.classChecks[#p.classChecks + 1] = cb
+  end
+end
+
 local function BuildDungeon(p)
   local o = ns.db.dungeon
   Header(p, "Dungeon filters (Normal, Heroic, Mythic 0)", 16, -10)
@@ -467,9 +499,10 @@ local function BuildDungeon(p)
   UI.Check(p, "|cffff80ffTransmog|r", o, "wantTmog", 390, -190, "An appearance you can learn and don't have yet.")
   UI.Number(p, "Min new collectibles (mounts, pets, toys, appearances)", o, "minNewLoot", 20, -224,
     "Counts loot from this dungeon you haven't collected. 0 = off.")
-  Legend(p, -262, "|cff40ff60FRESH|r no bosses killed yet     |cffffb040STARTED 2/4|r group already killed some\n" .. LOOT_TAGS .. "\n" .. COMMON_TAGS)
-  Footer(p, -364)
-  BuildPicker(p, "dungeon", -396, "Dungeons", true)
+  BuildClassPicks(p, o, -262)
+  Legend(p, -418, "|cff40ff60FRESH|r no bosses killed yet     |cffffb040STARTED 2/4|r group already killed some\n" .. LOOT_TAGS .. "\n" .. COMMON_TAGS)
+  Footer(p, -520)
+  BuildPicker(p, "dungeon", -552, "Dungeons", true)
 end
 
 local function BuildMPlus(p)
@@ -490,9 +523,10 @@ local function BuildMPlus(p)
     "Hide leaders whose best timed key here is above this - they usually run higher keys than you want. 0 = off.")
   Label(p, "|cff999999Exact key level: type it into Blizzard's search box (\"Search key numbers...\"), e.g. 16, and press Enter.|r", 20, -202, "GameFontHighlightSmall")
 
-  Legend(p, -228, "|cff40ff60BL|r / |cffff5050BL|r group has / lacks Bloodlust     |cff40ff60BR|r / |cffff5050BR|r battle res\n" .. LOOT_TAGS .. "\n" .. COMMON_TAGS .. "\n|cff999999Mythic+ unlocks at max level.|r")
-  Footer(p, -312)
-  BuildPicker(p, "mplus", -344, "Keys (this season's Mythic+ dungeons)")
+  BuildClassPicks(p, o, -228)
+  Legend(p, -384, "|cff40ff60BL|r / |cffff5050BL|r group has / lacks Bloodlust     |cff40ff60BR|r / |cffff5050BR|r battle res\n" .. LOOT_TAGS .. "\n" .. COMMON_TAGS .. "\n|cff999999Mythic+ unlocks at max level.|r")
+  Footer(p, -468)
+  BuildPicker(p, "mplus", -500, "Keys (this season's Mythic+ dungeons)")
 end
 
 local function BuildRaid(p)
@@ -524,9 +558,10 @@ local function BuildRaid(p)
     "Tier tokens. Conqueror: Paladin, Priest, Warlock - Protector: Warrior, Hunter, Shaman, Monk - Vanquisher: Rogue, Death Knight, Mage, Druid")
   UI.Number(p, "Min new collectibles", o, "minNewLoot", COL2 + 4, -308,
     "Mounts, pets, toys and appearances you don't have, from bosses still alive for you. 0 = off.")
-  Legend(p, -342, "|cff40ff60FRESH|r no bosses killed   |cffffb040STARTED 3/9|r already started\n|cff40ff60+Stats|r buff you'd add   |cffffb0402 tok|r token competitors\n" .. LOOT_TAGS)
-  Footer(p, -410)
-  BuildPicker(p, "raid", -442, "Raids", true)
+  BuildClassPicks(p, o, -342)
+  Legend(p, -498, "|cff40ff60FRESH|r no bosses killed   |cffffb040STARTED 3/9|r already started\n|cff40ff60+Stats|r buff you'd add   |cffffb0402 tok|r token competitors\n" .. LOOT_TAGS)
+  Footer(p, -566)
+  BuildPicker(p, "raid", -598, "Raids", true)
 end
 
 local function BuildCustom(p)

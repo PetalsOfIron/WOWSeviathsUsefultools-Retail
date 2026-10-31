@@ -380,12 +380,23 @@ end
 SFP.SpotKey = spotKey
 SFP.hiddenVer = 0   -- changes whenever a spot is switched on or off (drawing caches include it)
 
--- farm monsters: only the 5 best of each zone, by auction house prices. The choice is made once at login and again only
--- when an auction scan finishes (SFP:PricesChanged), so it does not jump around while you play. Ties use fixed data.
+-- farm monsters: only the 5 best of each zone, by auction house prices. The choice is saved and kept until the weekly
+-- reset (it changes once a week, not at every login or scan; only a choice made before any price was known is redone
+-- when the first prices arrive). Ties use fixed data.
 local BEST_PER_ZONE = 5
+local BEST_KEEP = 7 * 24 * 3600
 local function markBest()
     SFP._bestDone = true
-    for _, zone in pairs(SFP.zoneByMap or {}) do
+    local saved = SFP.db.bestSpots
+    -- kept until the weekly reset (the choice made since the last reset stays); without the game's reset timer: 7 days
+    local lastReset = time() - BEST_KEEP
+    if C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset then
+        local okR, secs = pcall(C_DateAndTime.GetSecondsUntilWeeklyReset)
+        if okR and type(secs) == "number" and secs > 0 and secs <= BEST_KEEP then lastReset = time() + secs - BEST_KEEP end
+    end
+    local keep = saved and saved.stamp and saved.zones and saved.stamp >= lastReset
+    local newSaved = keep and saved or { stamp = time(), zones = {}, priced = false }
+    for mapID, zone in pairs(SFP.zoneByMap or {}) do
         local farm = {}
         for _, s in ipairs(zone.spawns or {}) do
             if not (s.gather or s.rare or s.special or s.hunter) then
@@ -393,27 +404,39 @@ local function markBest()
                 if not s.learned then farm[#farm + 1] = s end
             end
         end
-        -- worth = what the monster's items sell for on the auction house (the saved prices)
-        local function worth(s)
-            local v = 0
-            for _, id in ipairs(s.items or {}) do
-                local ok, p = pcall(SFP.GetPrice, SFP, id)   -- a price lookup that fails must never stop the map from drawing
-                if ok and type(p) == "number" then v = v + p end
+        local chosen = keep and saved.zones[mapID]
+        if chosen then
+            for _, s in ipairs(farm) do if chosen[tostring(s.name)] then s._best = true end end
+        else
+            -- worth = what the monster's items sell for on the auction house (the saved prices)
+            local function worth(s)
+                local v = 0
+                for _, id in ipairs(s.items or {}) do
+                    local ok, p = pcall(SFP.GetPrice, SFP, id)   -- a price lookup that fails must never stop the map from drawing
+                    if ok and type(p) == "number" then v = v + p end
+                end
+                if v > 0 then newSaved.priced = true end
+                return v
             end
-            return v
+            local function fixed(s)
+                return (s.bestFor and #s.bestFor or 0) * 1000 + (s.grind and 500 or 0) + #(s.items or {}) * 10 + math.min(#(s.points or {}), 9)
+            end
+            local w, f = {}, {}
+            for _, s in ipairs(farm) do w[s], f[s] = worth(s), fixed(s) end
+            table.sort(farm, function(a, b)
+                if w[a] ~= w[b] then return w[a] > w[b] end
+                if f[a] ~= f[b] then return f[a] > f[b] end
+                return tostring(a.name) < tostring(b.name)
+            end)
+            local names = {}
+            for i = 1, math.min(BEST_PER_ZONE, #farm) do
+                farm[i]._best = true
+                names[tostring(farm[i].name)] = true
+            end
+            newSaved.zones[mapID] = names
         end
-        local function fixed(s)
-            return (s.bestFor and #s.bestFor or 0) * 1000 + (s.grind and 500 or 0) + #(s.items or {}) * 10 + math.min(#(s.points or {}), 9)
-        end
-        local w, f = {}, {}
-        for _, s in ipairs(farm) do w[s], f[s] = worth(s), fixed(s) end
-        table.sort(farm, function(a, b)
-            if w[a] ~= w[b] then return w[a] > w[b] end
-            if f[a] ~= f[b] then return f[a] > f[b] end
-            return tostring(a.name) < tostring(b.name)
-        end)
-        for i = 1, math.min(BEST_PER_ZONE, #farm) do farm[i]._best = true end
     end
+    SFP.db.bestSpots = newSaved
 end
 
 local function showSpot(sp)

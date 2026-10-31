@@ -131,6 +131,7 @@ local function render()
         if not price and kinfo and (kinfo.kind == "mount" or kinfo.kind == "toy") then
             row.right:SetText("|cffa335ee" .. SFP.KindLabel[kinfo.kind] .. "|r")
         else
+            -- the auction price only: crafting order prices are kept apart from the auction price lists
             row.right:SetText(SFP:FormatPrice(price))
         end
         local extra = SFP:ItemExtra(id)

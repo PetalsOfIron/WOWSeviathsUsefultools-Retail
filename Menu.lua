@@ -20,6 +20,7 @@ local SECTIONS = {
     { key = "weekly",   label = "Weekly Checklist" },
     { key = "deals",    label = "BoE Deals" },
     { key = "shop",     label = "Recipe Planner" },
+    { key = "gems",     label = "Gem & Enchant Helper" },
     { key = "collect",  label = "My Collections" },
     { key = "share",    label = "Share Data" },
     { key = "delve",    label = "Delve Planner" },
@@ -30,6 +31,7 @@ local SECTIONS = {
     { key = "alts",     label = "Alt Overview" },
     { key = "guides",   label = "Guides (Codex)" },
     { key = "groups",   label = "Groups" },
+    { key = "social",   label = "Players & Party" },
     { key = "guild",    label = "Guild" },
     { key = "know",     label = "Learned data" },
     { key = "settings", label = "Settings" },
@@ -1006,6 +1008,8 @@ local function buildSettings(pane)
     local zc = mkCheck(pane, "Zone check: say what I still miss when I enter a zone", function() return SFP.db.zoneCheck ~= false end,
         function(v) SFP.db.zoneCheck = v end, 12, -306)
     pane.checks[#pane.checks + 1] = zc
+    pane.checks[#pane.checks + 1] = mkCheck(pane, "Also scan every auction house section after the fast scan (moves the Browse list)",
+        function() return SFP.db.autoSections ~= false end, function(v) SFP.db.autoSections = v end, 12, -332)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Use Auctionator prices when I have not scanned", function() return SFP.db.useAuctionator ~= false end,
         function(v) SFP.db.useAuctionator = v; SFP:RefreshAll() end, 12, -358)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Use TradeSkillMaster prices when I have not scanned", function() return SFP.db.useTSM ~= false end,
@@ -1212,11 +1216,156 @@ local function buildKnow(pane)
     pane.refresh = function() knowRebuild(pane); knowRefresh(pane) end
 end
 
+---------------------------------------------------------------------------
+-- Gem & Enchant Helper
+---------------------------------------------------------------------------
+local buildGems = simplePage("Gem & Enchant Helper",
+    "Pick a class and specialization (your own is the start): the recommended gems and enchants from the guides, what you wear now, empty sockets, missing enchants, and what it costs at the auction house. Tick what you want to get to plan it.",
+    function(pane, y)
+        local GH = SFP.GemHelper
+        local classBtn, specBtn
+        local function relabel()
+            local token, spec = GH.Selected()
+            classBtn.text:SetText("Class: " .. GH.ClassLabel(token))
+            specBtn.text:SetText("Spec: " .. tostring(spec))
+        end
+        -- the planner opens in its own window, like the other planners
+        mkButton(pane, "Planner", 120, function() GH.ShowPlanner() end,
+            "Every gem and enchant (from the auction house scans and Wowhead): search, click to add, tick to count, prices follow the scans"):SetPoint("TOPLEFT", 12, y)
+        classBtn = mkButton(pane, "", 190, function() GH.NextClass(1); pane.refresh() end, "Click for the next class")
+        classBtn:SetPoint("TOPLEFT", 12, y - 28)
+        specBtn = mkButton(pane, "", 190, function() GH.NextSpec(1); pane.refresh() end, "Click for the next specialization")
+        specBtn:SetPoint("TOPLEFT", 208, y - 28)
+        mkButton(pane, "My spec", 90, function()
+            SFP.db.gemClass, SFP.db.gemSpec = nil, nil
+            pane.refresh()
+        end, "Back to your own class and the specialization you play"):SetPoint("TOPLEFT", 404, y - 28)
+
+        local stat = mkText(pane, "", 12, y - 56, 500, "GameFontHighlightSmall")
+        stat:SetTextColor(0.85, 0.85, 0.85)
+        local gear = mkText(pane, "", 12, y - 92, 500, "GameFontHighlightSmall")
+        local list = SFP.MakeRowList(pane, 8, y - 138, 500, 230, 20)
+        local total = mkText(pane, "", 12, y - 374, 500, "GameFontHighlightSmall")
+        local rowsNow = {}
+
+        return function()
+            local token, spec = GH.Selected()
+            relabel()
+            local rows, data, own = GH.Rows(token, spec)
+            rowsNow = rows
+            if not data then
+                stat:SetText("No data for this specialization.")
+                list:Set({})
+                return
+            end
+            stat:SetText("|cffffd100Stat priority:|r " .. data.stat .. "   |cff808080(Method guides, patch " .. (SFP.GemEnchantBisPatch or "?") .. ")|r")
+            -- your own gear against the recommendation
+            local lines = {}
+            if own and own.any then
+                if own.empty > 0 then lines[#lines + 1] = ("|cffff6060Empty sockets: %d (%s)|r"):format(own.empty, table.concat(own.emptyWhere, ", ")) end
+                if #own.missing > 0 then lines[#lines + 1] = "|cffff6060Missing enchants: " .. table.concat(own.missing, ", ") .. "|r" end
+                local cmp = GH.Compare(own, data)
+                if #cmp.offGems > 0 then lines[#lines + 1] = "|cffffd100Gems not on the guide: " .. table.concat(cmp.offGems, ", ") .. "|r" end
+                if own.empty == 0 and #own.missing == 0 and #cmp.offGems == 0 then lines[#lines + 1] = "|cff40ff40Your gear: every socket filled and every slot enchanted.|r" end
+            end
+            gear:SetText(table.concat(lines, "\n"))
+            -- the list
+            local items = {}
+            for _, r in ipairs(rows) do
+                if r.header then
+                    items[#items + 1] = { text = CYHEX .. r.header .. "|r", buttons = {} }
+                elseif r.note then
+                    items[#items + 1] = { text = "   |cff808080" .. r.note .. "|r", buttons = {} }
+                elseif r.planName then
+                    -- click a gem or enchant to add it to the planner, click again to take it out
+                    items[#items + 1] = {
+                        text = r.text, check = GH.PlanHas(r.planName),
+                        onToggle = function(on)
+                            GH.PlanSet(r.planName, r.kind, on)
+                            pane.refresh()
+                            if GH.PlannerRefresh then GH.PlannerRefresh() end
+                        end,
+                        buttons = {},
+                    }
+                else
+                    items[#items + 1] = { text = r.text, buttons = {} }
+                end
+            end
+            list:Set(items)
+            local n, sum, noPrice = GH.PlanTotal()
+            if n == 0 then
+                total:SetText("|cff808080Planner is empty. Click the gems and enchants you want to add to it (button Planner above).|r")
+            else
+                total:SetText(("In the planner: %d item%s, about %s%s"):format(n, n == 1 and "" or "s",
+                    GetMoneyString and GetMoneyString(sum, true) or sum,
+                    noPrice > 0 and ("  |cff808080(" .. noPrice .. " without a price: scan the auction house)|r") or ""))
+            end
+        end
+    end)
+
+---------------------------------------------------------------------------
+-- Players & Party
+---------------------------------------------------------------------------
+local buildSocial = simplePage("Players & Party",
+    "Hover a player to see their item level, empty sockets and missing enchants. Players who also have this addon share a small profile with you: collections, Mythic+ score, what they did this week (numbers only), their play style and what they dislike in a group. Nothing leaves the game.",
+    function(pane, y)
+        local S = SFP.Social
+        local c = S.Config()
+        local checks = {
+            mkCheck(pane, "Share my profile with other addon users", function() return S.Config().share end, function(v) S.Config().share = v end, 12, y),
+            mkCheck(pane, "Show item level and profiles on player tooltips", function() return S.Config().tip end, function(v) S.Config().tip = v end, 12, y - 26),
+            mkCheck(pane, "One chat line about my group when it forms", function() return S.Config().groupLine end, function(v) S.Config().groupLine = v end, 12, y - 52),
+        }
+        local styleBtn, styleInfo
+        styleBtn = mkButton(pane, "", 300, function()
+            local cfg = S.Config()
+            local idx = 1
+            for i, s in ipairs(S.STYLES) do if s[1] == cfg.style then idx = i end end
+            cfg.style = S.STYLES[(idx % #S.STYLES) + 1][1]
+            pane.refresh()
+        end, "Click to change how you describe your play style. Automatic decides from your numbers.")
+        styleBtn:SetPoint("TOPLEFT", 12, y - 84)
+        mkButton(pane, "Open my group", 130, function() S.ShowGroup() end, "Item level, profile, sockets and enchants of everyone in your group"):SetPoint("TOPLEFT", 322, y - 84)
+        styleInfo = mkText(pane, "", 12, y - 112, 500, "GameFontHighlightSmall")
+
+        mkText(pane, CYHEX .. "What I dislike in a group|r  (others who have the addon see it on my tooltip)", 12, y - 140, 500, "GameFontNormal")
+        for i, d in ipairs(S.DISLIKES) do
+            local col = (i - 1) % 2
+            local row = math.floor((i - 1) / 2)
+            local id = d[1]
+            checks[#checks + 1] = mkCheck(pane, d[2], function() return S.Config().dislikes[id] end,
+                function(v) S.Config().dislikes[id] = v and true or nil end, 12 + col * 255, y - 164 - row * 24)
+        end
+        local preview = mkText(pane, "", 12, y - 316, 500, "GameFontHighlightSmall")
+        preview:SetTextColor(0.8, 0.8, 0.8)
+        return function()
+            local cfg = S.Config()
+            local label = "Automatic"
+            for _, s in ipairs(S.STYLES) do if s[1] == cfg.style then label = s[2] end end
+            styleBtn.text:SetText("Play style: " .. (cfg.style == "auto" and "Automatic" or label))
+            local p = S.MyProfile()
+            if cfg.style == "auto" then
+                styleInfo:SetText("The addon says you are: |cffffd100" .. S.StyleLabels(p.style) .. "|r  (from what you did in the last 28 days: raids, Mythic+, delves, collecting, achievements, PvP, dailies, farming, gold. The two strongest.)")
+            else
+                styleInfo:SetText("You chose: |cffffd100" .. S.StyleLabels(p.style) .. "|r")
+            end
+            for _, cb in ipairs(checks) do cb.refresh() end
+            -- only what you have: numbers at 0 are not shown to others, so they are not listed here either
+            local seen = { "item level " .. p.ilvl }
+            for _, e in ipairs({ { "Mythic+ score", p.mplus }, { "achievements", p.ach }, { "mounts", p.mounts }, { "battle pets", p.pets },
+                { "housing decor", p.decor }, { "dungeons this week", p.dw }, { "raid bosses this week", p.rw }, { "delves this week", p.dl } }) do
+                if (e[2] or 0) > 0 then seen[#seen + 1] = e[2] .. " " .. e[1]:gsub("^Mythic%+ score$", "Mythic+ score") end
+            end
+            preview:SetText("What others see: " .. table.concat(seen, ", ") .. ".")
+        end
+    end)
+
 local BUILDERS = {
     home = buildHome, farm = buildFarm, alerts = buildAlerts, killed = buildKilled, route = buildRoute, session = buildSession,
     next = buildNext, weekly = buildWeekly, deals = buildDeals, shop = buildShop, collect = buildCollect, share = buildShare,
     delve = buildDelve, keys = buildKeys, ach = buildAch, zone = buildZone, decor = buildDecor, alts = buildAlts,
     guides = buildGuides, groups = buildGroups, guild = buildGuild, know = buildKnow, settings = buildSettings,
+    gems = buildGems, social = buildSocial,
 }
 
 ---------------------------------------------------------------------------

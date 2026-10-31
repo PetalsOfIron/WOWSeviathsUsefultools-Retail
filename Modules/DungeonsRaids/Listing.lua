@@ -99,6 +99,18 @@ local function MyZone()
   return mapID, info and info.name
 end
 
+-- The Raider.IO Mythic+ score of a player (needs the Raider.IO addon); nil when it has none
+local function RioScore(fullName)
+  local RIO = _G.RaiderIO
+  if not (RIO and RIO.GetProfile) or type(fullName) ~= "string" or fullName == "" then return nil end
+  local name, realm = fullName:match("^([^-]+)-(.+)$")
+  local ok, prof = pcall(RIO.GetProfile, name or fullName, realm)
+  if not ok or type(prof) ~= "table" then return nil end
+  local mk = prof.mythicKeystoneProfile
+  local s = type(mk) == "table" and (mk.currentScore or mk.mainCurrentScore)
+  return type(s) == "number" and s > 0 and s or nil
+end
+
 ---------------------------------------------------------------------------
 -- Analyze one listing
 ---------------------------------------------------------------------------
@@ -185,6 +197,11 @@ function ns:Analyze(resultID)
 
   -- Leader Mythic+ info
   r.leaderScore = info.leaderOverallDungeonScore or 0
+  -- with Raider.IO installed its score counts too (the higher of the two), for the tags and the minimum-rating filter
+  if r.kind == "mplus" or r.leaderScore > 0 then
+    r.rioScore = RioScore(ns.Safe(info.leaderName))
+    if r.rioScore and r.rioScore > r.leaderScore then r.leaderScore = math.floor(r.rioScore) end
+  end
   local ds = info.leaderDungeonScoreInfo
   if Accessible(ds) then
     if ds[1] then ds = ds[1] end
@@ -428,6 +445,14 @@ function ns:Passes(r, counts)
     end
     -- Delves / dungeons / raids you ticked in the list (none ticked = all)
     if o.picked and r.placeName and next(o.picked) and not o.picked[r.placeName] then hiders = hiders + 1 end
+    -- Classes you ticked: the group needs at least one of them
+    if o.classPicked and next(o.classPicked) and #r.memberList > 0 then
+      local has = false
+      for class in pairs(o.classPicked) do
+        if r.classes[class] then has = true break end
+      end
+      if not has then hiders = hiders + 1 end
+    end
   end
   if counts then
     for _, m in ipairs(matches) do
@@ -499,8 +524,45 @@ local function FilterPanel(panel)
   if ns.UI and ns.UI.UpdateStatus then ns.UI:UpdateStatus() end
 end
 
--- Every delve / dungeon the game offers in this section, so the pick list is complete
+-- The dungeons of the current Mythic+ season, as the game lists them (lowercase names), or nil while the game gives none
+local function SeasonKeyNames()
+  if not (C_ChallengeMode and C_ChallengeMode.GetMapTable and C_ChallengeMode.GetMapUIInfo) then return nil end
+  local ok, maps = pcall(C_ChallengeMode.GetMapTable)
+  if not ok or type(maps) ~= "table" or #maps == 0 then return nil end
+  local names = {}
+  for _, id in ipairs(maps) do
+    local okI, name = pcall(C_ChallengeMode.GetMapUIInfo, id)
+    if okI and type(name) == "string" and name ~= "" then names[name:lower()] = true end
+  end
+  return next(names) and names or nil
+end
+
 local loadedCats = {}
+
+-- A new season or a weekly reset: the key list is the season's dungeons again (old season dungeons and their ticks go)
+function ns:SyncSeasonKeys()
+  if C_MythicPlus and C_MythicPlus.RequestMapInfo then pcall(C_MythicPlus.RequestMapInfo) end
+  local names = SeasonKeyNames()
+  if not (names and ns.db and ns.db.mplus) then return end
+  for name in pairs(ns.db.mplus.known) do
+    if not names[name:lower()] then ns.db.mplus.known[name] = nil; ns.db.mplus.picked[name] = nil end
+  end
+  for cat in pairs(loadedCats) do loadedCats[cat] = nil end
+  if ns.UI and ns.UI.RefreshPickers then ns.UI:RefreshPickers() end
+end
+
+do
+  local f = CreateFrame("Frame")
+  f:RegisterEvent("PLAYER_ENTERING_WORLD")
+  f:RegisterEvent("CHALLENGE_MODE_MAPS_UPDATE")
+  f:RegisterEvent("MYTHIC_PLUS_CURRENT_AFFIX_UPDATE")   -- comes with the weekly reset
+  f:SetScript("OnEvent", function()
+    C_Timer.After(3, function() if ns.SyncSeasonKeys then ns:SyncSeasonKeys() end end)
+  end)
+  C_Timer.NewTicker(3600, function() if ns.SyncSeasonKeys then ns:SyncSeasonKeys() end end)
+end
+
+-- Every delve / dungeon the game offers in this section, so the pick list is complete
 function ns:LoadPlaces(cat)
   local kind = cat and KindForCategory(cat)
   if not cat or loadedCats[cat] or (kind ~= "delve" and kind ~= "dungeon" and kind ~= "raid" and kind ~= "quest") then return end
@@ -514,7 +576,8 @@ function ns:LoadPlaces(cat)
       local name = act.fullName:match("^(.-)%s*%([^)]*%)%s*$")
       name = (name and name ~= "") and name or act.fullName
       if act.isMythicPlusActivity then
-        ns.db.mplus.known[name] = true
+        local season = SeasonKeyNames()
+        if not season or season[name:lower()] then ns.db.mplus.known[name] = true end
       else
         ns.db[kind].known[name] = true
       end
@@ -582,6 +645,7 @@ function ns:ShortTags(r)
     parts[#parts + 1] = table.concat(icons, "")
   end
   if r.kind == "mplus" then
+    if (r.leaderScore or 0) > 0 then parts[#parts + 1] = Colored(r.rioScore and "ffb040" or "c0c0c0", (r.rioScore and "io " or "") .. r.leaderScore) end
     parts[#parts + 1] = Colored(r.hasLust and "40ff60" or "ff5050", "BL")
     parts[#parts + 1] = Colored(r.hasBrez and "40ff60" or "ff5050", "BR")
     CollectTags(parts, r.collect)
@@ -662,7 +726,7 @@ local function AddTooltip(tooltip, resultID)
     tooltip:AddLine(string.format("Still needs: %d tank, %d healer, %d DPS", r.need.TANK, r.need.HEALER, r.need.DAMAGER), 1, 1, 1)
   end
   if r.kind == "mplus" then
-    tooltip:AddLine("Leader rating: " .. (r.leaderScore or 0), 1, 1, 1)
+    tooltip:AddLine("Leader rating: " .. (r.leaderScore or 0) .. (r.rioScore and "  (Raider.IO)" or ""), 1, 1, 1)
     if r.leaderBest and r.leaderBest > 0 then
       tooltip:AddLine("Leader best here: +" .. r.leaderBest .. (r.leaderTimed and " (timed)" or " (not timed)"), 1, 1, 1)
     end
