@@ -159,6 +159,44 @@ function SFP:SessionStop()
     if text then text:SetText(sessionText()) end
 end
 
+-- a small movable control: play, stop and show / hide the session window
+local ctl
+function SFP:ShowSessionControl()
+    if not ctl then
+        ctl = CreateFrame("Frame", "SeviathsUsefulToolsSessionControl", UIParent, "BackdropTemplate")
+        ctl:SetSize(196, 30)
+        local pos = self.db and self.db.sessionCtlPos
+        if pos then ctl:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4]) else ctl:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 20, -180) end
+        ctl:SetFrameStrata("HIGH")
+        ctl:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+        ctl:SetBackdropColor(0.03, 0.05, 0.07, 0.9)
+        ctl:SetBackdropBorderColor(0, 0.9, 1, 0.7)
+        ctl:SetMovable(true); ctl:EnableMouse(true); ctl:SetClampedToScreen(true)
+        ctl:RegisterForDrag("LeftButton")
+        ctl:SetScript("OnDragStart", ctl.StartMoving)
+        ctl:SetScript("OnDragStop", function(f)
+            f:StopMovingOrSizing()
+            local point, _, rel, x, y = f:GetPoint()
+            SFP.db.sessionCtlPos = { point, rel, x, y }
+        end)
+        local function btn(label, w, x, fn)
+            local b = CreateFrame("Button", nil, ctl, "UIPanelButtonTemplate")
+            b:SetSize(w, 20)
+            b:SetPoint("LEFT", x, 0)
+            b:SetText(label)
+            b:SetScript("OnClick", fn)
+            return b
+        end
+        btn("Play", 48, 5, function() SFP:SessionStart() end)
+        btn("Stop", 48, 56, function() SFP:SessionStop() end)
+        btn("Show/Hide", 70, 107, function() SFP:SessionToggle("window") end)
+        local close = CreateFrame("Button", nil, ctl, "UIPanelCloseButton")
+        close:SetPoint("RIGHT", 2, 0)
+        close:SetScale(0.6)
+    end
+    ctl:SetShown(not ctl:IsShown())
+end
+
 function SFP:SessionToggle(arg)
     if arg == "window" then
         buildFrame(); frame:SetShown(not frame:IsShown()); text:SetText(sessionText())
