@@ -631,8 +631,9 @@ end
 
 local function BuildGroup(p)
   Header(p, "My group", 16, -10)
+  p.SDRHeight = 720   -- the page is long: let the window scroll
   p.text = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  p.text:SetPoint("TOPLEFT", 20, -36)
+  p.text:SetPoint("TOPLEFT", 20, -66)
   p.text:SetPoint("RIGHT", -20, 0)
   p.text:SetJustifyH("LEFT")
   p.text:SetJustifyV("TOP")
@@ -642,7 +643,7 @@ local function BuildGroup(p)
   -- the window opens by itself in a group of 5 or more; close it with the X, or switch that off here
   local S = _G.SeviathsUsefulTools
   if S and S.db then
-    UI.Check(p, "Open this by itself in a group of 5 or more (close it with the X)", S.db, "autoGroupComp", 16, -380)
+    UI.Check(p, "Open this by itself in a group of 5 or more (close it with the X)", S.db, "autoGroupComp", 16, -34)
   end
 end
 
