@@ -732,7 +732,7 @@ local buildDecor = simplePage("Housing Decor",
                 items[#items + 1] = {
                     text = state .. " " .. (e and e.name or p.name) .. src,
                     check = true,
-                    onToggle = function(on) if not on then table.remove(planData(), i); fillPlan(); fillResults() end end,
+                    onToggle = function(on) if not on then table.remove(planData(), i); fillPlan(); fillResults(); if SFP.RefreshDecorWindow then SFP.RefreshDecorWindow() end end end,
                     buttons = (function()
                         -- a waypoint when the place of the decor is a zone the addon knows (the middle of the zone: exact spots are not known)
                         local map = e and e.kind ~= "Crafted" and SFP:MapForPlace(e.place)
@@ -764,7 +764,7 @@ local buildDecor = simplePage("Housing Decor",
                                     local k = inPlan(e)
                                     if k then table.remove(planData(), k) end
                                 end
-                                fillPlan(); fillResults()
+                                fillPlan(); fillResults(); if SFP.RefreshDecorWindow then SFP.RefreshDecorWindow() end
                             end,
                         }
                         if #items >= 60 then break end
@@ -775,6 +775,7 @@ local buildDecor = simplePage("Housing Decor",
             results:Set(items)
         end
         box:SetScript("OnTextChanged", function() fillResults() end)
+        SFP.DecorPlanChanged = function() fillPlan(); fillResults() end
         mkButton(pane, "Open decor list", 170, function() SFP:ShowDecor() end):SetPoint("TOPLEFT", 12, y - 374)
         return function() fillPlan() end
     end)

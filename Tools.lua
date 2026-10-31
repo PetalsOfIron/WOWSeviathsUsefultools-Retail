@@ -117,6 +117,22 @@ function SFP.MakeRowList(parent, x, y, w, h, rowH)
             end
             for j = #(it.buttons or {}) + 1, #r.btns do r.btns[j]:Hide() end
             r.text:SetWidth(math.max(40, w - 24 - used - 8 - (it.check ~= nil and 24 or 0)))
+            -- a tick row can be clicked anywhere (name included), not only on the small box
+            if it.check ~= nil then
+                if not r.click then
+                    r.click = CreateFrame("Button", nil, r)
+                    r.click:SetFrameLevel(r:GetFrameLevel() + 1)
+                    r.click:SetScript("OnClick", function() if r.tick then r.tick:Click() end end)
+                    r.click:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
+                end
+                r.tick:SetFrameLevel(r:GetFrameLevel() + 3)
+                r.click:ClearAllPoints()
+                r.click:SetPoint("TOPLEFT", r, "TOPLEFT", 0, 0)
+                r.click:SetPoint("BOTTOMRIGHT", r, "BOTTOMRIGHT", -used, 0)
+                r.click:Show()
+            elseif r.click then
+                r.click:Hide()
+            end
             r:Show()
         end
         for i = #items + 1, #rows do rows[i]:Hide() end
