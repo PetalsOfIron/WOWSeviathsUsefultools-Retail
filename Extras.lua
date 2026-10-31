@@ -164,7 +164,7 @@ local ctl
 function SFP:ShowSessionControl()
     if not ctl then
         ctl = CreateFrame("Frame", "SeviathsUsefulToolsSessionControl", UIParent, "BackdropTemplate")
-        ctl:SetSize(196, 30)
+        ctl:SetSize(196, 50)
         local pos = self.db and self.db.sessionCtlPos
         if pos then ctl:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4]) else ctl:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 20, -180) end
         ctl:SetFrameStrata("HIGH")
@@ -182,7 +182,7 @@ function SFP:ShowSessionControl()
         local function btn(label, w, x, fn)
             local b = CreateFrame("Button", nil, ctl, "UIPanelButtonTemplate")
             b:SetSize(w, 20)
-            b:SetPoint("LEFT", x, 0)
+            b:SetPoint("TOPLEFT", x, -6)
             b:SetText(label)
             b:SetScript("OnClick", fn)
             return b
@@ -191,8 +191,26 @@ function SFP:ShowSessionControl()
         btn("Stop", 48, 56, function() SFP:SessionStop() end)
         btn("Show/Hide", 70, 107, function() SFP:SessionToggle("window") end)
         local close = CreateFrame("Button", nil, ctl, "UIPanelCloseButton")
-        close:SetPoint("RIGHT", 2, 0)
+        close:SetPoint("TOPRIGHT", 2, 2)
         close:SetScale(0.6)
+        -- the gold gained in this session (looted gold + what the loot is worth), updated every second
+        local gain = ctl:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        gain:SetPoint("BOTTOMLEFT", 8, 5)
+        gain:SetJustifyH("LEFT")
+        local acc = 0
+        local function upd()
+            local sess = SFP.session
+            if not sess then gain:SetText("|cff808080No session - press Play|r"); return end
+            local _, total, perHour = sessionTotals()
+            gain:SetText(("Gained: |cffffd100%s|r  (%s/h)%s"):format(money(total), money(perHour), sess.stop and "  |cff808080stopped|r" or ""))
+        end
+        ctl:SetScript("OnUpdate", function(_, dt)
+            acc = acc + dt
+            if acc < 1 then return end
+            acc = 0
+            upd()
+        end)
+        upd()
     end
     ctl:SetShown(not ctl:IsShown())
 end
