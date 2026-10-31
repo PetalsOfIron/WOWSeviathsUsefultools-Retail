@@ -326,7 +326,7 @@ local buildSession = simplePage("Farm Session",
         mkButton(pane, "Start session", 130, function() SFP:SessionStart(); pane.refresh() end):SetPoint("TOPLEFT", 12, y - 26)
         mkButton(pane, "Stop session", 130, function() SFP:SessionStop(); pane.refresh() end):SetPoint("TOPLEFT", 150, y - 26)
         mkButton(pane, "Show / hide window", 160, function() SFP:SessionToggle("window") end):SetPoint("TOPLEFT", 288, y - 26)
-        mkButton(pane, "Mini control (movable)", 190, function() SFP:ShowSessionControl() end,
+        mkButton(pane, "Open farm session window", 210, function() SFP:ShowSessionControl() end,
             "A small window you can move anywhere with Play, Stop and Show/Hide buttons."):SetPoint("TOPLEFT", 12, y - 52)
         local txt = mkText(pane, "", 12, y - 64, 500, "GameFontHighlightSmall")
         local cmds = mkText(pane, "Commands:\n/sfp session  -  start a session (or show the window)\n/sfp session stop  -  stop it and print the result\n" ..
