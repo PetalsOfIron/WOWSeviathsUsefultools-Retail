@@ -25,6 +25,7 @@ Data\Gathering.lua
 Data\GatherZones.lua
 Data\Seed.lua
 Data\DecorData.lua
+Data\DecorNPCs.lua
 Data\CuriosLearned.lua
 Data\DecorLearned.lua
 Data\AuctionItems.lua

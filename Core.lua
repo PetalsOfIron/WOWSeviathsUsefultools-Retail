@@ -119,6 +119,27 @@ function SFP.RegisterWindow(f)
     f:SetFrameStrata("DIALOG")
     if f.SetToplevel then f:SetToplevel(true) end
     -- raise now and again a moment later: the click that opened the window can raise the menu above it afterwards
+    -- every window remembers where you put it and opens exactly there next time
+    local name = f.GetName and f:GetName()
+    if name then
+        local function savePos(self)
+            if not SFP.db then return end
+            local point, _, rel, x, y = self:GetPoint()
+            if point then
+                SFP.db.windowPos = SFP.db.windowPos or {}
+                SFP.db.windowPos[name] = { point, rel or "CENTER", x, y }
+            end
+        end
+        f:HookScript("OnDragStop", savePos)
+        f:HookScript("OnHide", savePos)
+        f:HookScript("OnShow", function(self)
+            local pos = SFP.db and SFP.db.windowPos and SFP.db.windowPos[name]
+            if pos then
+                self:ClearAllPoints()
+                self:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
+            end
+        end)
+    end
     f:HookScript("OnShow", function(self)
         self:Raise()
         C_Timer.After(0, function() if self:IsShown() then self:Raise() end end)

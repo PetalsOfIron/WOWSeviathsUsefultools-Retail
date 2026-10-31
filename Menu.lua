@@ -734,12 +734,12 @@ local buildDecor = simplePage("Housing Decor",
                     check = true,
                     onToggle = function(on) if not on then table.remove(planData(), i); fillPlan(); fillResults(); if SFP.RefreshDecorWindow then SFP.RefreshDecorWindow() end end end,
                     buttons = (function()
-                        -- a waypoint when the place of the decor is a zone the addon knows (the middle of the zone: exact spots are not known)
-                        local map = e and e.kind ~= "Crafted" and SFP:MapForPlace(e.place)
+                        -- a waypoint for every decor with a known place: the exact vendor or boss spot, else the middle of the zone
+                        local map, x, y, label, exact = SFP:DecorWaypointFor(e)
                         if not map then return {} end
                         return { { "Waypoint", 70, function()
-                            SFP:SetWaypoint(map, 0.5, 0.5, (e and e.name) or p.name)
-                            SFP:Print("Waypoint set to the middle of " .. SFP:ZoneName(map) .. " - the exact spot of this decor is not known.")
+                            SFP:SetWaypoint(map, x, y, label or (e and e.name) or p.name)
+                            if not exact then SFP:Print("Waypoint set to the middle of " .. SFP:ZoneName(map) .. " - the exact spot of this decor is not known.") end
                         end } }
                     end)(),
                 }
