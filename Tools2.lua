@@ -995,7 +995,16 @@ local function decorEntries()
             place = src:match("^[^:]+:%s*([^;]+)")
             place = place and strtrim(place)
         end
-        e.place = (place and place ~= "") and place or "Unknown"
+        -- Brewfest, shop and reputation decor go into their own sections even when the place is not known yet
+        local low = src:lower()
+        if low:find("brewfest", 1, true) then
+            e.kind, place = "Event", "Brewfest"
+        elseif e.kind == "Shop" or e.kind == "Promo" then
+            place = src:match("^[^:]+:%s*([^;]+)") or "Blizzard Shop"
+        elseif e.kind == "Rep" or e.kind == "Reputation" then
+            place = src:match("^[^:]+:%s*([^;%[]+)") or "Reputation"
+        end
+        e.place = (place and strtrim(place) ~= "") and strtrim(place) or "Unknown"
     end
     table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
     decorCache, decorAt = { list = list, fromGame = fromGame }, GetTime()
@@ -1017,6 +1026,22 @@ function SFP:MapForPlace(place)
     if placeMaps[p] then return placeMaps[p] end
     for nm, mapID in pairs(placeMaps) do
         if #nm >= 5 and p:find(nm, 1, true) then return mapID end
+    end
+end
+
+-- the best waypoint for a decor: the exact spot of a vendor or boss named in its source (Wowhead positions), else the middle of a known zone
+function SFP:DecorWaypointFor(e)
+    local src = (e and e.source) or ""
+    for kind, names in src:gmatch("(%a+): ([^;]+)") do
+        if kind == "Vendor" or kind == "Drop" then
+            local name = strtrim(names)
+            local npc = self.DecorNPCs and self.DecorNPCs[name]
+            if npc then return npc.map, npc.x, npc.y, name, true end
+        end
+    end
+    if e and e.kind ~= "Crafted" then
+        local map = self:MapForPlace(e.place)
+        if map then return map, 0.5, 0.5, e.name, false end
     end
 end
 
@@ -1182,7 +1207,8 @@ function SFP:ShowDecor()
     end
     -- opened from the menu: sits right next to the main menu
     local mf = self.MenuFrame and self:MenuFrame()
-    if mf and mf:IsShown() and not decorWin:IsShown() then
+    local saved = SFP.db and SFP.db.windowPos and SFP.db.windowPos["SeviathsUsefulToolsDecor"]
+    if mf and mf:IsShown() and not decorWin:IsShown() and not saved then
         decorWin:ClearAllPoints()
         decorWin:SetPoint("TOPLEFT", mf, "TOPRIGHT", 6, 0)
         decorWin:SetClampedToScreen(true)

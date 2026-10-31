@@ -1,0 +1,3 @@
+-- placeholder, filled by the crawl
+local _, SFP = ...
+SFP.DecorNPCs = {}
