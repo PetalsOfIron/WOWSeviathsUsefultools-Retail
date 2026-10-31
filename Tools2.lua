@@ -1087,10 +1087,13 @@ local function decorRefresh()
     for _, n in pairs(pc) do ptotal = ptotal + n end
     decorWin.places:Set(decorList(pc, porder, decorPlace, function(k) decorPlace = k; decorRefresh() end, ptotal))
 
-    local lines, shown = {}, 0
-    lines[1] = ("|cff808080%d decor items. %s|r"):format(#list,
-        fromGame and ("You own " .. own .. " (read from the game).") or "The game's housing catalog could not be read, so owned or not is unknown (owned? = unknown).")
-    lines[2] = ""
+    local plan = SFP.db.decorPlan or {}
+    local function planIndex(e)
+        for i, p in ipairs(plan) do
+            if (e.itemID and p.id == e.itemID) or (not e.itemID and p.name == e.name) then return i end
+        end
+    end
+    local items, shown = {}, 0
     for _, e in ipairs(list) do
         local pass = (decorMode == "all") or (decorMode == "missing" and not e.owned and not e.unknownOwned) or (decorMode == "owned" and e.owned)
         if pass and decorKind and e.kind ~= decorKind then pass = false end
@@ -1100,31 +1103,42 @@ local function decorRefresh()
         end
         if pass then
             shown = shown + 1
-            if shown <= 250 then
-                local farm = ""
-                local src = e.itemID and SFP.itemSources and SFP.itemSources[e.itemID]
-                if src and src[1] then farm = "  |cff80ff80farm: " .. src[1] .. "|r" end
-                lines[#lines + 1] = ("%s %s%s%s"):format(e.unknownOwned and "|cff808080owned?|r" or (e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r"),
-                    e.name .. (e.recipeKnown and "  |cff40ff40recipe known|r" or ""),
-                    (e.source and e.source ~= "") and ("\n      |cff808080" .. e.source .. "|r") or "", farm)
+            if shown <= 300 then
+                local state = e.unknownOwned and "|cff808080owned?|r" or (e.owned and "|cff40ff40owned|r" or "|cffff6060missing|r")
+                items[#items + 1] = {
+                    -- tick = in your housing plan: tick the decor you want, untick to take it out
+                    check = planIndex(e) ~= nil,
+                    onToggle = function(on)
+                        SFP.db.decorPlan = SFP.db.decorPlan or {}
+                        local pl = SFP.db.decorPlan
+                        local idx
+                        for i, p in ipairs(pl) do
+                            if (e.itemID and p.id == e.itemID) or (not e.itemID and p.name == e.name) then idx = i end
+                        end
+                        if on and not idx then table.insert(pl, { id = e.itemID, name = e.name })
+                        elseif not on and idx then table.remove(pl, idx) end
+                    end,
+                    text = state .. " " .. e.name .. ((e.source and e.source ~= "") and ("  |cff808080" .. e.source:sub(1, 80) .. "|r") or ""),
+                }
             end
         end
     end
-    lines[2] = ("|cffffd100%d shown|r"):format(shown) .. (decorKind and ("  type: " .. decorKind) or "") .. (decorPlace and ("  place: " .. decorPlace) or "")
-    if shown > 250 then lines[#lines + 1] = ("|cff808080+%d more - pick a type or place, or search|r"):format(shown - 250) end
-    if shown == 0 then lines[#lines + 1] = "Nothing matches." end
+    decorWin.head:SetText(("|cffffd100%d shown|r"):format(shown) .. (decorKind and ("  type: " .. decorKind) or "") .. (decorPlace and ("  place: " .. decorPlace) or "") ..
+        "  |cff808080- tick a decor to add it to your housing plan (Housing Decor page)|r" .. (shown > 300 and "  |cff808080(first 300, narrow it down)|r" or "") ..
+        "\n|cff808080" .. #list .. " decor items. " .. (fromGame and ("You own " .. own .. " (read from the game).") or "Owned is unknown: the game's housing catalog could not be read.") .. "|r")
+    decorWin.results:Set(items)
     for _, bt in ipairs(decorBtns) do bt:SetText((bt.mode == decorMode and "|cff40ff40" or "") .. bt.label) end
-    decorWin:SetContent(table.concat(lines, "\n"))
 end
 
 function SFP:ShowDecor()
     if not decorWin then
         decorWin = window("SeviathsUsefulToolsDecor", "Housing decor - all of it, and where to get it", 820, 580)
-        decorWin.scroll:ClearAllPoints()
-        decorWin.scroll:SetPoint("TOPLEFT", 214, -66)
-        decorWin.scroll:SetPoint("BOTTOMRIGHT", -30, 12)
-        decorWin.child:SetWidth(570)
-        decorWin.text:SetWidth(566)
+        decorWin.scroll:Hide()
+        decorWin.head = decorWin:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        decorWin.head:SetPoint("TOPLEFT", 216, -64)
+        decorWin.head:SetWidth(590)
+        decorWin.head:SetJustifyH("LEFT")
+        decorWin.results = SFP.MakeRowList(decorWin, 212, -96, 600, 464, 20)
         local sl = decorWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         sl:SetPoint("TOPLEFT", 216, -40)
         sl:SetText("Search:")
