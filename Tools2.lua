@@ -904,7 +904,7 @@ local function catalogEntries()
     for _, entryID in ipairs(ids) do
         local okI, info = pcall(H.GetCatalogEntryInfo, entryID)
         if okI and type(info) == "table" and type(info.name) == "string" and not secret(info.name) then
-            local qty = (tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0)
+            local qty = math.max((tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0), (tonumber(info.totalNumStored) or 0) + (tonumber(info.totalNumPlaced) or 0) + (tonumber(info.remainingRedeemable) or 0))
             local eid = type(entryID) == "table" and entryID.recordID or nil
             out[#out + 1] = { name = info.name, owned = qty > 0, source = plainText(info.sourceText), itemID = tonumber(info.itemID), decorID = tonumber(eid) }
         end
@@ -918,7 +918,7 @@ local function decorOwned(itemID)
     if not (H and H.GetCatalogEntryInfoByItem) then return nil end
     local ok, info = pcall(H.GetCatalogEntryInfoByItem, itemID, true)
     if not ok or type(info) ~= "table" then return nil end
-    return (tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0)
+    return math.max((tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0), (tonumber(info.totalNumStored) or 0) + (tonumber(info.totalNumPlaced) or 0) + (tonumber(info.remainingRedeemable) or 0))
 end
 
 local function decorEntries()

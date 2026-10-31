@@ -2031,7 +2031,6 @@ SFP.DecorData = {
     { 245415, 1313, "Zuldazar Fence", "Crafted (Inscription, Kul Tiran Inscription / Zandalari Inscription), recipe 56008, spell 1260564 / Profession: Battle for Azeroth Inscription (140)" },
     { 245416, 1312, "Zuldazar Fencepost", "Crafted (Inscription, Kul Tiran Inscription / Zandalari Inscription), recipe 56007, spell 1260508 / Profession: Battle for Azeroth Inscription (140)" },
     { 245489, 1192, "Zuldazar Stool", "Quest: We'll Meet Again - Nazmir" },
-    { 42273, 0, "Trueshot Skeletal Dragon Trophy", "" },
     { 113503, 15339, "", "" },
     { 132822, 1718, "", "" },
     { 135567, 1719, "", "" },
@@ -2522,4 +2521,9 @@ SFP.DecorData = {
     { 268718, 20162, "", "" },
     { 268719, 20163, "", "" },
     { 268729, 20172, "", "" },
+    { 264176, 15461, "Amani Loa Idol", "" },
+    { 264177, 15462, "Amani Rug", "" },
+    { 248404, 4426, "Dazar'alor Forge", "" },
+    { 252044, 8992, "Halaa Bench", "" },
+    { 251916, 8879, "Smoke Lamppost", "" },
 }
