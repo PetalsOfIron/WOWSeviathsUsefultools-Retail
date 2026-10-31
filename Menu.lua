@@ -1129,7 +1129,11 @@ function SFP:ShowMenuSection(key)
     end
     pane:Show()
     if pane.refresh then SFP:Safe("refresh " .. key, pane.refresh) end
+    -- the decor list opens next to the menu, on its right side
+    if key == "decor" and SFP.ShowDecor then SFP:Safe("decor window", SFP.ShowDecor, SFP) end
 end
+
+function SFP:MenuFrame() return frame end
 
 local function build()
     frame = CreateFrame("Frame", "SeviathsUsefulToolsMenu", UIParent, "BackdropTemplate")
