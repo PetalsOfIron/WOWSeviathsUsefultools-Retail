@@ -982,7 +982,7 @@ local function decorEntries()
     end
     for _, e in ipairs(list) do e.recipeKnown = have[e.name:lower()] end
     for _, e in ipairs(list) do
-        local src = e.source or ""
+        local src = (e.source or ""):gsub("^Wowhead %- ", "")
         local kind = src:match("^(.-)[:%(]") or src
         kind = strtrim(kind)
         if kind == "" then kind = "Unknown" end
@@ -990,6 +990,11 @@ local function decorEntries()
         -- place: the zone or instance after the last " - ", or the profession of a crafted decor
         local place = src:match(".* %- (.-)$")
         if e.kind == "Crafted" then place = src:match("^Crafted %(([^,%)]+)") end
+        -- Wowhead sources name the vendor, quest, achievement or boss itself: that name is the place
+        if not place and (e.kind == "Vendor" or e.kind == "Quest" or e.kind == "Achievement" or e.kind == "Drop") then
+            place = src:match("^[^:]+:%s*([^;]+)")
+            place = place and strtrim(place)
+        end
         e.place = (place and place ~= "") and place or "Unknown"
     end
     table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
