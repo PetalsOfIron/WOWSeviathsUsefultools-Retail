@@ -93,7 +93,7 @@ local defaults = {
     minimapGlow  = true,   -- button pulses cyan inside a farm zone
     tooltip      = true,   -- add farm info + Wowhead link line to item tooltips
     minValue     = 0,      -- copper; only light zones whose best item is worth at least this
-    rescanHours  = 12,     -- refresh AH prices when older than this
+    rescanHours  = 12,     -- the auction bar shows prices older than this as old
     prices       = {},     -- [itemID] = { p = copper per unit, t = time() }: newest price seen on any realm
     realmPrices  = {},     -- [realm key][itemID] = { p, t }: what each character's auction house showed
     realmScan    = {},     -- [realm key] = time of the last scan there
@@ -484,12 +484,60 @@ function SFP:ExternalPrice(id)
     end
 end
 
+-- the cheapest listings of a recipe product from the last fast scan: { n = how many are listed, p = { cheapest first, up to 6 } }
+function SFP:Listings(itemID)
+    local all = self.db.ahListings
+    local realm = all and all[self:RealmKey()]
+    return realm and realm[itemID] or nil
+end
+
+-- the price of every item of the last whole-auction-house scan on this realm: [itemID] = copper (compact, replaced by each fast scan)
+function SFP:AllPrices(create)
+    local all = self.db.ahAll
+    if not all then
+        if not create then return nil end
+        all = {}
+        self.db.ahAll = all
+    end
+    local realm = self:RealmKey()
+    if not all[realm] and create then all[realm] = {} end
+    return all[realm]
+end
+
+-- the price of an item by its NAME, from the item names the scans saved: crafted gear and other items that have several item IDs
+-- (one per quality) are found this way too; the cheapest one counts
+function SFP:PriceByName(name)
+    if type(name) ~= "string" or name == "" then return nil end
+    if not self._nameIdx then
+        local idx = {}
+        for id, nm in pairs(self.db.ahNames or {}) do
+            if type(nm) == "string" then
+                local k = nm:lower()
+                local l = idx[k]
+                if not l then l = {}; idx[k] = l end
+                l[#l + 1] = id
+            end
+        end
+        self._nameIdx = idx
+    end
+    local ids = self._nameIdx[name:lower()]
+    if not ids then return nil end
+    local best
+    for _, id in ipairs(ids) do
+        local p = self:GetPrice(id)
+        if p and (not best or p < best) then best = p end
+    end
+    return best
+end
+
 function SFP:GetPrice(itemID)
     local best
     local here = self:RealmPrices()
+    local everything = self:AllPrices()
     local function consider(id)
         -- this realm's own price first; else the newest price any character saw
         local rec = here[id]
+        if not rec and everything and everything[id] then rec = { p = everything[id] } end   -- seen by a whole-auction-house scan
         if rec and rec.ext and not self:ExternalOn(rec.ext) then rec = nil end   -- a copied price of a source you switched off
         if not rec or (rec.ext and time() - (rec.t or 0) > 3600) then
             local v, src = self:ExternalPrice(id)
@@ -509,6 +557,15 @@ function SFP:GetPrice(itemID)
         for _, t in ipairs(info.tiers) do consider(t) end
     end
     return best
+end
+
+-- how many of an item fit in one stack (nil when the game does not know the item yet)
+function SFP:StackCount(itemID)
+    local info = C_Item and C_Item.GetItemInfo
+    if not info then return nil end
+    local ok, _, _, _, _, _, _, _, stack = pcall(info, itemID)
+    if ok and type(stack) == "number" and stack > 0 then return stack end
+    return nil
 end
 
 function SFP:FormatPrice(copper)
@@ -793,6 +850,16 @@ local function OnItemTooltip(tooltip, data)
     local ahPrice = SFP:GetPrice(itemID)
     if ahPrice and ahPrice > 0 then
         tooltip:AddDoubleLine("AH (unit):", SFP:FormatPrice(ahPrice), 0.8, 0.8, 0.8, 1, 1, 1)
+        -- and the price of a whole stack next to it
+        local stack = SFP:StackCount(itemID)
+        if stack and stack > 1 then
+            tooltip:AddDoubleLine(("AH (stack of %d):"):format(stack), SFP:FormatPrice(ahPrice * stack), 0.8, 0.8, 0.8, 1, 1, 1)
+        end
+    end
+    -- what crafting orders pay for this item (read from the orders the game listed), like the auction price above
+    local tip, orders = SFP.OrderPrice and SFP:OrderPrice(itemID)
+    if tip then
+        tooltip:AddDoubleLine(("Crafting orders (%d):"):format(orders), SFP:FormatPrice(tip), 0.8, 0.8, 0.8, 0.4, 0.8, 1)
     end
     local extra = SFP:ItemExtra(base)
     if extra then tooltip:AddLine(extra, 1, 1, 1, true) end
@@ -866,7 +933,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
                     elseif type(dst[k]) == "table" and type(v) == "table" and depth < 4 then fill(dst[k], v, depth + 1) end
                 end
             end
-            for _, key in ipairs({ "npcs", "knownItems", "objects", "recipes", "learned", "npcPos", "questSeen", "npcSpots", "itemZones", "learnedCurios", "learnedDecor", "ahItems", "ahNames" }) do
+            for _, key in ipairs({ "npcs", "knownItems", "objects", "learned", "npcPos", "questSeen", "npcSpots", "itemZones", "learnedCurios", "learnedDecor", "ahItems", "ahNames" }) do
                 if type(seed[key]) == "table" then
                     SFP.db[key] = SFP.db[key] or {}
                     fill(SFP.db[key], seed[key], 1)
@@ -989,6 +1056,23 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:RefreshAll()
     elseif cmd == "scan" then
         SFP:StartScan(true)
+    elseif cmd == "scanlog" or cmd == "scaninfo" then
+        -- what the last scans did: which kind, how old, how many items have a price, and which sections the section scan read
+        local last = SFP:LastScan()
+        local snap = SFP:AllPrices()
+        local n = 0
+        for _ in pairs(snap or {}) do n = n + 1 end
+        SFP:Print(("Last scan: %s (%s). Whole-auction-house snapshot: %d items priced."):format(
+            last > 0 and (date and date("%d %b %H:%M", last) or tostring(last)) or "never",
+            SFP.db.lastScanKind or "unknown kind", n))
+        local log, parts = SFP.db.scanLog, {}
+        for cid, count in pairs(log or {}) do parts[#parts + 1] = ("class %s: %d"):format(tostring(cid), tonumber(count) or 0) end
+        table.sort(parts)
+        if #parts > 0 then
+            SFP:Print("Sections read by the last section scan: " .. table.concat(parts, ", "))
+        else
+            SFP:Print("No section scan has been run (the fast scan reads the whole auction house in one go and does not use sections).")
+        end
     elseif cmd == "min" then
         local g = tonumber(rest)
         if g then

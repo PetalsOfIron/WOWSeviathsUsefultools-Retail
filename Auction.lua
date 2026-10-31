@@ -8,6 +8,9 @@ local _, SFP = ...
 local queue, qIndex = {}, 0
 local scanning, waitingFor, waitTimer = false, nil, nil
 local ahOpen = false
+local hourTimer   -- starts the next automatic scan when the hour since the last one is over (auction house still open)
+local lastFastDone = 0      -- the game keeps sending REPLICATE_ITEM_LIST_UPDATE for a while after a scan: those must not start another
+local fastRunning = false   -- a fast scan is waiting for the game or reading its answer: the item-by-item scan must stay out of it
 
 -- what the scan bar on the auction house window shows (AuctionBar.lua draws it)
 local function setProgress(phase, done, total)
@@ -33,12 +36,38 @@ local function savePrice(itemID, copper)
 end
 
 local function markScanned()
+    if SFP.Social and SFP.Social.Count then pcall(SFP.Social.Count, "scan") end   -- for the automatic play style
     local t = time()
     SFP.db.lastScan = t
     SFP.db.realmScan = SFP.db.realmScan or {}
     SFP.db.realmScan[SFP:RealmKey()] = t
     -- the planners and the Codex show prices: let them redraw with the new ones
     if SFP.PricesChanged then SFP:Safe("prices changed", SFP.PricesChanged, SFP) end
+end
+
+-- the ingredients and products of every crafting recipe are priced by the scans too (Recipe Planner profit)
+local craftIDs
+local function isCraftID(id)
+    if not craftIDs then
+        craftIDs = {}
+        for _, r in ipairs(SFP.RecipeData or {}) do
+            if r[4] and r[4] > 0 then craftIDs[r[4]] = true end
+            for _, rg in ipairs(r[5] or {}) do craftIDs[rg[1]] = true end
+        end
+    end
+    return craftIDs[id] and true or false
+end
+
+-- the products of the recipes: their cheapest listings are kept one by one (the profession window lists them)
+local productIDs
+local function isProductID(id)
+    if not productIDs then
+        productIDs = {}
+        for _, r in ipairs(SFP.RecipeData or {}) do
+            if r[4] and r[4] > 0 then productIDs[r[4]] = true end
+        end
+    end
+    return productIDs[id] and true or false
 end
 
 local step  -- forward declared
@@ -50,7 +79,7 @@ local function finishItem()
 end
 
 step = function()
-    if not scanning then return end
+    if not scanning or fastRunning then return end
     if not ahOpen then
         scanning = false
         setProgress("idle")
@@ -64,6 +93,12 @@ step = function()
     end
     qIndex = qIndex + 1
     local id = queue[qIndex]
+    if not id and #queue == 0 then
+        -- nothing was queued: this is no scan, so it must not count as one (no "done", no new scan time)
+        scanning = false
+        setProgress("idle")
+        return
+    end
     if not id then
         scanning = false
         markScanned()
@@ -90,18 +125,55 @@ local fullWaiting, fullTimer, fullTick = false, nil, nil
 local function processReplicate()
     local n = C_AuctionHouse.GetNumReplicateItems and C_AuctionHouse.GetNumReplicateItems() or 0
     local best, i, found, nextPct = {}, 0, 0, 25
+    local newIDs, newNames, seenIDs = 0, 0, {}
+    local allBest, allCount = {}, 0   -- the cheapest buyout of EVERY item in the auction house (the whole-scan snapshot)
+    local listings = {}               -- recipe products: the 6 cheapest buyouts and how many are listed
     local function chunk()
-        -- work for about 25 ms per frame instead of a fixed small batch: the same data is read much faster
+        -- only a few milliseconds of work per frame: the scan runs in the background and the screen never stutters
         local t0 = debugprofilestop and debugprofilestop() or 0
-        while i < n and (not debugprofilestop or debugprofilestop() - t0 < 25) do
+        while i < n and (not debugprofilestop or debugprofilestop() - t0 < 5) do
             local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = C_AuctionHouse.GetReplicateItemInfo(i)
             i = i + 1
-            if itemID and buyout and buyout > 0 and SFP.trackedIDs[itemID] then
-                -- retail commodities are listed per unit already; single items and stacks are divided
+            -- every item seen at the auction house is kept: its ID (with the item class) and its name
+            if itemID and SFP.db and not seenIDs[itemID] then
+                seenIDs[itemID] = true
+                SFP.db.ahItems = SFP.db.ahItems or {}
+                if not SFP.db.ahItems[itemID] then
+                    local cls = C_Item and C_Item.GetItemInfoInstant and select(6, C_Item.GetItemInfoInstant(itemID))
+                    SFP.db.ahItems[itemID] = cls or 0
+                    newIDs = newIDs + 1
+                end
+                if type(name) == "string" and name ~= "" and not (issecretvalue and issecretvalue(name)) then
+                    SFP.db.ahNames = SFP.db.ahNames or {}
+                    if SFP.db.ahNames[itemID] ~= name then
+                        SFP.db.ahNames[itemID] = name
+                        newNames = newNames + 1
+                    end
+                end
+            end
+            if itemID and buyout and buyout > 0 then
+                local cur = allBest[itemID]
+                if not cur then allBest[itemID] = buyout; allCount = allCount + 1 elseif buyout < cur then allBest[itemID] = buyout end
+                if isProductID(itemID) then
+                    local l = listings[itemID]
+                    if not l then l = { n = 0, p = {} }; listings[itemID] = l end
+                    l.n = l.n + 1
+                    if not l.max or buyout > l.max then l.max = buyout end   -- the last (dearest) listing
+                    local p = l.p
+                    -- keep the 6 cheapest, in order
+                    local pos = #p + 1
+                    for k = 1, #p do if buyout < p[k] then pos = k; break end end
+                    if pos <= 6 then
+                        table.insert(p, pos, buyout)
+                        if #p > 6 then p[#p] = nil end
+                    end
+                end
+            end
+            if itemID and buyout and buyout > 0 and (SFP.trackedIDs[itemID] or isCraftID(itemID)) then
+                -- retail lists stackable goods (commodities) per unit already, and every other auction is a single item,
+                -- so the buyout is the price of one. (C_AuctionHouse.GetItemCommodityStatus wants an item in your bags,
+                -- not an item ID, and made the whole scan fail.)
                 local unit = buyout
-                local commodity = C_AuctionHouse.GetItemCommodityStatus and Enum.ItemCommodityStatus
-                    and C_AuctionHouse.GetItemCommodityStatus(itemID) == Enum.ItemCommodityStatus.Commodity
-                if not commodity and count and count > 1 then unit = math.floor(buyout / count) end
                 if not best[itemID] or unit < best[itemID] then best[itemID] = unit end
             end
         end
@@ -110,31 +182,110 @@ local function processReplicate()
             C_Timer.After(0, chunk)
         else
             for id, p in pairs(best) do savePrice(id, p); found = found + 1 end
-            scanning = false
+            -- the whole snapshot: every item's price is kept (compact), so any item the scan saw has a price
+            SFP.db.ahAll = SFP.db.ahAll or {}
+            SFP.db.ahAll[SFP:RealmKey()] = allBest
+            SFP.db.ahListings = SFP.db.ahListings or {}
+            SFP.db.ahListings[SFP:RealmKey()] = listings
+            SFP.db.lastScanKind = "fast scan, whole auction house"
+            SFP.db.scanLog = nil   -- a fast scan does not use sections
+            scanning, fastRunning = false, false
+            -- the sections are scanned too, after the fast scan (switch: Settings, "Also scan the sections")
+            if SFP.db.autoSections ~= false and ahOpen then
+                C_Timer.After(1.5, function()
+                    if ahOpen and not scanning and SFP.StartCategoryScan then SFP:StartCategoryScan() end
+                end)
+            end
+            lastFastDone = GetTime()
             markScanned()
             setProgress("done", n, n)
-            SFP:Print(("Full auction scan done: %d auctions read, prices for %d items."):format(n, found))
+            local totalIDs, totalNames = 0, 0
+            for _ in pairs(SFP.db.ahItems or {}) do totalIDs = totalIDs + 1 end
+            for _ in pairs(SFP.db.ahNames or {}) do totalNames = totalNames + 1 end
+            SFP:Print(("Fast scan done: %d auctions read, %d items priced (%d of them farm and crafting items), %d new item IDs (%d saved), %d item names added or updated (%d saved)."):format(
+                n, allCount, found, newIDs, totalIDs, newNames, totalNames))
             SFP:RefreshAll()
+        end
+    end
+    -- a failure in the middle of the scan must never leave the scan "running" for good
+    local rawChunk = chunk
+    chunk = function()
+        local ok, err = pcall(rawChunk)
+        if not ok then
+            scanning, fastRunning = false, false
+            setProgress("idle")
+            SFP:Print("The fast scan stopped with an error: " .. tostring(err))
         end
     end
     chunk()
 end
 
-function SFP:TryFullScan()
+-- auto = the scan that starts by itself when the auction house opens: it only ever uses the fast scan, which does not touch
+-- the Browse window (the section scan searches the auction house itself and moves the list you are looking at)
+local autoRetry
+function SFP:TryFullScan(auto)
     if not (C_AuctionHouse and C_AuctionHouse.ReplicateItems and C_AuctionHouse.GetReplicateItemInfo) then return false end
-    local ok = pcall(C_AuctionHouse.ReplicateItems)
-    if not ok then return false end
-    fullWaiting, scanning = true, true
+    -- the game answers one fast scan request every 15 minutes (the limit is for the whole account); a request inside that
+    -- time is ignored without any answer, so none is sent: the addon says so and asks again when the time is over
+    local LIMIT = 15 * 60 + 15
+    local since = SFP.db and SFP.db.lastReplicate and (time() - SFP.db.lastReplicate) or math.huge
+    if since < LIMIT then
+        if not auto then return false end   -- the Scan prices button reads the sections instead
+        local wait = LIMIT - since
+        self:Print(("The game allows one fast scan every 15 minutes; the last request was %d min ago. The next one starts by itself in %d min while the auction house is open."):format(
+            math.floor(since / 60), math.ceil(wait / 60)))
+        if autoRetry then autoRetry:Cancel() end
+        autoRetry = C_Timer.NewTimer(wait, function()
+            if ahOpen and not scanning then SFP:StartScan(true, false, true) end
+        end)
+        -- the fast scan is not allowed yet, but the sections can be read now
+        if SFP.db.autoSections ~= false and not scanning then SFP:StartCategoryScan() end
+        return true
+    end
+    fullWaiting, scanning, fastRunning = true, true, true
     setProgress("wait")
-    self:Print("Scanning the auction house...")
+    self:Print("Scanning the auction house in the background...")
+    local function failFast(msg)
+        fullWaiting, scanning, fastRunning = false, false, false
+        if fullTimer then fullTimer:Cancel(); fullTimer = nil end
+        setProgress("idle")
+        SFP:Print(msg)
+        if SFP.db.autoSections ~= false and ahOpen and not scanning then SFP:StartCategoryScan() end
+    end
+    -- the game drops a request that comes while its message system is busy (right after the window opens): wait until it is ready
+    local function send(tries)
+        if not fullWaiting then return end
+        if C_AuctionHouse.IsThrottledMessageSystemReady and not C_AuctionHouse.IsThrottledMessageSystemReady() and tries < 60 then
+            C_Timer.After(1, function() send(tries + 1) end)
+            return
+        end
+        SFP.db.lastReplicate = time()
+        local ok, err = pcall(C_AuctionHouse.ReplicateItems)
+        if not ok then
+            failFast("The game refused the fast scan request: " .. tostring(err) .. " - press Scan prices for the section scan.")
+        end
+    end
+    send(0)
     if fullTimer then fullTimer:Cancel() end
-    -- no repeating chat messages: the bar at the auction house shows the progress
-    fullTimer = C_Timer.NewTimer(25, function()
+    -- no repeating chat messages: the bar at the auction house shows the progress.
+    -- A big realm needs time to send the whole auction house: wait up to two minutes (a late answer is still used)
+    fullTimer = C_Timer.NewTimer(120, function()
         if fullWaiting then
-            -- no answer (scan cooldown?): fall back to searching the items one by one
-            fullWaiting, scanning = false, false
-            SFP:Print("No full scan answer - searching the items one by one.")
-            SFP:StartScan(true, true)
+            fullWaiting, scanning, fastRunning = false, false, false
+            setProgress("idle")   -- the bar goes back to showing the last scan time, no green "done"
+            if auto then
+                -- no answer (the game allows one fast scan every few minutes): wait quietly and ask again, never the section scan
+                SFP:Print("The game did not answer the fast scan within 2 minutes (another addon may have used the one request the game allows every 15 minutes). Trying again in 16 minutes while the auction house is open.")
+                if autoRetry then autoRetry:Cancel() end
+                autoRetry = C_Timer.NewTimer(16 * 60, function()
+                    if ahOpen and not scanning then SFP:StartScan(true, false, true) end
+                end)
+                -- the sections are read meanwhile
+                if SFP.db.autoSections ~= false and ahOpen and not scanning then SFP:StartCategoryScan() end
+            else
+                SFP:Print("No fast scan answer (the game allows one every few minutes) - reading the sections instead.")
+                if not SFP:StartCategoryScan() then SFP:StartScan(true, true) end
+            end
         end
     end)
     return true
@@ -143,14 +294,22 @@ end
 -- section scan, the way Auctionator does it: open each auction house category and read its price list
 -- (browse results come in big batches with the lowest price per item), instead of one search per item
 local catQueue, catIndex, catSeen, catBest, catTimer, catBusy = {}, 0, 0, {}, nil, false
+local catAll = {}   -- the cheapest price of every item the section scan saw (added to the whole-scan snapshot at the end)
 local catLearned, catSeenIDs, catNewIDs = 0, {}, 0
 local catSentIndex = 0
 local catNext
+local catPaused, weSending, resumeTimer = false, false, nil   -- the scan steps aside while the player searches by hand
 
 local function catFinish()
     if catTimer then catTimer:Cancel(); catTimer = nil end
     local found = 0
     for id, p in pairs(catBest) do savePrice(id, p); found = found + 1 end
+    do
+        -- every item the sections showed gets its price in the snapshot (later scans of other sections add to it)
+        local snap = SFP:AllPrices(true)
+        for id, p in pairs(catAll) do snap[id] = p end
+        SFP.db.lastScanKind = ("section scan, %d of %d sections"):format(math.min(catIndex, #catQueue), #catQueue)
+    end
     scanning, catBusy = false, false
     markScanned()
     setProgress("done", 1, 1)
@@ -170,7 +329,7 @@ local function catFinish()
 end
 
 local function catRead()
-    if not catBusy then return end
+    if not catBusy or catPaused then return end   -- paused: the results on screen are the player's own search
     local results = C_AuctionHouse.GetBrowseResults and C_AuctionHouse.GetBrowseResults() or {}
     for i = catSeen + 1, #results do
         local r = results[i]
@@ -201,7 +360,8 @@ local function catRead()
                 catSeenIDs[id] = true
             end
         end
-        if id and price and price > 0 and (tracked or catSeenIDs[id] or longScan) and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
+        if id and price and price > 0 and (not catAll[id] or price < catAll[id]) then catAll[id] = price end
+        if id and price and price > 0 and (tracked or catSeenIDs[id] or longScan or isCraftID(id)) and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
     end
     catSeen = #results
     if catTimer then catTimer:Cancel() end
@@ -227,11 +387,13 @@ local function catSend()
     catSentIndex = catIndex
     catSeen = 0
     setProgress("section", catIndex, #catQueue)
-    C_AuctionHouse.SendBrowseQuery({
+    weSending = true
+    pcall(C_AuctionHouse.SendBrowseQuery, {
         searchString = "", filters = {},
         sorts = { { sortOrder = Enum.AuctionHouseSortOrder and Enum.AuctionHouseSortOrder.Price or 0, reverseSort = false } },
         itemClassFilters = { { classID = cid } },
     })
+    weSending = false
     if catTimer then catTimer:Cancel() end
     catTimer = C_Timer.NewTimer(4, function() catNext() end)   -- an empty category sends no answer: go on
 end
@@ -241,6 +403,26 @@ catNext = function()
     catIndex = catIndex + 1
     if catIndex > #catQueue then catFinish(); return end
     catSend()
+end
+
+-- the player searches by hand while a section scan runs: the scan waits (it does not read or replace their results)
+-- and goes on with the same section a few seconds after their last search
+if hooksecurefunc and C_AuctionHouse and C_AuctionHouse.SendBrowseQuery then
+    hooksecurefunc(C_AuctionHouse, "SendBrowseQuery", function()
+        if not catBusy or weSending then return end
+        catPaused = true
+        if catTimer then catTimer:Cancel(); catTimer = nil end
+        setProgress("wait")
+        if resumeTimer then resumeTimer:Cancel() end
+        resumeTimer = C_Timer.NewTimer(8, function()
+            resumeTimer = nil
+            if catBusy and catPaused then
+                catPaused = false
+                catSentIndex = 0   -- send the current section again
+                catSend()
+            end
+        end)
+    end)
 end
 
 function SFP:StartCategoryScan()
@@ -264,6 +446,7 @@ function SFP:StartCategoryScan()
     if #catQueue == 0 then return false end
     catIndex, catSeen, catBusy, catSentIndex = 0, 0, true, 0
     wipe(catBest)
+    wipe(catAll)
     wipe(catSeenIDs)
     SFP.db.scanLog = {}
     catLearned = 0
@@ -277,8 +460,9 @@ end
 SFP.StopCategoryScan = function()
     if catBusy then
         local done, total = math.max(0, catIndex - 1), #catQueue
-        catBusy, scanning = false, false
+        catBusy, scanning, catPaused = false, false, false
         if catTimer then catTimer:Cancel(); catTimer = nil end
+        if resumeTimer then resumeTimer:Cancel(); resumeTimer = nil end
         -- keep what was read so far
         local saved = 0
         for id, p in pairs(catBest) do savePrice(id, p); saved = saved + 1 end
@@ -332,7 +516,7 @@ SFP:OnLogin(function()
     end)
 end)
 
-function SFP:StartScan(force, noFull)
+function SFP:StartScan(force, noFull, auto)
     if not ahOpen then
         self:Print("Open the auction house first.")
         return
@@ -346,7 +530,25 @@ function SFP:StartScan(force, noFull)
         end
         return
     end
-    if not noFull and self:StartCategoryScan() then return end
+    -- the fast scan first (the whole auction house in one request, read in small slices in the background so the game never
+    -- freezes); the section scan when the game does not allow it right now
+    if auto then
+        -- started by itself: only the fast scan, nothing that searches the auction house and moves the Browse list
+        if not self:TryFullScan(true) then
+            -- no fast scan in this game version: the sections do the work
+            if SFP.db.autoSections ~= false then
+                self:Print("The fast scan is not available - reading the sections instead.")
+                self:StartCategoryScan()
+            else
+                self:Print("The fast scan is not available - press Scan prices for the section scan.")
+            end
+        end
+        return
+    end
+    if not noFull then
+        if self:TryFullScan() then return end
+        if self:StartCategoryScan() then return end
+    end
     if not force and qIndex > 0 and qIndex < #queue then
         qIndex = qIndex - 1 -- resume the interrupted scan
     else
@@ -373,25 +575,53 @@ f:SetScript("OnEvent", function(_, event, arg1)
     end
     if event == "AUCTION_HOUSE_SHOW" then
         ahOpen = true
+        -- a scan starts by itself when the auction house opens and the last scan is an hour old or more (not at every open);
+        -- if the window stays open, the next one starts when the hour is over
+        local RESCAN = 3600
         local age = time() - SFP:LastScan()
-        local stale = age > (SFP.db.rescanHours or 12) * 3600
+        local stale = SFP:LastScan() == 0 or age >= RESCAN
         local resume = qIndex > 0 and qIndex < #queue
+        if not stale then
+            if hourTimer then hourTimer:Cancel() end
+            hourTimer = C_Timer.NewTimer(math.max(5, RESCAN - age), function()
+                if ahOpen and not scanning then SFP:StartScan(true, false, true) end
+            end)
+        end
         if stale or resume then
-            C_Timer.After(1, function() SFP:StartScan(false) end)
+            -- forced: it also runs when Auctionator or TSM are installed (their prices are not a reason to skip the scan),
+            -- so the "last scan" time on the bar is always the real one
+            SFP:Print(SFP.db.autoSections ~= false
+                and "Auction house opened - scanning: the whole auction house first (in the background), then every section (the Browse list moves while the sections are read; it waits when you search)."
+                or "Auction house opened - starting the fast scan in the background (the Browse list is not touched).")
+            C_Timer.After(1, function() SFP:StartScan(true, false, true) end)
+        else
+            -- say why nothing starts, so a silent chat never looks like a broken scan
+            local wait = math.max(1, math.ceil((RESCAN - age) / 60))
+            SFP:Print(("Auction prices are fresh (scanned %d min ago). The next automatic scan starts in about %d min if the auction house stays open, or when you open it after that. Press Scan prices to scan now."):format(
+                math.floor(age / 60), wait))
         end
     elseif event == "REPLICATE_ITEM_LIST_UPDATE" then
         if fullWaiting then
             fullWaiting = false
             if fullTimer then fullTimer:Cancel(); fullTimer = nil end
+            local got = C_AuctionHouse.GetNumReplicateItems and C_AuctionHouse.GetNumReplicateItems() or 0
+            SFP:Print(("The auction house answered: reading %d auctions in the background..."):format(got))
             SFP:Safe("full scan", processReplicate)
-        elseif ahOpen and not scanning then
+        elseif ahOpen and not scanning and GetTime() - lastFastDone > 90 then
             -- another addon (Auctionator, TSM) asked the server for the whole auction house: use that answer too, no extra waiting
-            scanning = true
+            scanning, fastRunning = true, true
             setProgress("wait")
             SFP:Safe("full scan", processReplicate)
         end
     elseif event == "AUCTION_HOUSE_CLOSED" then
         ahOpen = false
+        if hourTimer then hourTimer:Cancel(); hourTimer = nil end
+        if fastRunning and fullWaiting then
+            -- closed while waiting for the game's answer: nothing is running any more
+            fastRunning, fullWaiting, scanning = false, false, false
+            if fullTimer then fullTimer:Cancel(); fullTimer = nil end
+            setProgress("idle")
+        end
         if SFP.StopCategoryScan then SFP.StopCategoryScan() end
     elseif event == "AUCTION_HOUSE_THROTTLED_SYSTEM_READY" then
         if catBusy then
@@ -400,7 +630,7 @@ f:SetScript("OnEvent", function(_, event, arg1)
             elseif C_AuctionHouse.HasFullBrowseResults and not C_AuctionHouse.HasFullBrowseResults() and C_AuctionHouse.RequestMoreBrowseResults then
                 C_AuctionHouse.RequestMoreBrowseResults()
             end
-        elseif scanning and not waitingFor then step() end
+        elseif scanning and not waitingFor and not fastRunning then step() end
     elseif event == "COMMODITY_SEARCH_RESULTS_UPDATED" then
         local itemID = arg1
         if itemID and C_AuctionHouse.GetNumCommoditySearchResults(itemID) > 0 then
@@ -423,3 +653,37 @@ f:SetScript("OnEvent", function(_, event, arg1)
 end)
 
 function SFP:IsScanning() return scanning, qIndex, #queue end
+
+---------------------------------------------------------------------------
+-- a small public API: other addons can read this addon's prices and scan time, and get told after a scan
+--   local api = _G.SeviathsUsefulToolsAPI
+--   api.GetPrice(itemID)            -> copper per unit, or nil
+--   api.GetPriceFromLink(itemLink)  -> same, from an item link
+--   api.GetLastScanTime()           -> time() of the last scan on this realm, 0 if none
+--   api.RegisterCallback(fn)        -> fn() is called every time a scan has updated the prices
+-- (this addon itself reads Auctionator and TradeSkillMaster prices when it has no scan of its own)
+---------------------------------------------------------------------------
+do
+    local callbacks = {}
+    SFP.API = {
+        version = 1,
+        GetPrice = function(itemID)
+            if not (SFP.db and type(itemID) == "number") then return nil end
+            local ok, p = pcall(SFP.GetPrice, SFP, itemID)
+            if ok and type(p) == "number" and p > 0 then return p end
+            return nil
+        end,
+        GetPriceFromLink = function(link)
+            local id = type(link) == "string" and tonumber(link:match("item:(%d+)")) or nil
+            return id and SFP.API.GetPrice(id) or nil
+        end,
+        GetLastScanTime = function() return SFP.db and SFP:LastScan() or 0 end,
+        RegisterCallback = function(fn)
+            if type(fn) == "function" then callbacks[#callbacks + 1] = fn end
+        end,
+        Fire = function()
+            for _, fn in ipairs(callbacks) do pcall(fn) end
+        end,
+    }
+    _G.SeviathsUsefulToolsAPI = SFP.API
+end

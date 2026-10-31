@@ -147,6 +147,7 @@ end
 
 function SFP:SessionStart()
     self.session = { t0 = time(), kills = 0, items = 0, gold = 0, itemValue = 0 }
+    if self.Social and self.Social.Count then pcall(self.Social.Count, "session") end   -- for the automatic play style
     buildFrame()
     frame:Show()
     text:SetText(sessionText())

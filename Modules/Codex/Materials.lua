@@ -63,6 +63,8 @@ end
 ------------------------------------------------------------------------
 -- Profession recipe scan → exact uses
 ------------------------------------------------------------------------
+local scannedThisSession = {}   -- profession -> number of recipes read: not read again while nothing changed
+
 local function ScanProfession()
     if not (C_TradeSkillUI and C_TradeSkillUI.GetAllRecipeIDs) then return end
     local prof = C_TradeSkillUI.GetBaseProfessionInfo and C_TradeSkillUI.GetBaseProfessionInfo()
@@ -71,6 +73,9 @@ local function ScanProfession()
     ns.db.matUses = ns.db.matUses or {}
     local uses = ns.db.matUses
     local ids = C_TradeSkillUI.GetAllRecipeIDs() or {}
+    if scannedThisSession[profName] == #ids then return end   -- already read this session, same recipes
+    local S = _G.SeviathsUsefulTools
+    local newUses, newMats = 0, 0
     for i, recipeID in ipairs(ids) do
         local info = C_TradeSkillUI.GetRecipeInfo(recipeID)
         local schem = C_TradeSkillUI.GetRecipeSchematic and C_TradeSkillUI.GetRecipeSchematic(recipeID, false)
@@ -79,13 +84,18 @@ local function ScanProfession()
                 for _, r in ipairs(slot.reagents or {}) do
                     local id = r.itemID
                     if id then
+                        -- the material is written to the addon itself too (name, class, farm item), once
+                        if S and S.LearnMaterial and S.db and S.db.knownItems and not S.db.knownItems[id] then
+                            pcall(S.LearnMaterial, id)
+                            newMats = newMats + 1
+                        end
                         uses[id] = uses[id] or {}
                         local list = uses[id][profName]
                         if not list then list = {}; uses[id][profName] = list end
                         if #list < 30 then
                             local dup = false
                             for _, n in ipairs(list) do if n == info.name then dup = true; break end end
-                            if not dup then list[#list + 1] = info.name end
+                            if not dup then list[#list + 1] = info.name; newUses = newUses + 1 end
                         end
                         local n = C_Item.GetItemNameByID(id)
                         if n then
@@ -100,7 +110,11 @@ local function ScanProfession()
         end
         if i % 20 == 0 then ns:Yield() end
     end
-    ns:Print("learned which materials " .. profName .. " uses (" .. #ids .. " recipes).")
+    scannedThisSession[profName] = #ids
+    -- only said when there is something new: the same profession is not announced again and again
+    if newUses > 0 or newMats > 0 then
+        ns:Print(("learned which materials %s uses: %d new uses of recipes, %d materials written to the addon (%d recipes read)."):format(profName, newUses, newMats, #ids))
+    end
 end
 
 local pev = CreateFrame("Frame")
@@ -116,7 +130,35 @@ end)
 ------------------------------------------------------------------------
 -- Indexer: materials from everything known so far
 ------------------------------------------------------------------------
+-- which recipes use which material, for every crafting profession, from the recipe data shipped with the addon
+-- (read once; what your own professions teach later is added to it)
+local function IndexShippedUses(self)
+    local S = _G.SeviathsUsefulTools
+    if not (S and S.RecipeData and self.db) or self.db.matUsesShipped == 1 then return end
+    self.db.matUses = self.db.matUses or {}
+    local uses = self.db.matUses
+    for i, r in ipairs(S.RecipeData) do
+        local prof, name = r[2], r[3]
+        for _, rg in ipairs(r[5] or {}) do
+            local id = rg[1]
+            if id then
+                uses[id] = uses[id] or {}
+                local list = uses[id][prof]
+                if not list then list = {}; uses[id][prof] = list end
+                if #list < 30 then
+                    local dup = false
+                    for _, n in ipairs(list) do if n == name then dup = true; break end end
+                    if not dup then list[#list + 1] = name end
+                end
+            end
+        end
+        if i % 400 == 0 then self:Yield() end
+    end
+    self.db.matUsesShipped = 1
+end
+
 function ns:IndexMaterials()
+    IndexShippedUses(self)
     -- materials named in the Gold Farming spots
     for _, f in ipairs(self.FARMS or {}) do
         for _, m in ipairs(f.mats or {}) do AddMaterial(m, nil, SEED_TYPES[m]) end

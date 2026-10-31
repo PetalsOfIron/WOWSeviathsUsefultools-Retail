@@ -1210,6 +1210,9 @@ function SFP:NpcInText(text)
             if p and p.map then
                 return { map = p.map, x = p.x, y = p.y, label = part .. " (" .. (kind:find("vendor", 1, true) and "vendor" or "NPC") .. ")" }
             end
+            -- an NPC you spoke to yourself (saved by the addon whenever you open a conversation or a vendor)
+            local mine = self.LearnedNpcByName and self:LearnedNpcByName(part)
+            if mine then return { map = mine.map, x = mine.x, y = mine.y, label = part .. " (NPC)" } end
             local m = mons[part]
             if m then return { map = m.map, x = m.x, y = m.y, label = part } end
         end
@@ -1222,7 +1225,20 @@ function SFP:CollTarget(e)
     if e.pts and e.spotMap then return "spots" end
     if e._ent == nil then
         local text = (e.source or "") .. " " .. (e.rareSource or "")
-        e._ent = self:NpcInText(text) or self:EntranceInText(text) or false
+        -- a vendor you opened that sells it: the place you stood at (learned by the addon from every vendor you open)
+        local learned = self.db.vendorLearned
+        local found
+        if learned then
+            if e.itemID and learned[e.itemID] then found = learned[e.itemID]
+            elseif e.mountID then
+                for _, v in pairs(learned) do if v.mount == e.mountID then found = v; break end end
+            end
+        end
+        if found and found.m and found.x then
+            e._ent = { map = found.m, x = found.x, y = found.y, label = tostring(found.v) .. " (vendor)" }
+        else
+            e._ent = self:NpcInText(text) or self:EntranceInText(text) or false
+        end
     end
     return e._ent or nil
 end
@@ -1406,6 +1422,9 @@ local function buildDecorEntries()
         local own = decorOwned(d[1])
         if own ~= nil then e.owned, e.unknownOwned, fromGame = own > 0, false, true end
         e.placeholder = d[3] == ""
+        -- a vendor you opened that sells this decor: it is the source when the data has none
+        local vl = e.itemID and SFP.db.vendorLearned and SFP.db.vendorLearned[e.itemID]
+        if vl and (not e.source or e.source == "") then e.source = "Vendor: " .. tostring(vl.v) end
         list[#list + 1] = e
         byName[name:lower()] = e
         if d[1] > 0 then byItem[d[1]] = e end
@@ -1551,6 +1570,9 @@ end
 
 -- the best waypoint for a decor: the exact spot of a vendor or boss named in its source (Wowhead positions), else the middle of a known zone
 function SFP:DecorWaypointFor(e)
+    -- a vendor you opened that sells it: the place you stood at (learned from every vendor window)
+    local vl = e and e.itemID and self.db.vendorLearned and self.db.vendorLearned[e.itemID]
+    if vl and vl.m and vl.x then return vl.m, vl.x, vl.y, tostring(vl.v), true end
     local src = (e and e.source) or ""
     for kind, names in src:gmatch("(%a+): ([^;]+)") do
         if kind == "Vendor" or kind == "Drop" then
@@ -1577,17 +1599,21 @@ function SFP:LearnDecor()
 end
 
 -- the game's housing dashboard (the decor catalog window) has the data loaded: learn from it whenever it opens
-local dashHooked
+-- the housing dashboard and the decor catalog (storage) windows: the decor planner opens with them
+local DASH_FRAMES = { "HousingDashboardFrame", "HousingFrame", "HousingCatalogFrame", "HouseEditorFrame", "HousingStorageFrame" }
+local dashHooked = {}
 local function hookDashboard()
-    if dashHooked then return end
-    local f = _G.HousingDashboardFrame or _G.HousingFrame
-    if f and f.HookScript then
-        dashHooked = true
-        f:HookScript("OnShow", function()
-            C_Timer.After(1.5, function() SFP:Safe("decor learning", SFP.LearnDecor, SFP) end)
-            C_Timer.After(6, function() SFP:Safe("decor learning", SFP.LearnDecor, SFP) end)
-        end)
-        if f:IsShown() then SFP:Safe("decor learning", SFP.LearnDecor, SFP) end
+    for _, name in ipairs(DASH_FRAMES) do
+        local f = _G[name]
+        if not dashHooked[name] and f and f.HookScript then
+            dashHooked[name] = true
+            f:HookScript("OnShow", function()
+                C_Timer.After(1.5, function() SFP:Safe("decor learning", SFP.LearnDecor, SFP) end)
+                C_Timer.After(6, function() SFP:Safe("decor learning", SFP.LearnDecor, SFP) end)
+                if SFP.db and SFP.db.decorWithHousing ~= false then SFP:Safe("decor window", SFP.ShowDecor, SFP) end
+            end)
+            if f:IsShown() then SFP:Safe("decor learning", SFP.LearnDecor, SFP) end
+        end
     end
 end
 local dashFrame = CreateFrame("Frame")

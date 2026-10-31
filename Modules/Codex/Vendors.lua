@@ -54,6 +54,9 @@ local function RecordVendor()
             for _, k in ipairs(list) do if k == key then have = true; break end end
             if not have then list[#list + 1] = key end
             if ns.RecordItem then ns.RecordItem(id) end
+            -- the item is written to the addon itself too (name, class, materials become farm items)
+            local S = _G.SeviathsUsefulTools
+            if S and S.RecordItem and S.db and S.db.knownItems and not S.db.knownItems[id] then pcall(S.RecordItem, id) end
         end
     end
     local isNew = not ns.db.vendors[key]

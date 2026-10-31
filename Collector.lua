@@ -116,6 +116,13 @@ local function recordItem(id)
 end
 SFP.RecordItem = recordItem
 
+-- a material seen in a profession window or a crafting order: learned like an item from loot (name, class, farm item), once
+function SFP.LearnMaterial(id)
+    if type(id) ~= "number" or not SFP.db or not SFP.db.knownItems then return end
+    if SFP.db.knownItems[id] then return end
+    recordItem(id)
+end
+
 ---------------------------------------------------------------------------
 -- Monsters
 ---------------------------------------------------------------------------
@@ -231,6 +238,7 @@ end
 local function scanRecipes()
     if not SFP.db then return end
     local count = 0
+    local legacyProf   -- the profession a modern-window scan was about (for the message)
     -- legacy trade skill window
     if GetNumTradeSkills and GetTradeSkillInfo then
         local prof = GetTradeSkillLine and GetTradeSkillLine() or "Profession"
@@ -245,8 +253,10 @@ local function scanRecipes()
                     local _, _, cnt = GetTradeSkillReagentInfo(i, r)
                     if rid then reag[#reag + 1] = { rid, cnt or 1 } end
                 end
-                SFP.db.recipes[prof .. "|" .. name] = { n = name, p = prof, o = out, r = reag }
-                count = count + 1
+                if not SFP.db.recipes[prof .. "|" .. name] then
+                    SFP.db.recipes[prof .. "|" .. name] = { n = name, p = prof, o = out, r = reag }
+                    count = count + 1
+                end
             end
         end
     -- modern trade skill API
@@ -254,23 +264,32 @@ local function scanRecipes()
         local base = C_TradeSkillUI.GetBaseProfessionInfo and C_TradeSkillUI.GetBaseProfessionInfo()
         local prof = base and base.professionName or "Profession"
         for _, rid in ipairs(C_TradeSkillUI.GetAllRecipeIDs() or {}) do
+            -- the list holds every recipe of the profession; only the ones this character really has learned are kept.
+            -- A recipe that is already saved is left alone: it is not read again and not counted again.
             local info = C_TradeSkillUI.GetRecipeInfo(rid)
-            local schem = C_TradeSkillUI.GetRecipeSchematic and C_TradeSkillUI.GetRecipeSchematic(rid, false)
-            if info and info.name and schem then
-                local reag = {}
-                for _, slot in ipairs(schem.reagentSlotSchematics or {}) do
-                    for _, rg in ipairs(slot.reagents or {}) do
-                        if rg.itemID then reag[#reag + 1] = { rg.itemID, slot.quantityRequired or 1 }; break end
+            if info and info.name and info.learned and not SFP.db.recipes[prof .. "|" .. info.name] then
+                local schem = C_TradeSkillUI.GetRecipeSchematic and C_TradeSkillUI.GetRecipeSchematic(rid, false)
+                if schem then
+                    local reag = {}
+                    for _, slot in ipairs(schem.reagentSlotSchematics or {}) do
+                        for _, rg in ipairs(slot.reagents or {}) do
+                            if rg.itemID then reag[#reag + 1] = { rg.itemID, slot.quantityRequired or 1 }; break end
+                        end
                     end
+                    SFP.db.recipes[prof .. "|" .. info.name] = { n = info.name, p = prof, o = schem.outputItemID, r = reag, id = rid }
+                    count = count + 1
+                    for _, rg in ipairs(reag) do SFP.LearnMaterial(rg[1]) end   -- the materials too
                 end
-                SFP.db.recipes[prof .. "|" .. info.name] = { n = info.name, p = prof, o = schem.outputItemID, r = reag }
-                count = count + 1
             end
         end
+        legacyProf = prof
     end
     if count > 0 then
         SFP.usedIn, SFP.madeBy = nil, nil
-        SFP:Print(("Learned %d recipes of this profession."):format(count))
+        local total = 0
+        for _, r in pairs(SFP.db.recipes) do if r.p == (legacyProf or r.p) then total = total + 1 end end
+        SFP:Print(("Saved %d new recipes%s (%d saved for this profession)."):format(count, legacyProf and (" of " .. legacyProf) or "", total))
+        if SFP.RefreshAll then SFP:RefreshAll() end
     end
 end
 
@@ -630,14 +649,20 @@ end
 ---------------------------------------------------------------------------
 local ev = CreateFrame("Frame")
 for _, e in ipairs({ "UPDATE_MOUSEOVER_UNIT", "PLAYER_TARGET_CHANGED", "LOOT_READY", "UNIT_SPELLCAST_SENT",
-    "GET_ITEM_INFO_RECEIVED", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "BAG_UPDATE_DELAYED" }) do
+    "GET_ITEM_INFO_RECEIVED", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "BAG_UPDATE_DELAYED", "MERCHANT_SHOW",
+    "MERCHANT_UPDATE", "BLACK_MARKET_OPEN", "PERKS_PROGRAM_OPEN", "BANKFRAME_OPENED", "PLAYERBANKSLOTS_CHANGED",
+    "PLAYERREAGENTBANKSLOTS_CHANGED", "BANK_TAB_SETTINGS_UPDATED" }) do
     pcall(ev.RegisterEvent, ev, e)
 end
 local recipeTimer
+local vendorTimer, bankTimer
 ev:SetScript("OnEvent", function(_, event, a, b, c, d)
     -- "Learn everything constantly" off: nothing new is recorded (tooltips keep working)
     if SFP.db and SFP.db.learnAll == false and (event == "UPDATE_MOUSEOVER_UNIT" or event == "PLAYER_TARGET_CHANGED"
-        or event == "LOOT_READY" or event == "BAG_UPDATE_DELAYED" or event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE") then
+        or event == "LOOT_READY" or event == "BAG_UPDATE_DELAYED" or event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE"
+        or event == "MERCHANT_SHOW" or event == "MERCHANT_UPDATE" or event == "BLACK_MARKET_OPEN" or event == "PERKS_PROGRAM_OPEN"
+        or event == "BANKFRAME_OPENED" or event == "PLAYERBANKSLOTS_CHANGED" or event == "PLAYERREAGENTBANKSLOTS_CHANGED"
+        or event == "BANK_TAB_SETTINGS_UPDATED") then
         return
     end
     if not SFP.db then return end
@@ -665,7 +690,8 @@ ev:SetScript("OnEvent", function(_, event, a, b, c, d)
     elseif event == "BAG_UPDATE_DELAYED" then
         -- items that arrived another way (mail, quests, vendors) are learned too
         SFP:Safe("record bags", function()
-            for bag = 0, 4 do
+            -- the backpack, the four bag slots and the reagent bag
+            for bag = 0, ((Enum and Enum.BagIndex and Enum.BagIndex.ReagentBag) or 5) do
                 local n = C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerNumSlots(bag)
                     or (GetContainerNumSlots and GetContainerNumSlots(bag)) or 0
                 for slot = 1, n do
@@ -676,6 +702,179 @@ ev:SetScript("OnEvent", function(_, event, a, b, c, d)
                 end
             end
         end)
+    elseif event == "MERCHANT_SHOW" or event == "MERCHANT_UPDATE" or event == "BLACK_MARKET_OPEN" or event == "PERKS_PROGRAM_OPEN" then
+        -- every item any kind of vendor sells is learned too (name, class, materials become farm items), a few at a time:
+        -- normal and currency vendors, the black market and the Trading Post
+        if vendorTimer then return end
+        vendorTimer = true
+        -- who and where: the vendor's name and the spot you stand at (the vendor is next to you)
+        local vName, vMap, vx, vy
+        do
+            local okN, nm = pcall(UnitName, "npc")
+            if okN and type(nm) == "string" and not (issecretvalue and issecretvalue(nm)) then vName = nm end
+            local m = C_Map.GetBestMapForUnit("player")
+            local pos = m and C_Map.GetPlayerMapPosition(m, "player")
+            if pos and pos.GetXY then
+                local px, py = pos:GetXY()
+                if px and not (issecretvalue and issecretvalue(px)) and px > 0 then vMap, vx, vy = m, px, py end
+            end
+        end
+        C_Timer.After(0.6, function()
+            vendorTimer = nil
+            local ids = {}
+            local function addID(id) if type(id) == "number" and id > 0 and not SFP.db.knownItems[id] then ids[#ids + 1] = id end end
+            if GetMerchantNumItems then
+                for i = 1, (GetMerchantNumItems() or 0) do
+                    addID(GetMerchantItemID and GetMerchantItemID(i) or itemIDFromLink(GetMerchantItemLink and GetMerchantItemLink(i)))
+                end
+            end
+            if C_BlackMarket and C_BlackMarket.GetNumItems and C_BlackMarket.GetItemInfoByIndex then
+                for i = 1, (C_BlackMarket.GetNumItems() or 0) do
+                    local ok, info = pcall(C_BlackMarket.GetItemInfoByIndex, i)
+                    if ok and type(info) == "table" then addID(info.itemID) end
+                end
+            end
+            if C_PerksProgram and C_PerksProgram.GetAvailableVendorItemIDs and C_PerksProgram.GetVendorItemInfo then
+                local okL, list = pcall(C_PerksProgram.GetAvailableVendorItemIDs)
+                if okL and type(list) == "table" then
+                    for _, vid in ipairs(list) do
+                        local okI, info = pcall(C_PerksProgram.GetVendorItemInfo, vid)
+                        if okI and type(info) == "table" then addID(info.itemID) end
+                    end
+                end
+            end
+            -- collectables and other things the vendor sells are learned with the vendor's name and place:
+            -- mounts, pets, toys, housing decor and recipes (the collection planner uses them for waypoints)
+            local all, costOf = {}, {}
+            -- what an item costs: gold, and every currency or item it also takes (crests, tokens ...)
+            local function costText(k)
+                local parts = {}
+                local price, ext
+                if C_MerchantFrame and C_MerchantFrame.GetItemInfo then
+                    local okI, info = pcall(C_MerchantFrame.GetItemInfo, k)
+                    if okI and type(info) == "table" then price, ext = info.price, info.hasExtendedCost end
+                elseif GetMerchantItemInfo then
+                    local _, _, p, _, _, _, _, e2 = GetMerchantItemInfo(k)
+                    price, ext = p, e2
+                end
+                if type(price) == "number" and price > 0 then parts[#parts + 1] = math.floor(price / 10000) .. "g " .. (math.floor(price / 100) % 100) .. "s" end
+                if ext and GetMerchantItemCostInfo and GetMerchantItemCostItem then
+                    for j = 1, (GetMerchantItemCostInfo(k) or 0) do
+                        local _, value, link, currencyName = GetMerchantItemCostItem(k, j)
+                        local nm = currencyName or (type(link) == "string" and link:match("%[(.-)%]")) or "?"
+                        if type(value) == "number" and value > 0 then parts[#parts + 1] = value .. " " .. nm end
+                    end
+                end
+                return #parts > 0 and table.concat(parts, " + ") or nil
+            end
+            if GetMerchantNumItems then
+                for k = 1, (GetMerchantNumItems() or 0) do
+                    local id = GetMerchantItemID and GetMerchantItemID(k)
+                    if type(id) == "number" and id > 0 then
+                        all[#all + 1] = id
+                        costOf[id] = costOf[id] or costText(k)
+                    end
+                end
+            end
+            local seen = {}
+            local function learnKind(id)
+                if seen[id] then return end
+                seen[id] = true
+                local kind, mountID
+                if C_MountJournal and C_MountJournal.GetMountFromItem then
+                    local ok, mid = pcall(C_MountJournal.GetMountFromItem, id)
+                    if ok and type(mid) == "number" and mid > 0 then kind, mountID = "mount", mid end
+                end
+                if not kind and C_PetJournal and C_PetJournal.GetPetInfoByItemID then
+                    local ok, nm = pcall(C_PetJournal.GetPetInfoByItemID, id)
+                    if ok and nm then kind = "pet" end
+                end
+                if not kind and C_ToyBox and C_ToyBox.GetToyInfo then
+                    local ok, tid = pcall(C_ToyBox.GetToyInfo, id)
+                    if ok and tid then kind = "toy" end
+                end
+                if not kind and C_HousingCatalog and C_HousingCatalog.GetCatalogEntryInfoByItem then
+                    local ok, info = pcall(C_HousingCatalog.GetCatalogEntryInfoByItem, id, true)
+                    if ok and type(info) == "table" then kind = "decor" end
+                end
+                if not kind then
+                    local _, _, _, _, _, classID = C_Item.GetItemInfoInstant(id)
+                    if classID == 9 then kind = "recipe" end
+                end
+                kind = kind or "item"   -- every other item too: gear, soulbound items, materials, consumables, anything a vendor sells
+                if vName and vMap then
+                    SFP.db.vendorLearned = SFP.db.vendorLearned or {}
+                    local rec = SFP.db.vendorLearned[id]
+                    local here = { v = vName, m = vMap, x = vx, y = vy, c = costOf[id] }
+                    if not rec then
+                        SFP.db.vendorLearned[id] = { k = kind, v = vName, m = vMap, x = vx, y = vy, mount = mountID, c = costOf[id] }
+                    else
+                        -- already known: the cost is refreshed, and a second and third vendor that sells it are kept
+                        if costOf[id] and rec.v == vName then rec.c = costOf[id] end
+                        if rec.v ~= vName then
+                            rec.more = rec.more or {}
+                            local have = false
+                            for _, o in ipairs(rec.more) do if o.v == vName then have = true; o.c = costOf[id] or o.c end end
+                            if not have and #rec.more < 2 then rec.more[#rec.more + 1] = here end
+                        end
+                    end
+                    if (kind == "mount" or kind == "pet" or kind == "toy") and SFP.Items and not SFP.Items[id] then
+                        SFP.Items[id] = { kind = kind, note = "Sold by " .. vName, fromVendor = true }
+                        if SFP.trackedIDs then SFP.trackedIDs[id] = true end
+                    end
+                end
+            end
+            for _, id in ipairs(all) do learnKind(id) end
+            local i = 1
+            local function step()
+                for _ = 1, 20 do
+                    if i > #ids then return end
+                    if not SFP.db.knownItems[ids[i]] then recordItem(ids[i]) end
+                    i = i + 1
+                end
+                if i <= #ids then C_Timer.After(0.1, step) end
+            end
+            if #ids > 0 then SFP:Safe("record vendor items", step) end
+        end)
+    elseif event == "BANKFRAME_OPENED" or event == "PLAYERBANKSLOTS_CHANGED" or event == "PLAYERREAGENTBANKSLOTS_CHANGED"
+        or event == "BANK_TAB_SETTINGS_UPDATED" then
+        -- the items in your bank, reagent bank and warband (account) bank are learned too
+        if bankTimer then return end
+        bankTimer = true
+        C_Timer.After(0.8, function()
+            bankTimer = nil
+            local bags = {}
+            if Enum and Enum.BagIndex then
+                for name, idx in pairs(Enum.BagIndex) do
+                    if type(name) == "string" and type(idx) == "number"
+                        and (name:find("Bank") or name:find("Reagent") or name:find("Account")) then
+                        bags[#bags + 1] = idx
+                    end
+                end
+            else
+                bags = { -1, 5, 6, 7, 8, 9, 10, 11, -3 }
+            end
+            table.sort(bags)
+            local ids = {}
+            for _, bag in ipairs(bags) do
+                local n = C_Container and C_Container.GetContainerNumSlots and C_Container.GetContainerNumSlots(bag) or 0
+                for slot = 1, (tonumber(n) or 0) do
+                    local info = C_Container.GetContainerItemInfo and C_Container.GetContainerItemInfo(bag, slot)
+                    local id = type(info) == "table" and info.itemID
+                    if type(id) == "number" and id > 0 and not SFP.db.knownItems[id] then ids[#ids + 1] = id end
+                end
+            end
+            local i = 1
+            local function step()
+                for _ = 1, 25 do
+                    if i > #ids then return end
+                    if not SFP.db.knownItems[ids[i]] then recordItem(ids[i]) end
+                    i = i + 1
+                end
+                if i <= #ids then C_Timer.After(0.1, step) end
+            end
+            if #ids > 0 then SFP:Safe("record bank items", step) end
+        end)
     elseif event == "TRADE_SKILL_SHOW" or event == "TRADE_SKILL_LIST_UPDATE" then
         if not recipeTimer then
             recipeTimer = true
@@ -685,8 +884,48 @@ ev:SetScript("OnEvent", function(_, event, a, b, c, d)
 end)
 
 SFP:OnLogin(function()
+    -- older versions saved every recipe of an opened profession, learned or not, and the seed data added recipes of another
+    -- account: the list starts again once and from now on holds only recipes this account's characters really learned
+    if (SFP.db.recipesVersion or 0) < 2 then
+        SFP.db.recipes = {}
+        SFP.db.recipesVersion = 2
+        SFP.usedIn, SFP.madeBy = nil, nil
+    end
     initSpellNames()
     buildSeeds()
+    -- the collectables learned from vendors join the item list again after each login
+    for id, v in pairs(SFP.db.vendorLearned or {}) do
+        if (v.k == "mount" or v.k == "pet" or v.k == "toy") and SFP.Items and not SFP.Items[id] then
+            SFP.Items[id] = { kind = v.k, note = "Sold by " .. tostring(v.v), fromVendor = true }
+            if SFP.trackedIDs then SFP.trackedIDs[id] = true end
+        end
+    end
+    -- the materials of the recipes already saved are learned too (a few at a time, after the game has loaded)
+    C_Timer.After(25, function()
+        local ids, n = {}, 0
+        for _, r in pairs(SFP.db.recipes or {}) do
+            for _, rg in ipairs(r.r or {}) do
+                if rg[1] and not SFP.db.knownItems[rg[1]] and not ids[rg[1]] then ids[rg[1]] = true; n = n + 1 end
+            end
+        end
+        -- and the materials of EVERY crafting profession, from the shipped recipe data (Alchemy to Tailoring), opened or not
+        for _, r in ipairs(SFP.RecipeData or {}) do
+            for _, rg in ipairs(r[5] or {}) do
+                local id = rg[1]
+                if id and not SFP.db.knownItems[id] and not ids[id] then ids[id] = true; n = n + 1 end
+            end
+        end
+        local list = {}
+        for id in pairs(ids) do list[#list + 1] = id end
+        local i = 1
+        local function step()
+            for _ = 1, 25 do
+                if list[i] then SFP.LearnMaterial(list[i]); i = i + 1 end
+            end
+            if list[i] then C_Timer.After(0.2, step) end
+        end
+        if n > 0 then step() end
+    end)
     -- items we already know that are materials join the farm list straight away
     for id in pairs(SFP.db.knownItems) do SFP:ClassifyItem(id) end
     local TT = Enum and Enum.TooltipDataType

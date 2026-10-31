@@ -35,6 +35,7 @@ local function makeWindow(name, title, w, h)
     f.title:SetText(title)
     local close = CreateFrame("Button", nil, f, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", 2, 2)
+    f.closeBtn = close
     f.scroll = CreateFrame("ScrollFrame", name .. "Scroll", f, "UIPanelScrollFrameTemplate")
     f.scroll:SetPoint("TOPLEFT", 12, -34)
     f.scroll:SetPoint("BOTTOMRIGHT", -30, 12)
@@ -482,6 +483,64 @@ local function recipeOf(key)
     return (SFP.db.recipes and SFP.db.recipes[key]) or shippedRecipes()[key]
 end
 
+-- profit of one craft from the auction prices: what the product sells for (after the 5% cut) minus the reagents.
+-- A few seconds of price memory keeps sorting thousands of recipes quick.
+local pcache, pcacheT = {}, 0
+local function cachedPrice(id)
+    if GetTime() - pcacheT > 5 then wipe(pcache); pcacheT = GetTime() end
+    local v = pcache[id]
+    if v == nil then
+        local ok, p = pcall(SFP.GetPrice, SFP, id)
+        v = (ok and type(p) == "number" and p > 0) and p or false
+        pcache[id] = v
+    end
+    return v or nil
+end
+
+-- returns profit (copper, negative = loss), cost; nil when the product or a reagent has no price yet
+local function recipeProfit(rec)
+    if not rec or not rec.o then return nil end
+    local sell = cachedPrice(rec.o)
+    if not sell and rec.n then
+        -- no price for that item ID: the same name at the auction house (crafted gear has an ID per quality)
+        local ok, p = pcall(SFP.PriceByName, SFP, rec.n)
+        if ok and type(p) == "number" and p > 0 then sell = p end
+    end
+    if not sell then return nil end
+    local cost = 0
+    for _, rg in ipairs(rec.r or {}) do
+        local p = cachedPrice(rg[1])
+        if not p then return nil end
+        cost = cost + p * (rg[2] or 1)
+    end
+    return math.floor(sell * 0.95 - cost), cost
+end
+
+local function profitText(rec)
+    local profit = recipeProfit(rec)
+    if not profit then return "|cff808080profit ?|r" end
+    if profit >= 0 then return "|cff40ff40+" .. money(profit) .. "|r" end
+    return "|cffff6060-" .. money(-profit) .. "|r"
+end
+
+local shopSortProfit, shopKnownOnly = false, false   -- "Best profit" and "My recipes only" (the two extra tabs)
+local shopLearned, shopLearnedCount = {}, 0   -- recipes your characters learned ("Profession|Name"), and how many lead the best-profit list
+
+-- the professions of this character with their skill, for the window title (it follows when you level up)
+local function skillLine()
+    if not (GetProfessions and GetProfessionInfo) then return "" end
+    local parts = {}
+    for _, idx in ipairs({ GetProfessions() }) do
+        if idx then
+            local ok, name, _, skill, maxSkill = pcall(GetProfessionInfo, idx)
+            if ok and type(name) == "string" and type(skill) == "number" then
+                parts[#parts + 1] = ("%s %d/%d"):format(name, skill, maxSkill or 0)
+            end
+        end
+    end
+    return table.concat(parts, ", ")
+end
+
 local function shopData()
     SFP.db.shopList = SFP.db.shopList or {}
     return SFP.db.shopList
@@ -535,6 +594,9 @@ end
 
 shopRefresh = function()
     if not shopWin then return end
+    -- the title shows the professions with their skill, so it follows when you level up
+    local sk = skillLine()
+    shopWin.title:SetText("Recipe planner" .. (sk ~= "" and ("   |cff808080" .. sk .. "|r") or ""))
     shopFillRows()
     local lines = {}
     if #shopData() == 0 then
@@ -551,7 +613,9 @@ shopRefresh = function()
             if unit <= 0 then unknown = unknown + 1 end
             local src = SFP.itemSources and SFP.itemSources[id]
             local farm = (src and src[1]) and ("  |cff80ff80farm: " .. src[1] .. "|r") or ""
-            lines[#lines + 1] = ("%dx %s   %s each = %s%s"):format(need[id], SFP:ItemName(id), unit > 0 and money(unit) or "|cffff6060no price|r", unit > 0 and money(cost) or "?", farm)
+            local stack = SFP:StackCount(id)
+            local stackText = (unit > 0 and stack and stack > 1) and ("   |cff808080stack of " .. stack .. ": " .. money(unit * stack) .. "|r") or ""
+            lines[#lines + 1] = ("%dx %s   %s each = %s%s%s"):format(need[id], SFP:ItemName(id), unit > 0 and money(unit) or "|cffff6060no price|r", unit > 0 and money(cost) or "?", stackText, farm)
         end
         lines[#lines + 1] = ""
         lines[#lines + 1] = "|cff00e5ffBuying all reagents:|r " .. money(total) .. (unknown > 0 and ("  |cffff6060(" .. unknown .. " without a price)|r") or "")
@@ -575,10 +639,19 @@ local shopResRows
 shopShowResults = function()
     if not shopResRows then return end
     local items = {}
-    for _, key in ipairs(shopFound) do
+    for idx, key in ipairs(shopFound) do
         local rec = recipeOf(key)
+        -- best profit: two blocks, what you learned and what you have not learned yet
+        if shopSortProfit and idx == 1 and shopLearnedCount > 0 then
+            items[#items + 1] = { text = "|cff40ff40Learned - best profit first|r", buttons = {} }
+        end
+        if shopSortProfit and idx == shopLearnedCount + 1 then
+            items[#items + 1] = { text = "|cffff9040Not learned yet - best profit first|r", buttons = {} }
+        end
+        local learned = rec and shopLearned[(rec.p or "") .. "|" .. (rec.n or "")]
         items[#items + 1] = {
-            text = ((rec and rec.n) or key) .. "  |cff808080" .. ((rec and rec.p) or "") .. "|r",
+            text = ((rec and rec.n) or key) .. "  |cff808080" .. ((rec and rec.p) or "") .. "|r  " .. profitText(rec) ..
+                (learned and "  |cff40ff40learned|r" or "  |cffff9040not learned|r"),
             check = shopIndex(key) ~= nil,
             onToggle = function(on)
                 local i = shopIndex(key)
@@ -609,6 +682,8 @@ local function shopSearch(text)
     shopFound = {}
     shopTruncated = false
     local learnedNames = {}
+    shopLearned = learnedNames
+    shopLearnedCount = 0
     local function consider(key, rec)
         if (#text >= 2 or not shopProf or rec.p == shopProf) and (#text < 2 or (rec.n or ""):lower():find(text, 1, true)) then
             shopFound[#shopFound + 1] = key
@@ -618,31 +693,84 @@ local function shopSearch(text)
         learnedNames[(rec.p or "") .. "|" .. (rec.n or "")] = true
         consider(key, rec)
     end
-    -- the shipped recipes; one your characters learned themselves is not listed twice
-    for key, rec in pairs(shippedRecipes()) do
-        if not learnedNames[(rec.p or "") .. "|" .. (rec.n or "")] then consider(key, rec) end
+    -- the shipped recipes; one your characters learned themselves is not listed twice.
+    -- "My recipes only": just the ones your characters learned (they grow when you level a profession and open it)
+    if not shopKnownOnly then
+        for key, rec in pairs(shippedRecipes()) do
+            if not learnedNames[(rec.p or "") .. "|" .. (rec.n or "")] then consider(key, rec) end
+        end
     end
-    table.sort(shopFound, function(x, y)
-        local rx, ry = recipeOf(x), recipeOf(y)
-        local px, py = (rx and rx.p) or "", (ry and ry.p) or ""
-        if px ~= py then return px < py end
-        local nx, ny = (rx and rx.n) or x, (ry and ry.n) or y
-        if nx ~= ny then return nx < ny end
-        return x < y
-    end)
+    if shopSortProfit then
+        -- best profit first: only crafts whose product and reagents have an auction price
+        local profit, kept = {}, {}
+        for _, key in ipairs(shopFound) do
+            local p = recipeProfit(recipeOf(key))
+            if p then profit[key] = p; kept[#kept + 1] = key end
+        end
+        -- the recipes you learned come first (best profit first), then the ones you have not learned yet
+        local known, unknown = {}, {}
+        for _, key in ipairs(kept) do
+            local r = recipeOf(key)
+            if r and learnedNames[(r.p or "") .. "|" .. (r.n or "")] then known[#known + 1] = key else unknown[#unknown + 1] = key end
+        end
+        local function byProfit(x, y)
+            if profit[x] ~= profit[y] then return profit[x] > profit[y] end
+            return x < y
+        end
+        table.sort(known, byProfit)
+        table.sort(unknown, byProfit)
+        shopFound = {}
+        for _, key in ipairs(known) do shopFound[#shopFound + 1] = key end
+        for _, key in ipairs(unknown) do shopFound[#shopFound + 1] = key end
+        shopLearnedCount = #known
+    else
+        table.sort(shopFound, function(x, y)
+            local rx, ry = recipeOf(x), recipeOf(y)
+            local px, py = (rx and rx.p) or "", (ry and ry.p) or ""
+            if px ~= py then return px < py end
+            local nx, ny = (rx and rx.n) or x, (ry and ry.n) or y
+            if nx ~= ny then return nx < ny end
+            return x < y
+        end)
+    end
     if #shopFound > SHOP_MAX then
         shopTruncated = #shopFound
         while #shopFound > SHOP_MAX do table.remove(shopFound) end
     end
     shopShowResults()
 end
+-- leveling a profession or learning a recipe: the recipe list and the profits are read again
+do
+    local f = CreateFrame("Frame")
+    for _, e in ipairs({ "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "NEW_RECIPE_LEARNED", "TRADE_SKILL_LIST_UPDATE" }) do
+        pcall(f.RegisterEvent, f, e)
+    end
+    local pending = false
+    f:SetScript("OnEvent", function()
+        if pending then return end
+        pending = true
+        C_Timer.After(2, function()
+            pending = false
+            if shopWin and shopWin:IsShown() then SFP:Safe("recipe list", shopSearch, shopBox and shopBox:GetText() or ""); shopRefresh() end
+        end)
+    end)
+end
+
 -- an auction scan finished (or prices changed): redraw what shows prices
 function SFP:PricesChanged()
-    -- new auction prices: choose the best 5 farm spots of each zone again
-    SFP._bestDone = nil
-    for _, z in pairs(SFP.zoneByMap or {}) do z._areas, z._clusters = nil, nil end
-    SFP.hiddenVer = (SFP.hiddenVer or 0) + 1
-    if SFP.RefreshWorldMap then pcall(SFP.RefreshWorldMap) end
+    wipe(pcache); pcacheT = 0
+    SFP._nameIdx = nil   -- the item names of the scan are indexed again when needed
+    if SFP.API and SFP.API.Fire then pcall(SFP.API.Fire) end   -- other addons that registered a callback
+    if SFP.GemHelper then SFP.GemHelper.ResetPrices() end
+    -- the best 5 farm spots of each zone change once a week; only a choice made before any price was known is redone now
+    local bs = SFP.db and SFP.db.bestSpots
+    if bs and bs.priced == false then
+        SFP.db.bestSpots = nil
+        SFP._bestDone = nil
+        for _, z in pairs(SFP.zoneByMap or {}) do z._areas, z._clusters = nil, nil end
+        SFP.hiddenVer = (SFP.hiddenVer or 0) + 1
+        if SFP.RefreshWorldMap then pcall(SFP.RefreshWorldMap) end
+    end
     if SFP.TopSpotsChanged then pcall(SFP.TopSpotsChanged) end
     if shopWin and shopWin:IsShown() then shopRefresh() end
     local okM, _, cns = pcall(SFP_Module, "Codex")
@@ -713,9 +841,16 @@ function SFP:ShowShop()
         end
         table.sort(names)
         table.insert(names, 1, false)
+        names[#names + 1] = "@profit"   -- two switches that sit in the tab row
+        names[#names + 1] = "@known"
+        local function specialLabel(s)
+            if s == "@profit" then return "Best profit: " .. (shopSortProfit and "ON" or "OFF") end
+            return "My recipes only: " .. (shopKnownOnly and "ON" or "OFF")
+        end
         local x, y = 22, -62
         for i, nm in ipairs(names) do
-            local label = nm or "All"
+            local special = type(nm) == "string" and nm:sub(1, 1) == "@" and nm or nil
+            local label = special and specialLabel(special) or (nm or "All")
             local width = math.max(54, #label * 7 + 16)
             if x + width > 520 then x, y = 22, y - 26 end
             local tb = shopWin.tabs[i]
@@ -726,14 +861,23 @@ function SFP:ShowShop()
             tb:SetSize(width, 22)
             tb:ClearAllPoints()
             tb:SetPoint("TOPLEFT", x, y)
-            tb.prof = nm or nil
+            tb.special = special
+            tb.prof = (not special) and (nm or nil) or nil
             tb:SetText(label)
             tb:SetScript("OnClick", function(self)
-                shopProf = self.prof
-                for _, t in ipairs(shopWin.tabs) do t:SetEnabled(t.prof ~= shopProf) end
+                if self.special == "@profit" then
+                    shopSortProfit = not shopSortProfit
+                    self:SetText(specialLabel(self.special))
+                elseif self.special == "@known" then
+                    shopKnownOnly = not shopKnownOnly
+                    self:SetText(specialLabel(self.special))
+                else
+                    shopProf = self.prof
+                    for _, t in ipairs(shopWin.tabs) do t:SetEnabled(t.special or t.prof ~= shopProf) end
+                end
                 shopSearch(shopBox:GetText())
             end)
-            tb:SetEnabled(tb.prof ~= shopProf)
+            tb:SetEnabled(tb.special and true or (tb.prof ~= shopProf))
             tb:Show()
             x = x + width + 4
         end
@@ -742,6 +886,18 @@ function SFP:ShowShop()
     shopWin:Show()
     shopSearch(shopBox:GetText())   -- recipes learned since the last time show up
     shopRefresh()
+end
+
+-- open the planner on one profession, optionally with the best profit first (the button in the profession window)
+function SFP:ShowShopFor(prof, bestProfit)
+    shopProf = prof
+    shopSortProfit = bestProfit and true or false
+    self:ShowShop()
+    for _, t in ipairs(shopWin.tabs) do
+        if t.special == "@profit" then t:SetText("Best profit: " .. (shopSortProfit and "ON" or "OFF")) end
+        if not t.special then t:SetEnabled(t.prof ~= shopProf) end
+    end
+    shopSearch(shopBox:GetText())
 end
 
 ---------------------------------------------------------------------------
