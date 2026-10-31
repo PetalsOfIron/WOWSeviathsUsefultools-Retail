@@ -174,12 +174,11 @@ local buildAlerts = simplePage("Rare Alerts",
     end)
 
 local buildKilled = simplePage("Killed Today",
-    "Everything you killed today (since the daily reset) that gave loot, per character. Rares are greyed out on the map and marked [killed today] until the reset. " ..
+    "The rares and bosses you killed this week (since the weekly reset) that gave loot, per character. Normal monsters are not listed. Rares are greyed out on the map and marked [killed today] until the weekly reset. " ..
     "The switch for this is on the Settings page.",
     function(pane, y)
-        mkButton(pane, "Forget today's kills", 170, function() SFP:ClearKilled(); pane.refresh() end,
-            "Shows the rares you killed today on the map again."):SetPoint("TOPLEFT", 12, y)
-        mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 192, y)
+        mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 12, y)
+
         local scroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
         scroll:SetPoint("TOPLEFT", 12, y - 34)
         scroll:SetPoint("BOTTOMRIGHT", -30, 10)
@@ -201,7 +200,7 @@ local buildKilled = simplePage("Killed Today",
                 end
                 lines[#lines + 1] = ("  %s%s  |cff808080%s  -  %s|r"):format(k.name, k.rare and "  |cffff9933[rare]|r" or "", k.zone, date("%H:%M", k.t))
             end
-            if #lines == 0 then lines[1] = "Nothing killed today yet that gave loot." end
+            if #lines == 0 then lines[1] = "No rare killed this week yet (only rares and bosses are listed)." end
             txt:SetText(table.concat(lines, "\n"))
             child:SetHeight(txt:GetStringHeight() + 10)
         end
@@ -328,9 +327,9 @@ local buildSession = simplePage("Farm Session",
         mkButton(pane, "Show / hide window", 160, function() SFP:SessionToggle("window") end):SetPoint("TOPLEFT", 288, y - 26)
         mkButton(pane, "Open farm session window", 210, function() SFP:ShowSessionControl() end,
             "A small window you can move anywhere with Play, Stop and Show/Hide buttons."):SetPoint("TOPLEFT", 12, y - 52)
-        local txt = mkText(pane, "", 12, y - 64, 500, "GameFontHighlightSmall")
+        local txt = mkText(pane, "", 12, y - 86, 500, "GameFontHighlightSmall")
         local cmds = mkText(pane, "Commands:\n/sfp session  -  start a session (or show the window)\n/sfp session stop  -  stop it and print the result\n" ..
-            "/sfp session hide  -  hide the window     /sfp session show  -  show it again", 12, y - 150, 500, "GameFontHighlightSmall")
+            "/sfp session hide  -  hide the window     /sfp session show  -  show it again", 12, y - 170, 500, "GameFontHighlightSmall")
         cmds:SetTextColor(0.7, 0.7, 0.7)
         return function()
             local s = SFP.session
@@ -402,7 +401,7 @@ local buildCollect = simplePage("My Collections",
     "The game remembers your transmog, mounts and battle pets, also from before this addon was installed. The addon reads them by itself in the background: on the first start after the install, and again when the number of mounts or pets changes, so you never have to press anything. Monster tooltips and the Codex " ..
     "(tab My Collection History) can say what you already own from a monster, and so What To Farm Next knows what you miss.",
     function(pane, y)
-        local txt = mkText(pane, "", 12, y - 40, 500, "GameFontHighlightSmall")
+        local txt = mkText(pane, "", 12, y - 30, 500, "GameFontHighlightSmall")
         local function status()
             local h = SFP.db.history
             if not h or not h.t or h.t == 0 then return "Not read yet - it starts by itself about 20 seconds after you log in." end
@@ -423,7 +422,97 @@ local buildCollect = simplePage("My Collections",
             SFP:ScanTransmogHistory(true)
             C_Timer.After(1, function() txt:SetText(status()) end)
         end):SetPoint("TOPLEFT", 12, y)
-        return function() txt:SetText(status()) end
+        -- the planner: pick the mounts, pets and toys you want to farm
+        mkText(pane, CYHEX .. "Your collection plan|r", 12, y - 62, 400, "GameFontNormal")
+        local plan = SFP.MakeRowList(pane, 8, y - 80, 500, 110, 22)
+        local planInfo = mkText(pane, "", 12, y - 194, 480, "GameFontHighlightSmall")
+        mkText(pane, "Tick what you want (search a mount, pet or toy by name or by where it comes from); untick to remove it:", 12, y - 212, 500, "GameFontHighlightSmall")
+        local box = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
+        box:SetSize(260, 20)
+        box:SetPoint("TOPLEFT", 16, y - 230)
+        box:SetAutoFocus(false)
+        box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+        local results = SFP.MakeRowList(pane, 8, y - 254, 500, 150, 22)
+        local function planData()
+            SFP.db.collPlan = SFP.db.collPlan or {}
+            return SFP.db.collPlan
+        end
+        local function planIndex(e)
+            for i, p in ipairs(planData()) do if p.key == e.key then return i end end
+        end
+        local function ownedText(e)
+            local own = SFP:CollOwned(e)
+            if own == nil then return "|cff808080owned?|r" end
+            return own and "|cff40ff40owned|r" or "|cffff6060missing|r"
+        end
+        local function line(e, n)
+            local src = e.source and e.source ~= "" and ("  |cff808080" .. e.source:sub(1, n) .. "|r") or ""
+            return ("%s [%s] %s%s"):format(SFP:CollEntryName(e), e.kind, "", src)
+        end
+        local fillPlan, fillResults
+        fillPlan = function()
+            local entries = SFP:CollectEntries()
+            local byKey = {}
+            for _, e in ipairs(entries or {}) do byKey[e.key] = e end
+            local items, have = {}, 0
+            for i, p in ipairs(planData()) do
+                local e = byKey[p.key]
+                if e then
+                    if SFP:CollOwned(e) then have = have + 1 end
+                    items[#items + 1] = {
+                        text = ownedText(e) .. " " .. line(e, 80),
+                        check = true,
+                        onToggle = function(on) if not on then table.remove(planData(), i); fillPlan(); fillResults() end end,
+                        buttons = e.pts and { { "Waypoint", 70, function() SFP:CollWaypoint(e) end } } or {},
+                    }
+                else
+                    items[#items + 1] = {
+                        text = "|cff808080" .. (p.name or p.key) .. "|r",
+                        check = true,
+                        onToggle = function(on) if not on then table.remove(planData(), i); fillPlan(); fillResults() end end,
+                    }
+                end
+            end
+            plan:Set(items)
+            planInfo:SetText(#items == 0 and "|cff808080Nothing planned yet. Search below and tick what you want.|r"
+                or ("|cff808080" .. #items .. " planned, " .. have .. " owned. A Waypoint button shows when the rare's spawn spots are known.|r"))
+        end
+        fillResults = function()
+            local q = (box:GetText() or ""):lower()
+            local items = {}
+            if #q >= 2 then
+                local entries = SFP:CollectEntries()
+                if not entries then
+                    items[1] = { text = "|cff808080Reading the mount journal...|r", buttons = {} }
+                else
+                    for _, e in ipairs(entries) do
+                        if SFP:CollEntryName(e):lower():find(q, 1, true) or (e.source or ""):lower():find(q, 1, true) then
+                            items[#items + 1] = {
+                                text = ownedText(e) .. " " .. line(e, 60),
+                                check = planIndex(e) ~= nil,
+                                onToggle = function(on)
+                                    if on then
+                                        if not planIndex(e) then table.insert(planData(), { key = e.key, name = SFP:CollEntryName(e) }) end
+                                    else
+                                        local k = planIndex(e)
+                                        if k then table.remove(planData(), k) end
+                                    end
+                                    fillPlan(); fillResults()
+                                end,
+                                buttons = e.pts and { { "Waypoint", 70, function() SFP:CollWaypoint(e) end } } or {},
+                            }
+                            if #items >= 60 then break end
+                        end
+                    end
+                    if #items == 0 then items[1] = { text = "|cff808080Nothing matches.|r", buttons = {} } end
+                end
+            end
+            results:Set(items)
+        end
+        box:SetScript("OnTextChanged", function() fillResults() end)
+        SFP.CollPlanChanged = function() fillPlan(); fillResults() end
+        SFP:CollectEntries()
+        return function() txt:SetText(status()); fillPlan() end
     end)
 
 local buildShare = simplePage("Share Data",
@@ -676,20 +765,25 @@ local buildZone = simplePage("Zone Check",
     "What you still miss in the zone or instance you are in: mounts, pets and toys from its rares and bosses. This page updates by itself. The switch for the one chat line when you enter a zone is on the Settings page.",
     function(pane, y)
         mkButton(pane, "Open Settings", 150, function() SFP:ShowMenuSection("settings") end):SetPoint("TOPLEFT", 12, y)
-        local scroll = CreateFrame("ScrollFrame", nil, pane, "UIPanelScrollFrameTemplate")
-        scroll:SetPoint("TOPLEFT", 12, y - 34)
-        scroll:SetPoint("BOTTOMRIGHT", -30, 10)
-        local child = CreateFrame("Frame", nil, scroll)
-        child:SetSize(480, 10)
-        scroll:SetScrollChild(child)
-        local txt = child:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        txt:SetPoint("TOPLEFT")
-        txt:SetWidth(470)
-        txt:SetJustifyH("LEFT")
-        txt:SetSpacing(3)
+        local head = mkText(pane, "", 12, y - 34, 480, "GameFontNormal")
+        local list = SFP.MakeRowList(pane, 8, y - 54, 500, 380, 22)
         return function()
-            txt:SetText(SFP:ZoneCheckReport())
-            child:SetHeight(txt:GetStringHeight() + 10)
+            local title, ents = SFP:ZoneCheckRows()
+            if #ents == 0 then
+                head:SetText(CYHEX .. title .. "|r  -  nothing missing here that the addon knows about")
+                list:Set({})
+                return
+            end
+            head:SetText(("%s%s|r  -  you still miss %d here"):format(CYHEX, title, #ents))
+            local items = {}
+            for i, e in ipairs(ents) do
+                local spot = e.spot
+                items[i] = {
+                    text = e.text,
+                    buttons = spot and { { "Waypoint", 70, function() SFP:ZoneCheckWaypoint(spot) end } } or {},
+                }
+            end
+            list:Set(items)
         end
     end)
 
@@ -804,7 +898,7 @@ local GUIDE_CATS = {
 }
 local function buildGuides(pane)
     mkText(pane, CYHEX .. "Guides (Codex)|r", 12, -10, 480, "GameFontNormalLarge")
-    mkText(pane, "A guide to doing things: each part opens the Codex on that page.", 12, -34, 500, "GameFontHighlightSmall")
+    mkText(pane, "A guide to doing things: dungeons, raids, bosses, monsters, loot, delves, entrances, quests, mounts, battle pets, achievements, materials, gold farming and the top 10 best grinding spots. It all opens in the Codex; pick the part there.", 12, -34, 500, "GameFontHighlightSmall")
     local box = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
     box:SetSize(260, 20)
     box:SetPoint("TOPLEFT", 18, -60)
@@ -816,14 +910,10 @@ local function buildGuides(pane)
     end)
     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     mkText(pane, "|cff808080search everything, press Enter|r", 290, -64, 220, "GameFontHighlightSmall")
-    for i, c in ipairs(GUIDE_CATS) do
-        local col = (i - 1) % 2
-        local row = math.floor((i - 1) / 2)
-        mkButton(pane, c[2], 245, function()
-            local cx = codex()
-            if cx then cx:StartIndexing(); cx:OpenCategory(c[1]) else SFP:Print("The Codex is not loaded.") end
-        end, c[3]):SetPoint("TOPLEFT", 12 + col * 255, -92 - row * 30)
-    end
+    mkButton(pane, "Open Codex", 245, function()
+        local cx = codex()
+        if cx then cx:StartIndexing(); cx:Toggle("") else SFP:Print("The Codex is not loaded.") end
+    end, "Opens the Codex with all guides. The Best Grinding Spots tab has the top 10 farm spots."):SetPoint("TOPLEFT", 12, -92)
 end
 
 local function buildGroups(pane)

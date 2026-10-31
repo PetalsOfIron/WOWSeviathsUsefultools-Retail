@@ -172,6 +172,27 @@ function ns:GrindText(e)
         end
         out[#out + 1] = C .. "What you get|r\n" .. table.concat(lines, "\n")
     end
+    -- why this spot is on the list
+    local why = {}
+    local top = c.items[1]
+    if top and c.value > 0 then
+        local share = math.floor(top.p * 100 / math.max(c.value, 1) + 0.5)
+        if c.basis == "estimate" then
+            why[#why + 1] = ("%s sells for %s and is the best item here (about %d%% of the value by the estimate)."):format(S:ItemName(top.id), money(top.p), math.min(share, 100))
+        else
+            why[#why + 1] = ("%s sells for %s and is the best item here."):format(S:ItemName(top.id), money(top.p))
+        end
+    end
+    why[#why + 1] = ("About %s %s at today's prices%s."):format(money(c.value), c.gather and "per node" or "per kill",
+        c.basis == "estimate" and " (an estimate)" or (" - measured from " .. c.basis:gsub("^your kills ", "your kills ")))
+    if c.points >= 20 then
+        why[#why + 1] = ("%d spawn points: there is almost always one close by, so you rarely wait."):format(c.points)
+    elseif c.points >= 8 then
+        why[#why + 1] = ("%d spawn points: enough to keep moving between them."):format(c.points)
+    else
+        why[#why + 1] = ("only %d spawn points, so it is slower to keep going."):format(c.points)
+    end
+    out[#out + 1] = C .. "Why it is #" .. (e.order or "?") .. "|r\n" .. table.concat(why, " ")
     out[#out + 1] = "|cff888888How the ranking works: value per kill or node at current auction prices, a little higher for spots with " ..
         "many spawn points. Prices differ per realm, so scan the auction house (or use Auctionator / TSM) to keep this current. " ..
         "It compares spots with each other; it is not a gold-per-hour promise.|r"

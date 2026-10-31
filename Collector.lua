@@ -180,7 +180,17 @@ local function onLoot()
             local kind, id = guidInfo(guid)
             if kind == "npc" then
                 local name = (safeGUID("target") == guid) and UnitName("target") or nil
+                if not name and C_TooltipInfo and C_TooltipInfo.GetHyperlink then
+                    local okT, data = pcall(C_TooltipInfo.GetHyperlink, "unit:" .. guid)
+                    local line = okT and data and data.lines and data.lines[1]
+                    local lt = line and line.leftText
+                    if type(lt) == "string" and not (issecretvalue and issecretvalue(lt)) and lt ~= "" then name = lt end
+                end
                 local rec = ensureNpc(id, name)
+                if safeGUID("target") == guid then
+                    local cls = UnitClassification("target")
+                    if cls and cls ~= "normal" then rec.c = cls end
+                end
                 if not seenGuid[guid .. (skin and "s" or "")] then
                     seenGuid[guid .. (skin and "s" or "")] = true
                     if skin then rec.sk = (rec.sk or 0) + 1 else rec.k = (rec.k or 0) + 1; if SFP.NoteKill then SFP:NoteKill(id) end end

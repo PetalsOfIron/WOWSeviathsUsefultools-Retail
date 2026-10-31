@@ -76,6 +76,95 @@ Your ]]..C.."Warband"..R..[[ is every character on your account. Shared across i
 
 Alts level faster thanks to account-wide progress and heirlooms (see the Heirloom tab in Collections).]] },
 
+{ id = "keys", group = "1. Start Here", title = "Keys and windows you will use every day", icon = "INV_Misc_Note_02",
+  tags = "keybind shortcut hotkey window map bags talents character quest log group finder collections",
+  body = [[
+Default keys (you can change them in Options » Keybindings):
+
+]]..C.."M"..R..[[ — world map          ]]..C.."B"..R..[[ — all bags          ]]..C.."C"..R..[[ — character and gear
+]]..C.."N"..R..[[ — talents            ]]..C.."P"..R..[[ — spellbook         ]]..C.."L"..R..[[ — quest log
+]]..C.."I"..R..[[ — Group Finder       ]]..C.."Y"..R..[[ — achievements       ]]..C.."O"..R..[[ — social and friends
+]]..C.."Shift+P"..R..[[ — collections (mounts, pets, toys, transmog)       ]]..C.."Shift+J"..R..[[ — Adventure Guide
+
+Useful habits:
+• Right-click a quest giver's quest in the tracker to see it on the map; Shift+click a quest in the log to track it.
+• Click the small bag-sort button at the top of your bags to tidy them, and use "Sell all junk" at any vendor (the coin button that appears there).
+• Use /reload if the interface acts strange; it is safe and fast.]] },
+
+{ id = "newbie-tips", group = "1. Start Here", title = "Tips nobody tells new players", icon = "INV_Misc_Bag_10",
+  tags = "tips beginner new player rested xp repair auto loot flight points durability hearthstone",
+  body = [[
+• ]]..C.."Rested experience"..R..[[: log out in an inn or a city and you earn bonus experience while away. Your next kills give extra XP (the bar turns blue).
+• ]]..C.."Repair"..R..[[: gear loses durability when you die. A vendor with an anvil icon repairs it for a small price. Don't let it reach zero.
+• ]]..C.."Auto Loot"..R..[[: turn it on in Options » Controls so a corpse empties into your bags with one click (hold Shift to loot manually).
+• ]]..C.."Flight points"..R..[[: talk to a flight master in each new zone to learn the point; later you can fly there from any other one.
+• ]]..C.."Bags are limited"..R..[[: buy or craft bigger bags early, and put things you do not need now in the Warband bank.
+• ]]..C.."Not a rush"..R..[[: you do not have to follow a "best" order. Leveling, dungeons, pets, mounts and professions all count as progress.
+• Read the tooltip of every new ability and item; it tells you what it does and how much it costs.
+• Ask in the guild or in a dungeon "first time here, any tips?" — most players are glad to help.]] },
+
+{ id = "loot-rules", group = "1. Start Here", title = "Loot rules and group manners", icon = "INV_Misc_Bag_09",
+  tags = "need greed pass loot roll group etiquette dungeon queue leave",
+  body = [[
+When a dungeon or raid drops an item, everyone who can use it gets a roll window:
+
+]]..C.."Need"..R..[[ — only if the item is an upgrade for the spec you are playing (or you will use it as a main item).
+]]..C.."Greed"..R..[[ — you would sell or disenchant it, or use it as a spare.
+]]..C.."Transmog"..R..[[ — you only want the look (shown when you do not have the appearance yet).
+]]..C.."Pass"..R..[[ — you do not want it.
+
+Manners that keep groups friendly:
+• Do not Need on gear for another spec or for selling, unless the group agreed.
+• Say "hi" and "ready" in chat; tell the group if you are new — they will explain the bosses.
+• Do not leave right after a wipe; one more try is often enough.
+• Tanks lead the pace: in a dungeon follow the tank unless told otherwise.
+
+Loot you won can be traded to a group member within 2 hours if it is not an upgrade for you.]] },
+
+{ id = "combat-basics", group = "1. Start Here", title = "Combat basics and staying alive", icon = "Ability_Warrior_Rampage",
+  tags = "combat interrupt kick defensive cooldown red circle avoid aoe death resurrect corpse spirit healer",
+  body = [[
+• ]]..C.."Stay out of the red"..R..[[: red circles, cones and lines on the ground are damage coming. Step out of them; this alone is most of what keeps players alive in dungeons.
+• ]]..C.."Interrupt"..R..[[ (kick): most classes have a short interrupt. Use it on enemy casts that show a shield or a dangerous cast bar.
+• ]]..C.."Defensive abilities"..R..[[: every class has a few. Use one when your health is dropping, not at one percent.
+• ]]..C.."Health potions and food"..R..[[: eat or drink out of combat to heal; potions work in combat.
+• Kill the small adds first if your group says so; focus the marked target in a group.
+
+If you die:
+• Click ]]..C.."Release Spirit"..R..[[ and run back to your body as a ghost; when you stand on your corpse press Resurrect. Or accept a resurrect from a healer.
+• The ]]..C.."Spirit Healer"..R..[[ revives you right away at a small durability cost if the run back is too far.
+• In dungeons and raids you can often be resurrected by a combat resurrection; wait for the group's call.]] },
+
+{ id = "lingo", group = "1. Start Here", title = "Chat lingo and abbreviations", icon = "INV_Letter_15",
+  tags = "lfg lfm dps tank healer aoe cc cd boe bop lfr wq mount farm alt rp glossary",
+  body = [[
+]]..C.."LFG / LFM"..R..[[ — looking for group / looking for more.     ]]..C.."DPS"..R..[[ — damage dealer.
+]]..C.."M+ / key"..R..[[ — Mythic+ dungeon and its keystone.             ]]..C.."LFR"..R..[[ — Raid Finder (easiest raid).
+]]..C.."AoE"..R..[[ — damage to many enemies at once.                          ]]..C.."CC"..R..[[ — crowd control (stun, sleep, root...).
+]]..C.."CD"..R..[[ — cooldown, an ability you can use again later.      ]]..C.."BoE / BoP"..R..[[ — bind on equip / bind on pickup.
+]]..C.."WQ"..R..[[ — world quest.                                                                ]]..C.."Alt"..R..[[ — another of your characters.
+]]..C.."Farm"..R..[[ — kill or gather the same thing over and over for loot.   ]]..C.."RNG"..R..[[ — random luck.
+]]..C.."BRB / AFK"..R..[[ — be right back / away from keyboard.
+]]..C.."Pug"..R..[[ — a group of strangers from the Group Finder.         ]]..C.."GG"..R..[[ — good game, said after a run.
+
+Typing /who <name> or checking the Group Finder entry tells you about a player; use the player tags in this addon's Groups page for your own notes on people.]] },
+
+{ id = "tools", group = "1. Start Here", title = "What Seviath's Useful Tools does and where", icon = "INV_Misc_Map_01",
+  tags = "addon seviath useful tools menu minimap farm map decor delve planner auction alt overview what where",
+  body = [[
+Open the menu with the minimap button or ]]..C.."/sut"..R..[[. The left list is the whole addon:
+
+• ]]..C.."Farm & Map, Farm Route, Farm Session"..R..[[ — farm spots on the world map, a route through them, and a timer with gold gained.
+• ]]..C.."Rare Alerts, Killed Today, What To Farm Next"..R..[[ — rares that still drop a mount, pet or toy you miss; best first.
+• ]]..C.."My Collections, Housing Decor"..R..[[ — plan the mounts and decor you want; the lists show owned and missing.
+• ]]..C.."Delve Planner, Delve Keys"..R..[[ — best companion setup per spec and per delve.
+• ]]..C.."Zone Check"..R..[[ — what you still miss in the zone you stand in, with a waypoint button per rare.
+• ]]..C.."Weekly Checklist, Alt Overview"..R..[[ — what is left this week and a list of all your characters, bags, bank and gold.
+• ]]..C.."BoE Deals, Shopping List"..R..[[ — auction prices; scan the auction house once to fill them.
+• ]]..C.."Guides (Codex)"..R..[[ — this guide book.
+
+All saved data is shared by all your characters. The addon is new and still being tested: if something looks wrong, tell the author.]] },
+
 ------------------------------------------------------------------------
 -- Group content
 ------------------------------------------------------------------------

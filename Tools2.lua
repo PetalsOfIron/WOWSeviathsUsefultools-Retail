@@ -16,15 +16,36 @@ local function money(c)
     return math.floor(c / 10000) .. "g"
 end
 local function charKey()
-    return (UnitName("player") or "?") .. "-" .. (GetNormalizedRealmName and GetNormalizedRealmName() or GetRealmName() or "?")
+    return (UnitName("player") or "?") .. "-" .. ((GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName() or "?"):gsub("[%s%-']", ""))
 end
 local function window(name, title, w, h) return SFP.MakeToolWindow(name, title, w, h) end
 
 ---------------------------------------------------------------------------
 -- 11. account-wide alt overview
 ---------------------------------------------------------------------------
+-- older saves could store the realm with spaces ("Argent Dawn") when the game had not given its short name yet:
+-- fold those into the normal key, keeping the newer record
+local function mergeCharKeys(tbl, stamp)
+    if type(tbl) ~= "table" then return end
+    local moves = {}
+    for k in pairs(tbl) do
+        local name, realm = k:match("^(.-)%-(.+)$")
+        if realm and realm:find("[%s%-']") then moves[#moves + 1] = { k, name .. "-" .. realm:gsub("[%s%-']", "") } end
+    end
+    for _, m in ipairs(moves) do
+        local from, to = m[1], m[2]
+        local a, b = tbl[from], tbl[to]
+        if not b or (type(a) == "table" and type(b) == "table" and (a[stamp] or 0) > (b[stamp] or 0)) then tbl[to] = a end
+        tbl[from] = nil
+    end
+end
+
 function SFP:UpdateAlt()
     if not self.db then return end
+    mergeCharKeys(self.db.alts, "t")
+    mergeCharKeys(self.db.weekly, "t")
+    mergeCharKeys(self.db.killed, "t")
+    if self.db.altSel and self.db.altSel:find("%s") then self.db.altSel = nil end
     local rec = { t = time(), level = UnitLevel("player"), money = GetMoney(), profs = {} }
     local _, class = UnitClass("player")
     rec.class = class
@@ -749,24 +770,172 @@ end
 -- 9. missing here: mounts, pets and toys of the rares and bosses of this zone or instance
 ---------------------------------------------------------------------------
 local function missingHere(mapID, instName, limit)
-    local names, count = {}, 0
+    local names, count, ents = {}, 0, {}
+    local spot
     local function check(itemIDs, label)
         for _, itemID in ipairs(itemIDs or {}) do
             local own = SFP.OwnedStatus and SFP:OwnedStatus(itemID)
             if own == false then
                 count = count + 1
-                if not limit or #names < limit then names[#names + 1] = SFP:ItemName(itemID) .. " (" .. label .. ")" end
+                local line = SFP:ItemName(itemID) .. " (" .. label .. ")"
+                if not limit or #names < limit then names[#names + 1] = line end
+                ents[#ents + 1] = { text = line, spot = spot }
             end
         end
     end
     for _, sp in ipairs((SFP.Rares and SFP.Rares[mapID]) or {}) do
-        if sp.items and #sp.items > 0 then check(sp.items, sp.name or "rare") end
+        if sp.items and #sp.items > 0 then
+            spot = (sp.pts and sp.pts ~= "") and { map = mapID, pts = sp.pts, name = sp.name } or nil
+            check(sp.items, sp.name or "rare")
+        end
     end
+    spot = nil
     local zone = SFP.zoneByMap and SFP.zoneByMap[mapID]
     for _, inst in ipairs(zone and zone.instances or {}) do
         if not instName or inst.name == instName then check(inst.items, inst.name) end
     end
-    return count, names
+    return count, names, ents
+end
+
+-- the spawn point of a rare that is nearest to the player (pts is "x,y;x,y;..." in percent)
+local function nearestSpot(spot)
+    local px, py
+    local pos = C_Map.GetPlayerMapPosition and C_Map.GetPlayerMapPosition(spot.map, "player")
+    if pos and pos.GetXY then px, py = pos:GetXY() end
+    local bx, by, bd
+    for xs, ys in spot.pts:gmatch("([%d%.]+),([%d%.]+)") do
+        local x, y = tonumber(xs) / 100, tonumber(ys) / 100
+        local d = px and ((x - px) ^ 2 + (y - py) ^ 2) or 0
+        if not bd or d < bd then bx, by, bd = x, y, d end
+    end
+    return bx, by
+end
+
+-- rows for the Zone Check page: { title, rows = { { text, spot } } }, a waypoint button for rares with known spawn points
+function SFP:ZoneCheckRows()
+    local mapID = C_Map.GetBestMapForUnit("player")
+    if not mapID then return "Your zone is not known yet.", {} end
+    local inInstance, itype = IsInInstance()
+    local instName = (inInstance and (itype == "party" or itype == "raid")) and (GetInstanceInfo()) or nil
+    local _, _, ents = missingHere(mapID, instName)
+    return instName or self:ZoneName(mapID), ents
+end
+
+function SFP:ZoneCheckWaypoint(spot)
+    local x, y = nearestSpot(spot)
+    if x then self:SetWaypoint(spot.map, x / 1, y / 1, spot.name) end
+end
+
+---------------------------------------------------------------------------
+-- 9b. collection planner: mounts (the whole mount journal) and the mounts, pets and toys of the addon's rares and bosses
+---------------------------------------------------------------------------
+local collList, collBuilding
+
+local function cleanSource(s)
+    if type(s) ~= "string" or secret(s) then return "" end
+    s = s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("|T.-|t", ""):gsub("%s*[\r\n]+%s*", "  ")
+    return s
+end
+
+local function buildCollect()
+    if collList or collBuilding then return end
+    collBuilding = true
+    local byKey, list = {}, {}
+    local function add(e)
+        local old = byKey[e.key]
+        if old then
+            if e.pts and not old.pts then old.pts, old.spotMap, old.spotName = e.pts, e.spotMap, e.spotName end
+            if e.rareSource then old.source = e.rareSource end
+            return old
+        end
+        byKey[e.key] = e
+        list[#list + 1] = e
+        return e
+    end
+    local MJ = C_MountJournal
+    -- rares and bosses the addon knows: items of kind mount / pet / toy, with the rare's spawn spots
+    local function fromItems(itemIDs, where, spotMap, pts, spotName)
+        for _, itemID in ipairs(itemIDs or {}) do
+            local info = SFP.Items and SFP.Items[itemID]
+            local kind = info and info.kind
+            if kind == "mount" or kind == "pet" or kind == "toy" then
+                local mountID
+                if kind == "mount" and MJ and MJ.GetMountFromItem then
+                    local ok, id = pcall(MJ.GetMountFromItem, itemID)
+                    if ok and id then mountID = id end
+                end
+                add({
+                    key = mountID and ("m:" .. mountID) or ("i:" .. itemID), kind = kind, itemID = itemID, mountID = mountID,
+                    source = where, rareSource = where, pts = pts, spotMap = spotMap, spotName = spotName,
+                })
+            end
+        end
+    end
+    for mapID, rares in pairs(SFP.Rares or {}) do
+        for _, sp in ipairs(type(rares) == "table" and rares or {}) do
+            if sp.items then
+                fromItems(sp.items, ("Drops from %s (%s)"):format(sp.name or "a rare", SFP:ZoneName(mapID)), mapID, sp.pts, sp.name)
+            end
+        end
+    end
+    for _, zone in pairs(SFP.zoneByMap or {}) do
+        for _, inst in ipairs(zone.instances or {}) do
+            fromItems(inst.items, "Drops in " .. (inst.name or "an instance"), nil, nil, nil)
+        end
+    end
+    -- the mount journal, a few hundred per frame
+    local ids = {}
+    if MJ and MJ.GetMountIDs then
+        local ok, got = pcall(MJ.GetMountIDs)
+        if ok and type(got) == "table" then ids = got end
+    end
+    local i, CH = 1, 120
+    local function step()
+        local stop = math.min(#ids, i + CH - 1)
+        while i <= stop do
+            local mid = ids[i]
+            local ok, name, _, _, _, _, _, _, _, _, hide = pcall(MJ.GetMountInfoByID, mid)
+            if ok and type(name) == "string" and not secret(name) and not hide then
+                local okX, _, _, src = pcall(MJ.GetMountInfoExtraByID, mid)
+                local e = add({ key = "m:" .. mid, kind = "mount", mountID = mid, name = name, source = cleanSource(okX and src or "") })
+                if not e.name then e.name = name end
+                if e.source == "" and e.rareSource then e.source = e.rareSource end
+            end
+            i = i + 1
+        end
+        if i <= #ids then
+            C_Timer.After(0, step)
+        else
+            collList, collBuilding = list, false
+            if SFP.CollPlanChanged then pcall(SFP.CollPlanChanged) end
+        end
+    end
+    step()
+end
+
+function SFP:CollectEntries()
+    if not collList then SFP:Safe("collections", buildCollect) end
+    return collList
+end
+
+function SFP:CollEntryName(e)
+    if e.name then return e.name end
+    return e.itemID and self:ItemName(e.itemID) or "?"
+end
+
+-- true / false, nil when unknown
+function SFP:CollOwned(e)
+    if e.mountID and C_MountJournal and C_MountJournal.GetMountInfoByID then
+        local ok, _, _, _, _, _, _, _, _, _, _, collected = pcall(C_MountJournal.GetMountInfoByID, e.mountID)
+        if ok then return collected and true or false end
+    end
+    if e.itemID and self.OwnedStatus then return self:OwnedStatus(e.itemID) end
+    return nil
+end
+
+function SFP:CollWaypoint(e)
+    if not (e and e.pts and e.spotMap) then return end
+    self:ZoneCheckWaypoint({ map = e.spotMap, pts = e.pts, name = e.spotName or self:CollEntryName(e) })
 end
 
 function SFP:ZoneCheck(quiet)

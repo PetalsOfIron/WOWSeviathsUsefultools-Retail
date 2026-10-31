@@ -232,7 +232,7 @@ end
 -- weekly checklist (all characters)
 ---------------------------------------------------------------------------
 local function charKey()
-    return (UnitName("player") or "?") .. "-" .. (GetNormalizedRealmName and GetNormalizedRealmName() or GetRealmName() or "?")
+    return (UnitName("player") or "?") .. "-" .. ((GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName() or "?"):gsub("[%s%-']", ""))
 end
 
 local VAULT_TYPES = { { "Raid", "Raid", 1 }, { "Dungeons", "Activities", 2 }, { "World", "World", 6 } }
