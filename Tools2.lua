@@ -997,6 +997,24 @@ local function decorEntries()
     return list, fromGame
 end
 
+-- the map of a place named in a decor source ("Dornogal", "Tiragarde Sound"): zones the addon knows, by name
+local placeMaps
+function SFP:MapForPlace(place)
+    if not place or place == "" then return nil end
+    if not placeMaps then
+        placeMaps = {}
+        for mapID in pairs(self.zoneByMap or {}) do
+            local nm = self:ZoneName(mapID)
+            if nm then placeMaps[nm:lower()] = mapID end
+        end
+    end
+    local p = place:lower()
+    if placeMaps[p] then return placeMaps[p] end
+    for nm, mapID in pairs(placeMaps) do
+        if #nm >= 5 and p:find(nm, 1, true) then return mapID end
+    end
+end
+
 -- all decor entries (the addon's data plus what the game's catalog adds), for the housing planner
 function SFP:DecorEntries()
     return (decorEntries())
