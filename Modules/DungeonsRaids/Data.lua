@@ -41,13 +41,10 @@ D.ARMOR = {
   PRIEST = "Cloth", MAGE = "Cloth", WARLOCK = "Cloth",
 }
 
--- Tier token groups
-D.TOKEN = {
-  DEATHKNIGHT = "Dreadful", DEMONHUNTER = "Dreadful", WARLOCK = "Dreadful",
-  DRUID = "Mystic", HUNTER = "Mystic", MAGE = "Mystic",
-  PALADIN = "Venerated", PRIEST = "Venerated", SHAMAN = "Venerated",
-  EVOKER = "Zenith", MONK = "Zenith", ROGUE = "Zenith", WARRIOR = "Zenith",
-}
+-- Tier token groups. Midnight Season 2 (patch 12.1): the token families follow the armor type
+-- (cloth, leather, mail, plate) instead of the old mixed-class groups (Dreadful / Mystic / Venerated / Zenith).
+D.TOKEN = {}
+for class, armor in pairs(D.ARMOR) do D.TOKEN[class] = armor end
 
 D.DIFF_ID = { N = 14, H = 15, M = 16 }
 -- Every difficulty that counts as Normal / Heroic / Mythic, including old 10/25/40-player raids

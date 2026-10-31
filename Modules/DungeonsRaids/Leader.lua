@@ -58,10 +58,16 @@ function ns:GroupCompText()
   lines[#lines + 1] = " "
   lines[#lines + 1] = "|cff" .. ns.CYAN_HEX .. "Tier tokens|r"
   local tok = {}
-  for _, name in ipairs({ "Dreadful", "Mystic", "Venerated", "Zenith" }) do
+  for _, name in ipairs({ "Cloth", "Leather", "Mail", "Plate" }) do
     tok[#tok + 1] = name .. " " .. (c.tokens[name] or 0)
   end
   lines[#lines + 1] = table.concat(tok, "    ")
+  lines[#lines + 1] = " "
+  lines[#lines + 1] = "|cff" .. ns.CYAN_HEX .. "About tier tokens (Midnight Season 2, The Venomous Abyss)|r"
+  lines[#lines + 1] = "A token turns into the tier piece for your class; tokens follow your armor type: Cloth (Mage, Priest, Warlock), Leather (Demon Hunter, Druid, Monk, Rogue), Mail (Evoker, Hunter, Shaman), Plate (Death Knight, Paladin, Warrior)."
+  lines[#lines + 1] = "Slots: Entombed Sentinels - gloves, Vashnik the Malignant - chest, The Lost Explorers - shoulders, Sszorak - legs, The Twin Fangs - helm. The last boss, Ula'tek, drops a flexible curio that can be traded for any token."
+  lines[#lines + 1] = "Four tier pieces turn on the full set bonus (a fifth slot only gives flexibility). The Matrix Catalyst can turn a piece into a missing tier slot; it uses a Venomblight Manaflux per conversion."
+  lines[#lines + 1] = "|cff999999A group with many players of the same armor type competes for each token. Source: Maxroll and WoWCarry guides, Oct 2026; not checked in game.|r"
   return table.concat(lines, "\n")
 end
 
