@@ -876,6 +876,12 @@ local function plainText(t)
 end
 
 -- every decor the game's own housing catalog lists, with the source the game gives for it
+-- the decor list is big: it is built in small slices (about 10 ms per frame) so the game never freezes or stops the script
+local sliceStart = 0
+local function slice()
+    if debugprofilestop and coroutine.running() and debugprofilestop() - sliceStart > 10 then coroutine.yield() end
+end
+
 local function catalogEntries()
     local H = C_HousingCatalog
     local probe = { api = H ~= nil, searchFn = H and H.CreateCatalogSearcher ~= nil, infoFn = H and H.GetCatalogEntryInfo ~= nil, t = time() }
@@ -903,6 +909,7 @@ local function catalogEntries()
     end
     local out = {}
     for _, entryID in ipairs(ids) do
+        slice()
         local okI, info = pcall(H.GetCatalogEntryInfo, entryID)
         if okI and type(info) == "table" and type(info.name) == "string" and not secret(info.name) then
             local qty = math.max((tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0), (tonumber(info.totalNumStored) or 0) + (tonumber(info.totalNumPlaced) or 0) + (tonumber(info.remainingRedeemable) or 0))
@@ -922,10 +929,10 @@ local function decorOwned(itemID)
     return math.max((tonumber(info.quantity) or 0) + (tonumber(info.numPlaced) or 0), (tonumber(info.totalNumStored) or 0) + (tonumber(info.totalNumPlaced) or 0) + (tonumber(info.remainingRedeemable) or 0))
 end
 
-local function decorEntries()
-    if decorCache and GetTime() - decorAt < 60 then return decorCache.list, decorCache.fromGame end
+local function buildDecorEntries()
     local list, byName, byItem, fromGame = {}, {}, {}, false
     for _, d in ipairs(SFP.DecorData or {}) do
+        slice()
         local name = d[3] ~= "" and d[3] or ("Decor item " .. d[1])
         local e = { name = name, itemID = d[1] > 0 and d[1] or nil, decorID = d[2] > 0 and d[2] or nil, source = d[4], unknownOwned = true }
         local own = decorOwned(d[1])
@@ -937,6 +944,7 @@ local function decorEntries()
     end
     -- decor shipped from a played account: fills names and sources and corrects the data
     for _, d in ipairs(SFP.DecorLearned or {}) do
+        slice()
         local name = d[3] ~= "" and d[3] or ("Decor item " .. d[1])
         local old = byItem[d[1]]
         if old then
@@ -954,6 +962,7 @@ local function decorEntries()
     if cat then
         fromGame = true
         for _, c in ipairs(cat) do
+            slice()
             local e = (c.itemID and byItem[c.itemID]) or byName[c.name:lower()]
             local hadID = e and e.decorID
             local changed = false
@@ -983,6 +992,7 @@ local function decorEntries()
     end
     for _, e in ipairs(list) do e.recipeKnown = have[e.name:lower()] end
     for _, e in ipairs(list) do
+        slice()
         local src = (e.source or ""):gsub("^Wowhead %- ", "")
         local kind = src:match("^(.-)[:%(]") or src
         kind = strtrim(kind)
@@ -1021,6 +1031,36 @@ local function decorEntries()
     table.sort(list, function(x, y) return x.name:lower() < y.name:lower() end)
     decorCache, decorAt = { list = list, fromGame = fromGame }, GetTime()
     return list, fromGame
+end
+
+local decorBuilding = false
+local function startDecorBuild()
+    if decorBuilding then return end
+    decorBuilding = true
+    local co = coroutine.create(buildDecorEntries)
+    local function step()
+        sliceStart = debugprofilestop and debugprofilestop() or 0
+        local ok, err = coroutine.resume(co)
+        if not ok then
+            decorBuilding = false
+            geterrorhandler()(err)
+        elseif coroutine.status(co) == "dead" then
+            decorBuilding = false
+            if SFP.RefreshDecorWindow then SFP.RefreshDecorWindow() end
+            if SFP.DecorPlanChanged then SFP.DecorPlanChanged() end
+        else
+            C_Timer.After(0, step)
+        end
+    end
+    step()
+end
+
+-- the list is built in the background; until it is ready the last one (or an empty one) is returned
+local function decorEntries()
+    if decorCache and GetTime() - decorAt < 60 then return decorCache.list, decorCache.fromGame end
+    startDecorBuild()
+    if decorCache then return decorCache.list, decorCache.fromGame end
+    return {}, false
 end
 
 -- the map of a place named in a decor source ("Dornogal", "Tiragarde Sound"): zones the addon knows, by name
@@ -1065,7 +1105,7 @@ end
 -- learning needs no window: reads the housing catalog by itself
 function SFP:LearnDecor()
     decorCache = nil
-    decorEntries()
+    startDecorBuild()
 end
 
 -- the game's housing dashboard (the decor catalog window) has the data loaded: learn from it whenever it opens
