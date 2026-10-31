@@ -164,7 +164,7 @@ local ctl
 function SFP:ShowSessionControl()
     if not ctl then
         ctl = CreateFrame("Frame", "SeviathsUsefulToolsSessionControl", UIParent, "BackdropTemplate")
-        ctl:SetSize(196, 50)
+        ctl:SetSize(236, 50)
         local pos = self.db and self.db.sessionCtlPos
         if pos then ctl:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4]) else ctl:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 20, -180) end
         ctl:SetFrameStrata("HIGH")
@@ -201,8 +201,8 @@ function SFP:ShowSessionControl()
         local function upd()
             local sess = SFP.session
             if not sess then gain:SetText("|cff808080No session - press Play|r"); return end
-            local _, total, perHour = sessionTotals()
-            gain:SetText(("Gained: |cffffd100%s|r  (%s/h)%s"):format(money(total), money(perHour), sess.stop and "  |cff808080stopped|r" or ""))
+            local secs, total, perHour = sessionTotals()
+            gain:SetText(("|cff00e5ff%s|r  Gained: |cffffd100%s|r  (%s/h)%s"):format(fmtTime(secs), money(total), money(perHour), sess.stop and "  |cff808080stopped|r" or ""))
         end
         ctl:SetScript("OnUpdate", function(_, dt)
             acc = acc + dt
