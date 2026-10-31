@@ -12,6 +12,9 @@ ns.CYAN  = "|cff33e6ff"
 ------------------------------------------------------------------------
 ns.CATEGORIES = {
     { key = "guide",      name = "New Player Guide",        icon = "Interface\\Icons\\INV_Misc_Book_09" },
+    { key = "vet",        name = "Veteran Tips",            icon = "Interface\\Icons\\Achievement_Level_90" },
+    { key = "raidg",      name = "Raiding Guide",           icon = "Interface\\Icons\\Achievement_Boss_Kelthuzad_01" },
+    { key = "mpg",        name = "Mythic+ Guide",           icon = "Interface\\Icons\\INV_Relics_Hourglass" },
     { key = "dungeon",    name = "Dungeons",                icon = "Interface\\Icons\\INV_Misc_Key_14" },
     { key = "raid",       name = "Raids",                   icon = "Interface\\Icons\\Achievement_Boss_Ragnaros" },
     { key = "boss",       name = "Bosses",                  icon = "Interface\\Icons\\Achievement_Dungeon_ClassicDungeonMaster" },
@@ -35,6 +38,8 @@ if not (C_TransmogSets and C_TransmogSets.GetAllSets) then
         if ns.CATEGORIES[i].key == "tset" then table.remove(ns.CATEGORIES, i) end
     end
 end
+-- categories whose entries are plain written pages (shown as text, groups sorted by name)
+ns.TEXTCAT = { guide = true, vet = true, raidg = true, mpg = true }
 ns.CATBYKEY = {}
 for _, c in ipairs(ns.CATEGORIES) do ns.CATBYKEY[c.key] = c end
 
@@ -419,6 +424,8 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         db.minimap = db.minimap or { angle = 200, hide = true } -- merged: use the Farm Pack minimap menu
         ns.db = db
         if ns.LoadGuide then ns:LoadGuide() end
+        if ns.LoadVeterans then ns:LoadVeterans() end
+        if ns.LoadRaidMplus then ns:LoadRaidMplus() end
         if ns.LoadSpecial then ns:LoadSpecial() end
     elseif event == "PLAYER_LOGIN" then
         if ns.CreateMinimapButton then ns:CreateMinimapButton() end

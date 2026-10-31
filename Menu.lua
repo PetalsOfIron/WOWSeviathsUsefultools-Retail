@@ -19,7 +19,7 @@ local SECTIONS = {
     { key = "next",     label = "What To Farm Next" },
     { key = "weekly",   label = "Weekly Checklist" },
     { key = "deals",    label = "BoE Deals" },
-    { key = "shop",     label = "Shopping List" },
+    { key = "shop",     label = "Recipe Planner" },
     { key = "collect",  label = "My Collections" },
     { key = "share",    label = "Share Data" },
     { key = "delve",    label = "Delve Planner" },
@@ -127,7 +127,7 @@ local function buildFarm(pane)
         { "showHunter", "Hunter tames" }, { "showMining", "Mining zones" }, { "showHerbs", "Herb zones" },
         { "showDungeons", "Dungeon entrances" }, { "showRaids", "Raid entrances" }, { "showSpecial", "Special materials" },
         { "showGatherList", "Gathering list" }, { "showSpotList", "Farm spot list (switch single spots off)" }, { "showLabels", "Names on the map" }, { "learn", "Learn farm spots from my loot" },
-        { "exactSpots", "Exact spot markers (not areas)" }, { "continentSpots", "Also on continent maps (crowded)" }, { "minimapSpots", "Also show spots on the minimap" },
+        { "exactSpots", "Exact spot markers (special / hunter)" }, { "continentSpots", "Also on continent maps (crowded)" }, { "minimapSpots", "Also show spots on the minimap" },
     }
     pane.checks = {}
     for i, c in ipairs(checks) do
@@ -390,11 +390,11 @@ local buildDeals = simplePage("BoE Deals",
         mkButton(pane, "Open BoE deals", 170, function() SFP:ShowDeals() end):SetPoint("TOPLEFT", 12, y)
     end)
 
-local buildShop = simplePage("Shopping List",
+local buildShop = simplePage("Recipe Planner",
     "Pick the recipes you want to craft: you get the total reagents, their auction prices, the profit and, for each reagent, a place to farm it. " ..
     "To decide farm or buy, compare with your gold per hour from a Farm Session.",
     function(pane, y)
-        mkButton(pane, "Open shopping list", 170, function() SFP:ShowShop() end):SetPoint("TOPLEFT", 12, y)
+        mkButton(pane, "Open recipe planner", 170, function() SFP:ShowShop() end):SetPoint("TOPLEFT", 12, y)
     end)
 
 local buildCollect = simplePage("My Collections",
@@ -426,13 +426,30 @@ local buildCollect = simplePage("My Collections",
         mkText(pane, CYHEX .. "Your collection plan|r", 12, y - 62, 400, "GameFontNormal")
         local plan = SFP.MakeRowList(pane, 8, y - 80, 500, 110, 22)
         local planInfo = mkText(pane, "", 12, y - 194, 480, "GameFontHighlightSmall")
-        mkText(pane, "Tick what you want (search a mount, pet or toy by name or by where it comes from); untick to remove it:", 12, y - 212, 500, "GameFontHighlightSmall")
+        mkText(pane, "Pick from every mount, battle pet and toy in the game (search by name or source, or use the buttons); tick to plan, untick to remove:", 12, y - 212, 500, "GameFontHighlightSmall")
         local box = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
         box:SetSize(260, 20)
         box:SetPoint("TOPLEFT", 16, y - 230)
         box:SetAutoFocus(false)
         box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
         local results = SFP.MakeRowList(pane, 8, y - 254, 500, 150, 22)
+        -- the list holds every mount, battle pet and toy of the game, not only yours: narrow it down here
+        local kindF, missOnly = "all", false
+        local KINDS = { all = "All", mount = "Mounts", pet = "Pets", toy = "Toys" }
+        local KIND_NEXT = { all = "mount", mount = "pet", pet = "toy", toy = "all" }
+        local kindBtn, missBtn
+        kindBtn = mkButton(pane, "Show: All", 100, function()
+            kindF = KIND_NEXT[kindF]
+            kindBtn:SetText("Show: " .. KINDS[kindF])
+            SFP.CollPlanChanged()
+        end)
+        kindBtn:SetPoint("TOPLEFT", 286, y - 229)
+        missBtn = mkButton(pane, "Missing only: off", 120, function()
+            missOnly = not missOnly
+            missBtn:SetText("Missing only: " .. (missOnly and "on" or "off"))
+            SFP.CollPlanChanged()
+        end)
+        missBtn:SetPoint("TOPLEFT", 390, y - 229)
         local function planData()
             SFP.db.collPlan = SFP.db.collPlan or {}
             return SFP.db.collPlan
@@ -463,7 +480,7 @@ local buildCollect = simplePage("My Collections",
                         text = ownedText(e) .. " " .. line(e, 80),
                         check = true,
                         onToggle = function(on) if not on then table.remove(planData(), i); fillPlan(); fillResults() end end,
-                        buttons = e.pts and { { "Waypoint", 70, function() SFP:CollWaypoint(e) end } } or {},
+                        buttons = SFP:CollTarget(e) and { { "Waypoint", 70, function() SFP:CollWaypoint(e) end } } or {},
                     }
                 else
                     items[#items + 1] = {
@@ -480,13 +497,14 @@ local buildCollect = simplePage("My Collections",
         fillResults = function()
             local q = (box:GetText() or ""):lower()
             local items = {}
-            if #q >= 2 then
+            if #q >= 2 or kindF ~= "all" or missOnly then
                 local entries = SFP:CollectEntries()
                 if not entries then
-                    items[1] = { text = "|cff808080Reading the mount journal...|r", buttons = {} }
+                    items[1] = { text = "|cff808080Reading all mounts, pets and toys...|r", buttons = {} }
                 else
                     for _, e in ipairs(entries) do
-                        if SFP:CollEntryName(e):lower():find(q, 1, true) or (e.source or ""):lower():find(q, 1, true) then
+                        if (kindF == "all" or e.kind == kindF) and (not missOnly or SFP:CollOwned(e) == false)
+                            and (#q < 2 or SFP:CollEntryName(e):lower():find(q, 1, true) or (e.source or ""):lower():find(q, 1, true)) then
                             items[#items + 1] = {
                                 text = ownedText(e) .. " " .. line(e, 60),
                                 check = planIndex(e) ~= nil,
@@ -499,9 +517,9 @@ local buildCollect = simplePage("My Collections",
                                     end
                                     fillPlan(); fillResults()
                                 end,
-                                buttons = e.pts and { { "Waypoint", 70, function() SFP:CollWaypoint(e) end } } or {},
+                                buttons = SFP:CollTarget(e) and { { "Waypoint", 70, function() SFP:CollWaypoint(e) end } } or {},
                             }
-                            if #items >= 60 then break end
+                            if #items >= 200 then break end
                         end
                     end
                     if #items == 0 then items[1] = { text = "|cff808080Nothing matches.|r", buttons = {} } end
@@ -605,6 +623,11 @@ local buildDelve = simplePage("Delve Planner",
                     curioBtns[#curioBtns + 1] = b
                 end
             end
+            if n == 0 then
+                -- nothing to pick: one grey line under the heading, no "nothing chosen" line on top of it
+                mkText(c, "|cff808080No verified curios for this slot yet.|r", 0, topY - 24, 480, "GameFontHighlightSmall")
+                return
+            end
             local t = mkText(c, "", 0, topY - 22 - math.ceil(n / 3) * 26 - 4, 480, "GameFontHighlightSmall")
             t:SetSpacing(2)
             curioText[slot] = t
@@ -625,9 +648,6 @@ local buildDelve = simplePage("Delve Planner",
             else
                 curioBlock(sl.key, ("Slot %d - %s (left-click pick, right-click = I have it)"):format(i, sl.label), nextY)
             nextY = nextY - (22 + math.max(1, math.ceil(rows / 3)) * 26 + 56)
-            if rows == 0 then
-                mkText(c, "|cff808080No verified curios for this slot yet.|r", 0, nextY + 56 + 26 - 8, 480, "GameFontHighlightSmall")
-            end
             end
         end
         local best = mkText(c, SFP.CURIO_BEST or "", 0, nextY, 480, "GameFontHighlightSmall")
@@ -898,10 +918,10 @@ local GUIDE_CATS = {
 }
 local function buildGuides(pane)
     mkText(pane, CYHEX .. "Guides (Codex)|r", 12, -10, 480, "GameFontNormalLarge")
-    mkText(pane, "A guide to doing things: dungeons, raids, bosses, monsters, loot, delves, entrances, quests, mounts, battle pets, achievements, materials, gold farming and the top 10 best grinding spots. It all opens in the Codex; pick the part there.", 12, -34, 500, "GameFontHighlightSmall")
+    mkText(pane, "A guide to doing things: dungeons, raids, bosses, loot, delves, quests, mounts, pets, achievements, materials, gold farming and the top 10 grinding spots. It all opens in the Codex; pick the part there.", 12, -34, 500, "GameFontHighlightSmall")
     local box = CreateFrame("EditBox", nil, pane, "InputBoxTemplate")
     box:SetSize(260, 20)
-    box:SetPoint("TOPLEFT", 18, -60)
+    box:SetPoint("TOPLEFT", 18, -84)
     box:SetAutoFocus(false)
     box:SetScript("OnEnterPressed", function(self)
         local cx = codex()
@@ -909,11 +929,11 @@ local function buildGuides(pane)
         self:ClearFocus()
     end)
     box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    mkText(pane, "|cff808080search everything, press Enter|r", 290, -64, 220, "GameFontHighlightSmall")
+    mkText(pane, "|cff808080search everything, press Enter|r", 290, -88, 220, "GameFontHighlightSmall")
     mkButton(pane, "Open Codex", 245, function()
         local cx = codex()
         if cx then cx:StartIndexing(); cx:Toggle("") else SFP:Print("The Codex is not loaded.") end
-    end, "Opens the Codex with all guides. The Best Grinding Spots tab has the top 10 farm spots."):SetPoint("TOPLEFT", 12, -92)
+    end, "Opens the Codex with all guides. The Best Grinding Spots tab has the top 10 farm spots."):SetPoint("TOPLEFT", 12, -116)
 end
 
 local function buildGroups(pane)
@@ -1186,7 +1206,7 @@ local function buildKnow(pane)
         row:SetScript("OnClick", function(self) know.sel = self.key; knowRefresh(pane) end)
         pane.rows[i] = row
     end
-    pane.detail = mkText(pane, "", 252, -40, 262, "GameFontHighlightSmall")
+    pane.detail = mkText(pane, "", 252, -70, 262, "GameFontHighlightSmall")
     pane.detail:SetWidth(262)
     pane.detail:SetJustifyV("TOP")
     pane.refresh = function() knowRebuild(pane); knowRefresh(pane) end

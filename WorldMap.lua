@@ -186,7 +186,7 @@ local function showMultiTip(h)
     tip:SetOwner(UIParent, "ANCHOR_CURSOR_RIGHT", 18, 0)
     tip:ClearLines()
     if h.continent then tip:AddLine(SFP:ZoneName(h.zoneID), 1, 1, 1) end
-    tip:AddLine(#h.spawns .. " farm spots in this area", 0.6, 0.6, 0.6)
+    tip:AddLine(#h.spawns .. " farm spots in this " .. (h.zonewide and "zone - zoom in to see where" or "area"), 0.6, 0.6, 0.6)
     tip:AddLine(string.format("approx. %.1f, %.1f", h.zx * 100, h.zy * 100), 1, 0.82, 0)
     for i, s in ipairs(h.spawns) do
         if i > 6 then tip:AddLine("+" .. (#h.spawns - 6) .. " more - zoom in to see them", 0.6, 0.6, 0.6); break end
@@ -318,11 +318,12 @@ local function getPin()
         p:EnableMouse(false) -- never steal clicks: the map still opens zones normally
         p.outer = p:CreateTexture(nil, "BACKGROUND")
         p.outer:SetTexture(GLOW)
-        p.outer:SetBlendMode("ADD")
+        -- normal blending: overlapping markers must not add up to a white-hot blob
+        p.outer:SetBlendMode("BLEND")
         p.outer:SetPoint("CENTER")
         p.inner = p:CreateTexture(nil, "ARTWORK")
         p.inner:SetTexture(GLOW)
-        p.inner:SetBlendMode("ADD")
+        p.inner:SetBlendMode("BLEND")
         p.inner:SetPoint("CENTER")
         pins[pinUsed] = p
     end
@@ -371,7 +372,7 @@ end
 local function spotKey(sp)
     local k = sp._key
     if not k then
-        k = sp.gather and ("g" .. tostring(sp.items and sp.items[1])) or ("n" .. (sp.npc or 0) .. "|" .. tostring(sp.name))
+        k = sp.gather and ("g" .. tostring(sp.items and sp.items[1])) or ("n|" .. tostring(sp.name))   -- by name: the same monster listed twice is one spot
         sp._key = k
     end
     return k
@@ -379,9 +380,49 @@ end
 SFP.SpotKey = spotKey
 SFP.hiddenVer = 0   -- changes whenever a spot is switched on or off (drawing caches include it)
 
+-- farm monsters: only the 5 best of each zone, by auction house prices. The choice is made once at login and again only
+-- when an auction scan finishes (SFP:PricesChanged), so it does not jump around while you play. Ties use fixed data.
+local BEST_PER_ZONE = 5
+local function markBest()
+    SFP._bestDone = true
+    for _, zone in pairs(SFP.zoneByMap or {}) do
+        local farm = {}
+        for _, s in ipairs(zone.spawns or {}) do
+            if not (s.gather or s.rare or s.special or s.hunter) then
+                s._best = false
+                if not s.learned then farm[#farm + 1] = s end
+            end
+        end
+        -- worth = what the monster's items sell for on the auction house (the saved prices)
+        local function worth(s)
+            local v = 0
+            for _, id in ipairs(s.items or {}) do
+                local ok, p = pcall(SFP.GetPrice, SFP, id)   -- a price lookup that fails must never stop the map from drawing
+                if ok and type(p) == "number" then v = v + p end
+            end
+            return v
+        end
+        local function fixed(s)
+            return (s.bestFor and #s.bestFor or 0) * 1000 + (s.grind and 500 or 0) + #(s.items or {}) * 10 + math.min(#(s.points or {}), 9)
+        end
+        local w, f = {}, {}
+        for _, s in ipairs(farm) do w[s], f[s] = worth(s), fixed(s) end
+        table.sort(farm, function(a, b)
+            if w[a] ~= w[b] then return w[a] > w[b] end
+            if f[a] ~= f[b] then return f[a] > f[b] end
+            return tostring(a.name) < tostring(b.name)
+        end)
+        for i = 1, math.min(BEST_PER_ZONE, #farm) do farm[i]._best = true end
+    end
+end
+
 local function showSpot(sp)
     local hid = SFP.db.hiddenSpots
     if hid and hid[spotKey(sp)] then return false end
+    if not (sp.gather or sp.rare or sp.special or sp.hunter) then
+        if not SFP._bestDone then markBest() end
+        if sp._best == false then return false end
+    end
     if sp.gather then return sp.gather == "ore" and SFP.db.showMining or sp.gather == "herb" and SFP.db.showHerbs or false end
     if sp.hunter then return SFP.db.showHunter end
     if sp.rare then return SFP.db.showRares end
@@ -398,9 +439,13 @@ local function placePin(p, x, y, outer, outerAlpha, inner, h)
     outer, inner = math.max(outer, minPx * 2), math.max(inner, minPx * 0.6)
     p:SetSize(outer, outer)
     p.outer:SetSize(outer, outer)
-    p.outer:SetVertexColor(c.r, c.g, c.b, outerAlpha)
+    -- soft, pale markers: they should hint at a spot, not shout over the map
+    local s = h.spawn
+    local r, g, b = c.r, c.g, c.b
+    if not (s.rare or s.special or s.hunter or s.gather) then r, g, b = r * 0.65 + 0.3, g * 0.65 + 0.3, b * 0.65 + 0.3 end
+    p.outer:SetVertexColor(r, g, b, outerAlpha * 0.5)
     p.inner:SetSize(inner, inner)
-    p.inner:SetVertexColor(c.r, c.g, c.b, 0.95)
+    p.inner:SetVertexColor(r, g, b, 0.6)
     p:ClearAllPoints()
     p:SetPoint("CENTER", spawnLayer, "TOPLEFT", x * w, -y * hh)
     h.mx, h.my = x, y
@@ -466,28 +511,122 @@ local function spawnClusters(zone)
     zone._areas = zone._areas or {}
     if zone._areas[key] then return zone._areas[key] end
     local list = {}
+    local buckets = {}
+    local seenRare = {}
     for _, s in ipairs(zone.spawns or {}) do
-        if not s.gather and showSpot(s) then
+        -- the same rare listed twice (several sources) is drawn once
+        local rk = s.rare and ((s.npc and s.npc > 0 and s.npc) or s.name)
+        if rk and seenRare[rk] then rk = "dup" elseif rk then seenRare[rk] = true end
+        if not s.gather and rk ~= "dup" and showSpot(s) then
             local cat = spotCat(s)
-            for _, pt in ipairs(s.points) do
-                local best, bd
-                for _, c in ipairs(list) do
-                    if c.cat == cat then
-                        local dx, dy = c.x - pt[1], c.y - pt[2]
-                        local d = dx * dx + dy * dy
-                        if d < radius * radius and (not bd or d < bd) then best, bd = c, d end
+            local pts = s.points
+            if s.rare and #pts > 1 then
+                -- one approximate marker (and one star) per rare, not one per spawn point
+                local sx, sy = 0, 0
+                for _, pt in ipairs(pts) do sx, sy = sx + pt[1], sy + pt[2] end
+                pts = { { sx / #pts, sy / #pts } }
+            end
+            if s.rare then
+                -- rares: one small marker (and star) each; rares standing right next to each other share it
+                for _, pt in ipairs(pts) do
+                    local best, bd
+                    for _, c in ipairs(list) do
+                        if c.cat == "rare" then
+                            local dx, dy = c.x - pt[1], c.y - pt[2]
+                            local d = dx * dx + dy * dy
+                            if d < 0.02 * 0.02 and (not bd or d < bd) then best, bd = c, d end
+                        end
+                    end
+                    if not best then
+                        best = { x = pt[1], y = pt[2], n = 0, cat = "rare", count = {}, order = {} }
+                        list[#list + 1] = best
+                    end
+                    best.x = (best.x * best.n + pt[1]) / (best.n + 1)
+                    best.y = (best.y * best.n + pt[2]) / (best.n + 1)
+                    best.n = best.n + 1
+                    if not best.count[s] then best.order[#best.order + 1] = s end
+                    best.count[s] = (best.count[s] or 0) + 1
+                end
+            else
+                local b = buckets[cat]
+                if not b then b = {}; buckets[cat] = b end
+                for _, pt in ipairs(s.points) do b[#b + 1] = { x = pt[1], y = pt[2], s = s } end
+            end
+        end
+    end
+    -- farm / special / hunter spots: every separate spot area becomes ONE big circle that covers it
+    local CELL, LINK = 0.02, 0.04
+    local function cellKey(cx, cy) return (cx + 100) * 1000 + (cy + 100) end
+    for cat, items in pairs(buckets) do
+        local grid = {}
+        for _, it in ipairs(items) do
+            local cx, cy = math.floor(it.x / CELL), math.floor(it.y / CELL)
+            local k = cellKey(cx, cy)
+            local c = grid[k]
+            if not c then c = { cx = cx, cy = cy, pts = {} }; grid[k] = c end
+            c.pts[#c.pts + 1] = it
+        end
+        local reach = math.ceil(LINK / CELL)
+        local groups = {}
+        for _, c0 in pairs(grid) do
+            if not c0.seen then
+                c0.seen = true
+                local g, stack = {}, { c0 }
+                while #stack > 0 do
+                    local cur = table.remove(stack)
+                    for _, it in ipairs(cur.pts) do g[#g + 1] = it end
+                    for dx = -reach, reach do
+                        for dy = -reach, reach do
+                            local nb = grid[cellKey(cur.cx + dx, cur.cy + dy)]
+                            if nb and not nb.seen then nb.seen = true; stack[#stack + 1] = nb end
+                        end
                     end
                 end
-                if not best then
-                    best = { x = pt[1], y = pt[2], n = 0, cat = cat, count = {}, order = {} }
-                    list[#list + 1] = best
-                end
-                best.x = (best.x * best.n + pt[1]) / (best.n + 1)
-                best.y = (best.y * best.n + pt[2]) / (best.n + 1)
-                best.n = best.n + 1
-                if not best.count[s] then best.order[#best.order + 1] = s end
-                best.count[s] = (best.count[s] or 0) + 1
+                groups[#groups + 1] = g
             end
+        end
+        -- the circle of one spot: centred on its spawn points, as big as the area that holds most of them
+        local function circle(g)
+            -- a monster that spawns all over the zone: the circle sits on its busiest place, not on the average of everything
+            if #g > 2 then
+                local bestN, bestI = 0, 1
+                for i, a in ipairs(g) do
+                    local n = 0
+                    for _, b in ipairs(g) do
+                        if (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 < 0.05 ^ 2 then n = n + 1 end
+                    end
+                    if n > bestN then bestN, bestI = n, i end
+                end
+                local a, near = g[bestI], {}
+                for _, b in ipairs(g) do
+                    if (a.x - b.x) ^ 2 + (a.y - b.y) ^ 2 < 0.05 ^ 2 then near[#near + 1] = b end
+                end
+                g = near
+            end
+            local sx, sy = 0, 0
+            for _, it in ipairs(g) do sx, sy = sx + it.x, sy + it.y end
+            local cx, cy = sx / #g, sy / #g
+            local c = { x = cx, y = cy, n = #g, cat = cat, count = {}, order = {}, rad = 0 }
+            local dist = {}
+            for _, it in ipairs(g) do
+                dist[#dist + 1] = math.sqrt((it.x - cx) ^ 2 + (it.y - cy) ^ 2)
+                if not c.count[it.s] then c.order[#c.order + 1] = it.s end
+                c.count[it.s] = (c.count[it.s] or 0) + 1
+            end
+            table.sort(dist)
+            c.rad = dist[math.max(1, math.ceil(#dist * 0.85))] or 0
+            return c
+        end
+        -- one circle per spot (monster): exactly where it is, hovering it shows only that spot
+        local bySpot, spotOrder = {}, {}
+        for _, it in ipairs(items) do
+            if not bySpot[it.s] then bySpot[it.s] = {}; spotOrder[#spotOrder + 1] = it.s end
+            table.insert(bySpot[it.s], it)
+        end
+        for _, s in ipairs(spotOrder) do
+            local c = circle(bySpot[s])
+            c.rad = math.min(math.max(c.rad * 0.9, 0.015), 0.04)   -- small, a little smaller than the spot's own area
+            table.insert(list, 1, c)   -- circles first, so rares and stars stay on top
         end
     end
     for _, c in ipairs(list) do
@@ -496,6 +635,25 @@ local function spawnClusters(zone)
     zone._areas[key] = list
     return list
 end
+
+SFP.SpotClusters = spawnClusters   -- the minimap draws the same circles
+
+-- after an update every farm spot starts unticked in the spot list; the player ticks each one by choice
+SFP:OnLogin(function()
+    C_Timer.After(4, function()
+        if not (SFP.db and SFP.db.hideSpotsPending) then return end
+        SFP.db.hideSpotsPending = nil
+        SFP.db.hiddenSpots = SFP.db.hiddenSpots or {}
+        for _, zone in pairs(SFP.zoneByMap or {}) do
+            for _, s in ipairs(zone.spawns or {}) do
+                if not (s.gather or s.rare or s.special or s.hunter) then SFP.db.hiddenSpots[spotKey(s)] = true end
+            end
+        end
+        SFP.hiddenVer = SFP.hiddenVer + 1
+        for _, z in pairs(SFP.zoneByMap or {}) do z._areas, z._clusters = nil, nil end
+        if SFP.RefreshWorldMap then pcall(SFP.RefreshWorldMap) end
+    end)
+end)
 
 -- symbol on top of a marker, always visible (no text needed):
 -- gold star = rare / BoE spot worth grinding, hunter crest = hunter tame
@@ -531,8 +689,15 @@ local function drawAreas(zoneID, rect, unit, withLabels)
         local big = math.min(1 + (c.n - 1) * 0.04, 1.6)
         if SFP.db.exactSpots then big = 1 end
         local p = getPin()
-        placePin(p, x, y, (SFP.db.exactSpots and 12 or 16 * big) / sc, 0.55, (SFP.db.exactSpots and 5 or 6 * big) / sc,
-            { spawn = main, spawns = c.order, zoneID = zoneID, zx = c.x, zy = c.y, continent = rect ~= nil })
+        local hv = { spawn = main, spawns = c.order, zoneID = zoneID, zx = c.x, zy = c.y, continent = rect ~= nil }
+        if c.rad then
+            -- the one big grind-zone circle: its size is the area the farm spots cover
+            local wl = spawnLayer:GetWidth()
+            hv.rad = c.rad * (r - l)
+            placePin(p, x, y, 2 * hv.rad * wl, 0.55, 4 / sc, hv)
+        else
+            placePin(p, x, y, (SFP.db.exactSpots and 10 or 13 * big) / sc, 0.55, (SFP.db.exactSpots and 4 or 5 * big) / sc, hv)
+        end
         markSymbol(p, c.order, sc)
         -- a rare you killed today: grey until the daily reset
         if SFP.db.greyKilled ~= false and main.rare and main.npc and main.npc > 0 and SFP.RareKilledToday and SFP:RareKilledToday(main.npc) then
@@ -575,14 +740,26 @@ local function drawContinentSpots(mapID)
                 if zoomed then
                     drawAreas(zoneID, { l, r, t, b }, unit, true)
                 else
+                    -- zoomed out: ONE big marker per zone; hover it for every farm mob of that zone
+                    local order, sx, sy, n = {}, 0, 0, 0
                     for _, s in ipairs(zone.spawns) do
-                        if showSpot(s) and not s.gather then
-                            local cx, cy = l + s.hx * (r - l), t + s.hy * (b - t)
-                            local p = getPin()
-                            placePin(p, cx, cy, unit * 1.8, 0.6, unit * 0.45,
-                                { spawn = s, zoneID = zoneID, zx = s.hx, zy = s.hy, continent = true })
-                            markSymbol(p, { s }, canvasScale())
+                        if showSpot(s) and not s.gather and s.points and #s.points > 0 then
+                            order[#order + 1] = s
+                            for _, pt in ipairs(s.points) do sx, sy, n = sx + pt[1], sy + pt[2], n + 1 end
                         end
+                    end
+                    if n > 0 then
+                        table.sort(order, function(a, b)
+                            if (a.grind and 1 or 0) ~= (b.grind and 1 or 0) then return a.grind and true or false end
+                            return #a.points > #b.points
+                        end)
+                        local zx, zy = sx / n, sy / n
+                        local sc = canvasScale()
+                        local big = math.min(1 + math.sqrt(#order) * 0.15, 2.4)
+                        local p = getPin()
+                        placePin(p, l + zx * (r - l), t + zy * (b - t), 15 * big / sc, 0.55, 5 * big / sc,
+                            { spawn = order[1], spawns = order, zoneID = zoneID, zx = zx, zy = zy, continent = true, zonewide = true })
+                        markSymbol(p, order, sc)
                     end
                 end
             end
@@ -891,6 +1068,32 @@ end
 local gatherPanel
 local GROW_H = 18
 
+-- the side lists can be dragged (left mouse on the panel or its title); the place is remembered
+local function makeMovable(f, key, sc)
+    f:SetMovable(true)
+    f:SetClampedToScreen(true)
+    local function stop()
+        f:StopMovingOrSizing()
+        local l, t, sl, st = f:GetLeft(), f:GetTop(), sc:GetLeft(), sc:GetTop()
+        if l and t and sl and st then
+            SFP.db.panelPos = SFP.db.panelPos or {}
+            SFP.db.panelPos[key] = { l - sl, t - st }
+            f:ClearAllPoints()
+            f:SetPoint("TOPLEFT", sc, "TOPLEFT", l - sl, t - st)
+        end
+    end
+    for _, h in ipairs({ f, f.head }) do
+        h:RegisterForDrag("LeftButton")
+        h:SetScript("OnDragStart", function() f:StartMoving() end)
+        h:SetScript("OnDragStop", stop)
+    end
+    local pos = SFP.db.panelPos and SFP.db.panelPos[key]
+    if pos then
+        f:ClearAllPoints()
+        f:SetPoint("TOPLEFT", sc, "TOPLEFT", pos[1], pos[2])
+    end
+end
+
 local function buildGatherPanel()
     local sc = WorldMapFrame.ScrollContainer
     local f = CreateFrame("Frame", "SeviathsUsefulToolsGatherList", sc, "BackdropTemplate")
@@ -915,6 +1118,7 @@ local function buildGatherPanel()
         SFP.RefreshWorldMap()
     end)
     f.rows = {}
+    makeMovable(f, "gather", sc)
     return f
 end
 
@@ -1072,8 +1276,9 @@ end
 
 local function spotEntries(zone)
     local by = {}
+    if not SFP._bestDone then markBest() end
     for _, s in ipairs(zone.spawns or {}) do
-        if s.points then
+        if s.points and s._best ~= false then
             local g = spotGroup(s)
             by[g] = by[g] or {}
             by[g][#by[g] + 1] = s
@@ -1085,13 +1290,29 @@ local function spotEntries(zone)
         if list then
             table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
             out[#out + 1] = { header = grp[2], group = grp[1] }
-            for _, s in ipairs(list) do out[#out + 1] = { spot = s, group = grp[1] } end
+            local seen = {}
+            for _, s in ipairs(list) do
+                local k = spotKey(s)
+                if not seen[k] then
+                    seen[k] = true
+                    out[#out + 1] = { spot = s, group = grp[1] }
+                end
+            end
         end
     end
     return out
 end
 
-local function setSpotsHidden(zone, keys, hide)
+-- ticking a spot of a kind whose layer switch is off turns that layer on, so the spot really shows
+local GROUP_SWITCH = { farm = "showSpawns", rare = "showRares", hunter = "showHunter", special = "showSpecial", ore = "showMining", herb = "showHerbs" }
+local function enableGroup(g)
+    local k = GROUP_SWITCH[g]
+    if k and not SFP.db[k] then SFP.db[k] = true end
+    if not SFP.db.mapOverlay then SFP.db.mapOverlay = true end
+end
+
+local function setSpotsHidden(zone, keys, hide, group)
+    if not hide and group then enableGroup(group) end
     SFP.db.hiddenSpots = SFP.db.hiddenSpots or {}
     for _, k in ipairs(keys) do SFP.db.hiddenSpots[k] = hide and true or nil end
     SFP.hiddenVer = SFP.hiddenVer + 1
@@ -1135,6 +1356,7 @@ local function buildSpotPanel()
     cb:SetSize(18, 18)
     cb:SetPoint("TOPLEFT", 134, -1)
     cb:SetHitRectInsets(0, -64, 0, 0)
+    cb:SetFrameLevel(f.head:GetFrameLevel() + 5)   -- above the header button, which spans the whole top row
     cb.label = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     cb.label:SetPoint("LEFT", cb, "RIGHT", 0, 0)
     cb.label:SetText("Route line")
@@ -1153,6 +1375,7 @@ local function buildSpotPanel()
     local function link(text, anchor, x)
         local b = CreateFrame("Button", nil, f)
         b:SetSize(60, 16)
+        b:SetFrameLevel(f.head:GetFrameLevel() + 5)
         b:SetPoint("TOPLEFT", x, -21)
         b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
         b.text:SetPoint("LEFT")
@@ -1165,6 +1388,14 @@ local function buildSpotPanel()
     f.route = link("Route", nil, 132)
     f.routeClear = link("Clear route", nil, 176)
     f.rows = {}
+    -- bottom button: the 10 best farm spots of the game by current auction prices, with a waypoint each
+    f.top = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    f.top:SetSize(150, 20)
+    f.top:SetPoint("BOTTOM", 0, 4)
+    f.top:SetText("Top 10 best spots")
+    f.top:SetFrameLevel(f.head:GetFrameLevel() + 5)
+    f.top:SetScript("OnClick", function() if SFP.ShowTopSpots then SFP:ShowTopSpots() end end)
+    makeMovable(f, "spots", sc)
     return f
 end
 
@@ -1180,7 +1411,7 @@ local function spotRow(i)
         local s = r.spot
         if not s then return end
         local zone = SFP.zoneByMap[spotPanel.mapID]
-        if zone then setSpotsHidden(zone, { spotKey(s) }, not self:GetChecked()) end
+        if zone then setSpotsHidden(zone, { spotKey(s) }, not self:GetChecked(), spotGroup(s)) end
     end)
     r.dot = r:CreateTexture(nil, "ARTWORK")
     r.dot:SetSize(9, 9)
@@ -1203,14 +1434,16 @@ local function spotRow(i)
             SFP.Tip():AddLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id))
         end
         if s.hx then SFP.Tip():AddLine(string.format("%.1f, %.1f", s.hx * 100, s.hy * 100), 1, 0.82, 0) end
-        SFP.Tip():AddLine("Tick / untick: show or hide this spot", 0, 0.9, 1)
-        SFP.Tip():AddLine("Click the name: set a waypoint", 0, 0.9, 1)
+        SFP.Tip():AddLine("Click: show or hide this spot on the map", 0, 0.9, 1)
         SFP.Tip():Show()
     end)
     r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
     r:SetScript("OnClick", function(self)
+        -- the list only shows or hides spots (the tick box); clicking a name sets nothing, farm spots and rares alike
         local s = self.spot
-        if s and s.hx and SFP.SetWaypoint then SFP:SetWaypoint(spotPanel.mapID, s.hx, s.hy, s.name) end
+        if not s then return end
+        local zone = SFP.zoneByMap[spotPanel.mapID]
+        if zone then setSpotsHidden(zone, { spotKey(s) }, not (SFP.db.hiddenSpots and SFP.db.hiddenSpots[spotKey(s)]), spotGroup(s)) end
     end)
     spotPanel.rows[i] = r
     return r
@@ -1225,9 +1458,10 @@ drawSpotList = function(mapID)
     spotPanel = spotPanel or buildSpotPanel()
     spotPanel.mapID = mapID
     local entries = spotEntries(zone)
-    local nSpots, nHidden, keys = 0, 0, {}
+    local nSpots, nHidden, keys, groups = 0, 0, {}, {}
     for _, e in ipairs(entries) do
         if e.spot then
+            groups[e.group] = true
             nSpots = nSpots + 1
             keys[#keys + 1] = spotKey(e.spot)
             if SFP.db.hiddenSpots and SFP.db.hiddenSpots[spotKey(e.spot)] then nHidden = nHidden + 1 end
@@ -1236,7 +1470,10 @@ drawSpotList = function(mapID)
     spotPanel.title:SetText("|c" .. SFP.CYAN_HEX .. "Farm spots|r  |cffaaaaaa" .. (nSpots - nHidden) .. "/" .. nSpots .. "|r")
     spotPanel.toggle:SetText(SFP.db.spotsCollapsed and "[+]" or "[-]")
     spotPanel.routeCheck:SetChecked(SFP.db.showRoute ~= false)
-    spotPanel.allOn:SetScript("OnClick", function() setSpotsHidden(zone, keys, false) end)
+    spotPanel.allOn:SetScript("OnClick", function()
+        for g in pairs(groups) do enableGroup(g) end
+        setSpotsHidden(zone, keys, false)
+    end)
     spotPanel.allOff:SetScript("OnClick", function() setSpotsHidden(zone, keys, true) end)
     spotPanel.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)
     spotPanel.routeClear:SetScript("OnClick", function() SFP:ClearRoute() end)
@@ -1283,7 +1520,8 @@ drawSpotList = function(mapID)
         end
     end
     for i = shown + 1, #spotPanel.rows do spotPanel.rows[i]:Hide() end
-    spotPanel:SetHeight((SFP.db.spotsCollapsed and 22) or (42 + shown * SROW_H))
+    spotPanel:SetHeight((SFP.db.spotsCollapsed and 22) or (42 + shown * SROW_H + 26))
+    spotPanel.top:SetShown(not SFP.db.spotsCollapsed)
     spotPanel:Show()
 end
 
@@ -1333,11 +1571,17 @@ local function onUpdate(self, elapsed)
     if not x then return end
     local cw, ch = spawnLayer:GetWidth() * scale, spawnLayer:GetHeight() * scale
     local best, bestD = nil, 14 * 14 -- within ~14 screen pixels
+    local disc, discR
     for _, h in ipairs(hoverList) do
         local dx, dy = (h.mx - x) * cw, (h.my - y) * ch
         local d = dx * dx + dy * dy
-        if d < bestD then best, bestD = h, d end
+        if h.rad then
+            -- the big grind-zone circle: anywhere inside it counts, but small markers on top of it win
+            local rr = h.rad * cw
+            if d < rr * rr and (not discR or rr < discR) then disc, discR = h, rr end
+        elseif d < bestD then best, bestD = h, d end
     end
+    best = best or disc
     if best then
         if best ~= lastSpot then lastSpot = best; lastHover = nil; showSpotTip(best) end
         return
@@ -1442,12 +1686,8 @@ SFP:OnLogin(function()
     spawnLayer:SetAllPoints(canvas)
     -- high frame level: stay above other map addons' overlays
     spawnLayer:SetFrameLevel(math.min(canvas:GetFrameLevel() + 3000, 9000))
-    -- gentle pulse so the spots read as glowing
-    local sg = spawnLayer:CreateAnimationGroup()
-    sg:SetLooping("BOUNCE")
-    local sa = sg:CreateAnimation("Alpha")
-    sa:SetFromAlpha(1); sa:SetToAlpha(0.6); sa:SetDuration(1.1); sa:SetSmoothing("IN_OUT")
-    sg:Play()
+    -- no pulsing: the spots stay calm and pale
+    spawnLayer:SetAlpha(0.85)
 
     local sc = WorldMapFrame.ScrollContainer
     edges = {}

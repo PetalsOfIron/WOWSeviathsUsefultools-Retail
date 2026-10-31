@@ -61,7 +61,7 @@ end
 -- List building
 ------------------------------------------------------------------------
 local function sortEntries(cat, list)
-    if cat == "guide" or cat == "mats" or cat == "grind" then
+    if ns.TEXTCAT[cat] or cat == "mats" or cat == "grind" then
         table.sort(list, function(a, b) return (a.order or 0) < (b.order or 0) end)
     elseif cat == "boss" then
         table.sort(list, function(a, b)
@@ -93,7 +93,7 @@ local function BuildFlat()
         for g in pairs(byGroup) do
             if not seenG[g] then groups[#groups + 1] = g; seenG[g] = true end   -- entries whose group changed later
         end
-        if cat == "guide" or cat == "mats" or cat == "delve" then table.sort(groups) end
+        if ns.TEXTCAT[cat] or cat == "mats" or cat == "delve" then table.sort(groups) end
         local small = #ns.byCat[cat] < 80
         for _, gname in ipairs(groups) do
             local list = byGroup[gname]
@@ -255,7 +255,7 @@ local function DetailText(e)
     if c == "history" then
         return ns.HistoryEntryText and ns:HistoryEntryText(e) or ""
     end
-    if c == "guide" or c == "mats" then
+    if ns.TEXTCAT[c] or c == "mats" then
         return e.body or ""
     end
     if c == "quest" then
@@ -564,10 +564,12 @@ local function CreateWindow()
     cats:SetPoint("TOPLEFT", 10, -44)
     cats:SetPoint("BOTTOMLEFT", 10, 30)
     cats:SetWidth(CAT_W)
+    -- squeeze the buttons so every category fits, however many there are
+    local catStep = math.max(20, math.min(32, math.floor((H - 44 - 30 - 12) / #ns.CATEGORIES)))
     for i, c in ipairs(ns.CATEGORIES) do
         local b = CreateFrame("Button", nil, cats)
-        b:SetSize(CAT_W - 8, 30)
-        b:SetPoint("TOPLEFT", 4, -4 - (i - 1) * 32)
+        b:SetSize(CAT_W - 8, catStep - 2)
+        b:SetPoint("TOPLEFT", 4, -4 - (i - 1) * catStep)
         b.bg = b:CreateTexture(nil, "BACKGROUND")
         b.bg:SetAllPoints()
         b:SetHighlightTexture("Interface\\Buttons\\WHITE8X8")

@@ -74,6 +74,7 @@ local function Candidates()
                     local density = math.min(#sp.points, 40) / 40
                     table.sort(items, function(a, b) return a.p > b.p end)
                     out[#out + 1] = {
+                        current = (S.zoneExp[mapID] and S.zoneExp[mapID].key) == "midnight",
                         map = mapID, sp = sp, value = value, basis = basis, items = items, gather = sp.gather,
                         score = value * (0.5 + 0.5 * density), points = #sp.points,
                     }
@@ -81,7 +82,11 @@ local function Candidates()
             end
         end
     end
-    table.sort(out, function(a, b) return a.score > b.score end)
+    -- the current expansion first (what you can do with a normal character today), then older content, each by score
+    table.sort(out, function(a, b)
+        if a.current ~= b.current then return a.current end
+        return a.score > b.score
+    end)
     return out
 end
 
@@ -130,7 +135,7 @@ function ns:LoadGrind()
                 for k, v in pairs(fields) do e[k] = v end
                 if self.PrepareSearch then self.PrepareSearch(e) end
             else
-                fields.cat, fields.id, fields.group = "grind", i, "Top 10 by estimated gold"
+                fields.cat, fields.id, fields.group = "grind", i, "Top 10 by estimated gold (Midnight first)"
                 fields.tags = "grind grinding farm gold best spot " .. zone:lower()
                 self:Add(fields)
             end
@@ -140,7 +145,7 @@ function ns:LoadGrind()
     end
     -- nothing priced yet: say what to do
     if #top == 0 and not self:Get("grind:1") then
-        self:Add({ cat = "grind", id = 1, group = "Top 10 by estimated gold", order = 1,
+        self:Add({ cat = "grind", id = 1, group = "Top 10 by estimated gold (Midnight first)", order = 1,
             name = "No prices yet - how to get the ranking", icon = "Interface\\Icons\\INV_Misc_Coin_01",
             body = "The ranking uses auction house prices. Open the auction house once (the addon scans it), or install Auctionator or TradeSkillMaster and scan there. Then reopen the Codex." })
     end
@@ -193,7 +198,10 @@ function ns:GrindText(e)
         why[#why + 1] = ("only %d spawn points, so it is slower to keep going."):format(c.points)
     end
     out[#out + 1] = C .. "Why it is #" .. (e.order or "?") .. "|r\n" .. table.concat(why, " ")
-    out[#out + 1] = "|cff888888How the ranking works: value per kill or node at current auction prices, a little higher for spots with " ..
+    if not c.current then
+        out[#out + 1] = "|cffffd100Older content: this spot is not from the current expansion. It is listed because there were fewer than ten priced Midnight spots.|r"
+    end
+    out[#out + 1] = "|cff888888How the ranking works: Midnight spots come first, then older content. Inside each, by value per kill or node at current auction prices, a little higher for spots with " ..
         "many spawn points. Prices differ per realm, so scan the auction house (or use Auctionator / TSM) to keep this current. " ..
         "It compares spots with each other; it is not a gold-per-hour promise.|r"
     return table.concat(out, "\n\n")

@@ -37,6 +37,8 @@ local function markScanned()
     SFP.db.lastScan = t
     SFP.db.realmScan = SFP.db.realmScan or {}
     SFP.db.realmScan[SFP:RealmKey()] = t
+    -- the planners and the Codex show prices: let them redraw with the new ones
+    if SFP.PricesChanged then SFP:Safe("prices changed", SFP.PricesChanged, SFP) end
 end
 
 local step  -- forward declared
