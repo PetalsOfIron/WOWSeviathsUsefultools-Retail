@@ -1176,6 +1176,13 @@ function SFP:ShowDecor()
             SFP:Safe("decor", decorRefresh)
         end)
     end
+    -- opened from the menu: sits right next to the main menu
+    local mf = self.MenuFrame and self:MenuFrame()
+    if mf and mf:IsShown() and not decorWin:IsShown() then
+        decorWin:ClearAllPoints()
+        decorWin:SetPoint("TOPLEFT", mf, "TOPRIGHT", 6, 0)
+        decorWin:SetClampedToScreen(true)
+    end
     decorWin:Show()
     decorRefresh()
 end
