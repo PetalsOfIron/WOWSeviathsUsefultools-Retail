@@ -1117,6 +1117,7 @@ local function decorRefresh()
                         end
                         if on and not idx then table.insert(pl, { id = e.itemID, name = e.name })
                         elseif not on and idx then table.remove(pl, idx) end
+                        if SFP.DecorPlanChanged then SFP.DecorPlanChanged() end   -- the planner page updates at once
                     end,
                     text = state .. " " .. e.name .. ((e.source and e.source ~= "") and ("  |cff808080" .. e.source:sub(1, 80) .. "|r") or ""),
                 }
@@ -1129,6 +1130,9 @@ local function decorRefresh()
     decorWin.results:Set(items)
     for _, bt in ipairs(decorBtns) do bt:SetText((bt.mode == decorMode and "|cff40ff40" or "") .. bt.label) end
 end
+
+-- the planner page asks the list window to redraw at once when the plan changes
+SFP.RefreshDecorWindow = function() if decorWin and decorWin:IsShown() then decorRefresh() end end
 
 function SFP:ShowDecor()
     if not decorWin then
