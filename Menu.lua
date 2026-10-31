@@ -1185,8 +1185,10 @@ local function build()
 end
 
 function SFP:ToggleMenu(section)
-    if not frame then build() end
-    if frame:IsShown() and not section then frame:Hide(); return end
+    local justBuilt = false
+    if not frame then build(); justBuilt = true end
+    -- a menu that was only just created must open on this click (a new frame counts as shown before it is drawn)
+    if frame:IsShown() and not section and not justBuilt then frame:Hide(); return end
     frame:Show()
     frame:Raise()
     self:ShowMenuSection(section or current or "home")
