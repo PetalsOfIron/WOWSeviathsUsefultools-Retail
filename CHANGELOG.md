@@ -149,3 +149,7 @@
 
 - Prices everywhere in the addon use the same order: your own scan first, then Auctionator, then TradeSkillMaster. The item tooltip "AH (unit)" line and the Codex material and farming prices now follow it too (they used only the addon's own scan or Auctionator by name before).
 - BoE deals: the window redraws itself while open so item names fill in, and uses Auctionator's own price history for the typical price when this Auctionator version offers it.
+- Auction scan by section like Auctionator with a one-line progress; the bar names the realm and how old the prices are; optional long scan (every item one by one); item IDs and names are learned and shipped (no prices); Auctionator/TSM prices can be switched off in Settings.
+- Housing planner: about 3,000 decor with sources and waypoints, tick boxes, owned state; farm routes window, What To Farm Next by zone, farm session window with time and gold.
+- Group makeup opens by itself in groups of 5 or more; tier tokens updated for Midnight Season 2 by armor type; every window remembers its position and opens in front.
+- Fixes: minimap button works on the first click, scans no longer stop early, decor learning no longer freezes the game.
