@@ -883,7 +883,8 @@ local function catalogEntries()
     if not (H and H.CreateCatalogSearcher and H.GetCatalogEntryInfo) then return nil end
     if not decorSearcher then
         local ok, srch = pcall(H.CreateCatalogSearcher)
-        if not ok or type(srch) ~= "table" then return nil end
+        probe.createOk, probe.searcherType = ok, type(srch)
+        if not ok or srch == nil then return nil end   -- the searcher may be a table or a game object (userdata)
         for _, m in ipairs({ { "SetOwnedOnly", false }, { "SetCollected", true }, { "SetUncollected", true },
             { "SetAllowedIndoors", true }, { "SetAllowedOutdoors", true } }) do
             if type(srch[m[1]]) == "function" then pcall(srch[m[1]], srch, m[2]) end
@@ -997,6 +998,17 @@ local function decorEntries()
         end
         -- Brewfest, shop and reputation decor go into their own sections even when the place is not known yet
         local low = src:lower()
+        if #e.kind > 24 or e.kind:find("%s+by%s") then
+            -- a full sentence ("Sold by X (Zone) or Y (Zone)"): file it by what it says
+            if low:find("sold by", 1, true) or low:find("vendor", 1, true) then
+                e.kind = "Vendor"
+                place = src:match("%(([^%)]+)%)") or place
+            elseif low:find("quest", 1, true) then e.kind = "Quest"
+            elseif low:find("achievement", 1, true) then e.kind = "Achievement"
+            elseif low:find("drop", 1, true) then e.kind = "Drop"
+            elseif low:find("event", 1, true) or low:find("festival", 1, true) then e.kind = "Event"
+            else e.kind = "Other" end
+        end
         if low:find("brewfest", 1, true) then
             e.kind, place = "Event", "Brewfest"
         elseif e.kind == "Shop" or e.kind == "Promo" then
