@@ -583,11 +583,122 @@ function SFP:SetWaypoint(mapID, x, y, label)
         self:Print("Can't place a waypoint on that map.")
         return
     end
+    -- clicking the same waypoint again removes it
+    local cur = C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+    if cur and cur.uiMapID == mapID and cur.position
+        and math.abs(cur.position.x - x) < 0.001 and math.abs(cur.position.y - y) < 0.001 then
+        C_Map.ClearUserWaypoint()
+        self:Print("Waypoint removed.")
+        return
+    end
     C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
     if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
         C_SuperTrack.SetSuperTrackedUserWaypoint(true)
     end
     self:Print(string.format("Waypoint set: %s %.1f, %.1f", label or self:ZoneName(mapID), x * 100, y * 100))
+    -- show the waypoint: open the world map on the map it is on
+    if not InCombatLockdown() then
+        pcall(self.OpenMapTo, self, mapID)
+        C_Timer.After(0.15, function() pcall(SFP.FlashMapSpot, SFP, mapID, x, y) end)
+    end
+end
+
+-- right-click on the waypoint pin of the world map removes it (the pin is hooked, not replaced)
+local function hookWaypointPins()
+    if not (WorldMapFrame and WorldMapFrame.EnumeratePinsByTemplate) then return end
+    local ok, iter, a, b = pcall(WorldMapFrame.EnumeratePinsByTemplate, WorldMapFrame, "UserWaypointPinTemplate")
+    if not ok or not iter then return end
+    for _, pin in iter, a, b do
+        if pin and pin.HookScript and not pin.sfpRightClick then
+            pin.sfpRightClick = true
+            if pin.EnableMouse then pcall(pin.EnableMouse, pin, true) end
+            pin:HookScript("OnMouseUp", function(self, button)
+                if button == "RightButton" and C_Map.ClearUserWaypoint then
+                    C_Map.ClearUserWaypoint()
+                    SFP:Print("Waypoint removed.")
+                end
+            end)
+        end
+    end
+end
+local wpf = CreateFrame("Frame")
+wpf:RegisterEvent("USER_WAYPOINT_UPDATED")
+wpf:SetScript("OnEvent", function()
+    C_Timer.After(0.2, function() pcall(hookWaypointPins) end)
+end)
+if WorldMapFrame and WorldMapFrame.HookScript then
+    WorldMapFrame:HookScript("OnShow", function() C_Timer.After(0.3, function() pcall(hookWaypointPins) end) end)
+end
+
+-- a pulsing ring on the world map at the waypoint, for a few seconds, so it is easy to find
+local flash
+function SFP:FlashMapSpot(mapID, x, y)
+    local canvas = WorldMapFrame and WorldMapFrame.GetCanvas and WorldMapFrame:GetCanvas()
+    if not (canvas and WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() == mapID) then return end
+    if not flash then
+        flash = CreateFrame("Frame", nil, canvas)
+        flash:SetSize(64, 64)
+        flash:SetFrameStrata("TOOLTIP")
+        flash.rings = {}
+        for i = 1, 2 do
+            local t = flash:CreateTexture(nil, "OVERLAY")
+            t:SetTexture("Interface\\Minimap\\Ping\\ping2")
+            t:SetVertexColor(0.1, 0.45, 1)
+            t:SetPoint("CENTER")
+            t:SetSize(96, 96)
+            local ag = t:CreateAnimationGroup()
+            ag:SetLooping("REPEAT")
+            local sc = ag:CreateAnimation("Scale")
+            sc:SetScaleFrom(0.3, 0.3); sc:SetScaleTo(2.6, 2.6); sc:SetDuration(1.1); sc:SetStartDelay((i - 1) * 0.55)
+            local al = ag:CreateAnimation("Alpha")
+            al:SetFromAlpha(1); al:SetToAlpha(0); al:SetDuration(1.1); al:SetStartDelay((i - 1) * 0.55)
+            t.ag = ag
+            flash.rings[i] = t
+        end
+        local dot = flash:CreateTexture(nil, "OVERLAY")
+        dot:SetTexture("Interface\\Minimap\\Ping\\ping2")
+        dot:SetVertexColor(0.1, 0.45, 1)
+        dot:SetSize(28, 28)
+        dot:SetPoint("CENTER")
+        -- a bouncing arrow above the spot for the first seconds
+        local arrow = flash:CreateTexture(nil, "OVERLAY")
+        if C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo("NPE_ArrowDown") then
+            arrow:SetAtlas("NPE_ArrowDown")
+        else
+            arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
+        end
+        arrow:SetDesaturated(true)
+        arrow:SetVertexColor(0.1, 0.45, 1)
+        arrow:SetSize(44, 44)
+        arrow:SetPoint("BOTTOM", flash, "CENTER", 0, 10)
+        local bag = arrow:CreateAnimationGroup()
+        bag:SetLooping("BOUNCE")
+        local tr = bag:CreateAnimation("Translation")
+        tr:SetOffset(0, 16); tr:SetDuration(0.35)
+        flash.arrow, flash.arrowAnim = arrow, bag
+        flash:EnableMouse(true)
+        flash:SetScript("OnMouseUp", function(self, button)
+            if button == "RightButton" and C_Map.ClearUserWaypoint then
+                C_Map.ClearUserWaypoint()
+                SFP:Print("Waypoint removed.")
+                self.untilT = 0
+            end
+        end)
+        flash:SetScript("OnUpdate", function(self)
+            if self.arrow and GetTime() > (self.arrowT or 0) then self.arrow:Hide(); self.arrowAnim:Stop() end
+            if GetTime() > (self.untilT or 0) or not WorldMapFrame:IsShown() or WorldMapFrame:GetMapID() ~= self.mapID then
+                self:Hide()
+                for _, t in ipairs(self.rings) do t.ag:Stop() end
+            end
+        end)
+    end
+    flash:SetParent(canvas)
+    flash:ClearAllPoints()
+    flash:SetPoint("CENTER", canvas, "TOPLEFT", x * canvas:GetWidth(), -y * canvas:GetHeight())
+    flash.mapID, flash.untilT, flash.arrowT = mapID, GetTime() + 8, GetTime() + 4
+    flash.arrow:Show(); flash.arrowAnim:Play()
+    flash:Show()
+    for _, t in ipairs(flash.rings) do t.ag:Play() end
 end
 
 function SFP:OpenMapTo(mapID)

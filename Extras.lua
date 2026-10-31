@@ -18,13 +18,13 @@ end
 -- 1. rares killed today
 ---------------------------------------------------------------------------
 local function charKey()
-    return (UnitName("player") or "?") .. "-" .. (GetNormalizedRealmName and GetNormalizedRealmName() or GetRealmName() or "?")
+    return (UnitName("player") or "?") .. "-" .. ((GetNormalizedRealmName and GetNormalizedRealmName()) or (GetRealmName() or "?"):gsub("[%s%-']", ""))
 end
 
 local function lastDailyReset()
-    local secs = C_DateAndTime and C_DateAndTime.GetSecondsUntilDailyReset and C_DateAndTime.GetSecondsUntilDailyReset()
-    if type(secs) ~= "number" then return time() - 86400 end
-    return time() + secs - 86400
+    local secs = C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset and C_DateAndTime.GetSecondsUntilWeeklyReset()
+    if type(secs) ~= "number" then return time() - 7 * 86400 end
+    return time() + secs - 7 * 86400
 end
 
 -- called by Collector when a kill is looted
@@ -34,14 +34,14 @@ function SFP:NoteKill(npcID)
     local k = self.db.killed[charKey()]
     if not k then k = {}; self.db.killed[charKey()] = k end
     k[npcID] = time()
-    -- forget kills older than two days
-    local old = time() - 2 * 86400
+    -- forget kills older than two weeks
+    local old = time() - 14 * 86400
     for id, t in pairs(k) do if t < old then k[id] = nil end end
     if self.RefreshWorldMap then pcall(self.RefreshWorldMap) end
     if self.session then self.session.kills = self.session.kills + 1 end
 end
 
--- every rare killed today (since the daily reset), per character: { char, name, zone, t }
+-- every rare killed this week (since the weekly reset), per character: { char, name, zone, t }
 function SFP:KilledTodayList()
     local out = {}
     local reset = lastDailyReset()
@@ -53,9 +53,10 @@ function SFP:KilledTodayList()
     end
     for char, kills in pairs(self.db and self.db.killed or {}) do
         for npcID, t in pairs(kills) do
-            if t >= reset then
-                local known = byNpc[npcID]
-                local rec = self.db.npcs and self.db.npcs[npcID]
+            local known = byNpc[npcID]
+            local rec = self.db.npcs and self.db.npcs[npcID]
+            local isRare = known or (rec and (rec.c == "rare" or rec.c == "rareelite" or rec.c == "worldboss" or rec.boss))
+            if t >= reset and isRare then
                 local map = known and known.map or (rec and rec.m and next(rec.m))
                 out[#out + 1] = {
                     char = char, npc = npcID, t = t,
@@ -162,7 +163,9 @@ end
 -- a small movable control: play, stop and show / hide the session window
 local ctl
 function SFP:ShowSessionControl()
+    local justBuilt = false
     if not ctl then
+        justBuilt = true
         ctl = CreateFrame("Frame", "SeviathsUsefulToolsSessionControl", UIParent, "BackdropTemplate")
         ctl:SetSize(236, 50)
         local pos = self.db and self.db.sessionCtlPos
@@ -212,7 +215,8 @@ function SFP:ShowSessionControl()
         end)
         upd()
     end
-    ctl:SetShown(not ctl:IsShown())
+    -- a new window is already visible, so the first click must not toggle it away again
+    if not justBuilt then ctl:SetShown(not ctl:IsShown()) else ctl:Show() end
 end
 
 function SFP:SessionToggle(arg)
