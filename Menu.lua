@@ -80,6 +80,7 @@ local function mkCheck(parent, label, getter, setter, x, y)
     cb:SetHitRectInsets(0, -(t:GetStringWidth() + 6), 0, 0)   -- the label can be clicked too
     cb:SetScript("OnClick", function(self) setter(self:GetChecked() and true or false) end)
     cb.refresh = function() cb:SetChecked(getter() and true or false) end
+    cb.text, cb.labelText = t, label
     return cb
 end
 
@@ -890,7 +891,23 @@ local function buildSettings(pane)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Open my group's makeup by itself in a group of 5 or more", function() return SFP.db.autoGroupComp ~= false end,
         function(v) SFP.db.autoGroupComp = v end, 12, -332)
     mkText(pane, "Each tool has its own page in the list on the left.", 12, -418, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
-    pane.refresh = function() for _, cb in ipairs(pane.checks) do cb.refresh() end end
+    pane.refresh = function()
+        local have = {
+            ["Use Auctionator prices"] = (Auctionator and Auctionator.API and Auctionator.API.v1) and true or false,
+            ["Use TradeSkillMaster prices"] = (TSM_API and TSM_API.GetCustomPriceValue) and true or false,
+        }
+        for _, cb in ipairs(pane.checks) do
+            cb.refresh()
+            -- the price source boxes are greyed out when that addon is not installed
+            for key, installed in pairs(have) do
+                if cb.labelText and cb.labelText:find(key, 1, true) then
+                    cb:SetEnabled(installed)
+                    cb.text:SetText(cb.labelText .. (installed and "" or "  (addon not installed)"))
+                    if installed then cb.text:SetTextColor(1, 1, 1) else cb.text:SetTextColor(0.5, 0.5, 0.5) end
+                end
+            end
+        end
+    end
 end
 
 ---------------------------------------------------------------------------
