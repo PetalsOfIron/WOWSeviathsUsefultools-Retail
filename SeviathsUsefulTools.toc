@@ -68,6 +68,7 @@ collected\tools.nameplateText.lua
 collected\tools.npcPos.lua
 collected\tools.npcs.lua
 collected\tools.objects.lua
+collected\tools.petPrices.lua
 collected\tools.playerIDs.lua
 collected\tools.realmGroups.lua
 collected\tools.rioCache.lua
