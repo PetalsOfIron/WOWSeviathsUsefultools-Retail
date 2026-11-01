@@ -206,14 +206,8 @@ end
 -- Data/SpawnsWowhead.lua when it has anything. Built when the window opens and dropped when it closes.
 local guideIndex
 local function isReagent(id)
-    local a = SFP.AuctionItems and SFP.AuctionItems[id]
-    if a and a[1] == 7 then return true end
-    local info = SFP.Items[id]
-    if info and (info.kind == "cloth" or info.kind == "leather" or info.kind == "meat" or info.kind == "element" or info.kind == "enchant" or info.kind == "boe" or info.kind == "pet") then return true end
-    local k = SFP.db and SFP.db.knownItems and SFP.db.knownItems[id]
-    if type(k) ~= "table" then return false end
-    -- crafting reagents, and the gear (weapons 2, armor 4) and battle pets (17, companion pets 15/2) that monsters drop
-    return k.c == 7 or k.c == 2 or k.c == 4 or k.c == 17 or (k.c == 15 and k.s == 2)
+    -- anything a monster drops: materials, gear, bags, battle pets, grays, everything (the sections sort it)
+    return id ~= nil
 end
 
 local function buildGuideIndex()
