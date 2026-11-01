@@ -247,15 +247,24 @@ local function QuestHoverTip(owner, questID)
             end
         end
         -- the people of the quest: who gave it and who takes it back (one line when it is the same person at the same place)
-        local sameNpc = ql.g and ql.t and ql.g.n and ql.g.n == ql.t.n and ql.g.m == ql.t.m
-            and ql.g.x and ql.t.x and math.abs(ql.g.x - ql.t.x) < 0.01 and math.abs(ql.g.y - ql.t.y) < 0.01
-        if ql.g and not sameNpc then
-            lines[#lines + 1] = "Quest giver at: " .. spotText(ql.g)
+        -- every quest giver and every hand-in NPC is listed (a quest can be given at more than one place), each once
+        local givers = ql.gs or (ql.g and { ql.g }) or {}
+        local takers = ql.ts or (ql.t and { ql.t }) or {}
+        local function samePerson(a, c)
+            return a.n and c.n and a.n == c.n and a.m == c.m and a.x and c.x and math.abs(a.x - c.x) < 0.01 and math.abs(a.y - c.y) < 0.01
+        end
+        local doneKey = {}
+        for _, g in ipairs(givers) do
+            local both = false
+            for _, t in ipairs(takers) do if samePerson(g, t) then both = true doneKey[t] = true break end end
+            lines[#lines + 1] = (both and "Quest giver and hand-in at: " or "Quest giver at: ") .. spotText(g)
             added = true
         end
-        if ql.t then
-            lines[#lines + 1] = (sameNpc and "Quest giver and hand-in at: " or (complete and "Hand in at: " or "Then hand in at: ")) .. spotText(ql.t)
-            added = true
+        for _, t in ipairs(takers) do
+            if not doneKey[t] then
+                lines[#lines + 1] = (complete and "Hand in at: " or "Then hand in at: ") .. spotText(t)
+                added = true
+            end
         end
         if not added then
             local where = (ns:QuestWhere(e) or ""):match("[^\n]+")
