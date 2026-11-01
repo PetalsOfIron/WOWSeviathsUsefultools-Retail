@@ -254,7 +254,11 @@ local function QuestHoverTip(owner, questID, append)
                 if not seenPlace[area] and shown < 5 then
                     seenPlace[area] = true
                     shown = shown + 1
-                    local nm = (type(p.names) == "table" and #p.names > 0) and (" - " .. table.concat(p.names, ", ")) or ""
+                    local clean = {}
+                    for _, n in ipairs(type(p.names) == "table" and p.names or {}) do
+                        if not (n:find("|c", 1, true) or n:find("Seviath", 1, true)) then clean[#clean + 1] = n end
+                    end
+                    local nm = #clean > 0 and (" - " .. table.concat(clean, ", ")) or ""
                 -- a spot where progress came from a kill says "Kill at", whatever the objective's own words are
                 -- two kinds of monster objective: just kill them ("Monster at") and an item the monsters drop ("Monster item at", e.g. Lumpy Fish Guts)
                 local spotLabel = (p.kill and (objIsItem and "Monster item at" or "Monster at")) or (p.use and "Pick up at") or objLabel
