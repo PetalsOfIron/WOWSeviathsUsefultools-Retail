@@ -399,7 +399,7 @@ local function AddQuest(id, q)
         icon = q.w and "Interface\\Icons\\INV_Misc_Map02" or "Interface\\Icons\\INV_Misc_Note_01",
         sub = (q.g and (q.g .. " — ") or "") .. objLine,
         objectives = q.o, tag = q.g, level = q.l, worldQuest = q.w,
-        collected = done or nil, acctDone = acct or nil, questID = id, wh = "quest=" .. id,
+        collected = done or nil, acctDone = acct or nil, questID = id, wh = "quest=" .. id, lazy = true,
         tags = (q.g or "") .. (q.w and " world quest" or ""),
     })
 end

@@ -861,7 +861,25 @@ local function CreateWindow()
     statusText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     statusText:SetPoint("BOTTOMLEFT", 14, 10)
 
+    frame:SetScript("OnHide", function()
+        -- closed for half a minute: the item and quest pages are taken out of memory (made again when it opens)
+        C_Timer.After(30, function()
+            if frame:IsShown() then return end
+            ns:UnloadLazy({ "item", "quest" })
+            if ns.ForgetCollectedItems then ns:ForgetCollectedItems() end
+            ns.questsUnloaded = true
+            state.selected = nil
+            state.history = {}
+            collectgarbage("collect")
+        end)
+    end)
     frame:SetScript("OnShow", function()
+        if ns.questsUnloaded then
+            ns.questsUnloaded = nil
+            for _, step in ipairs(ns.INDEXERS or {}) do
+                if step.name == "Loading saved quests" then ns:RunJob(step.name, step.fn) end
+            end
+        end
         if ns.ResumeJobs then ns:ResumeJobs() end
         -- the item pages are made when the Codex opens (a few thousand per frame in the background), not at login
         if ns.EnsureCollectedItems then ns:EnsureCollectedItems() end

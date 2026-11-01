@@ -91,6 +91,31 @@ end
 
 function ns:Get(key) return self.entries[key] end
 
+-- Takes the entries marked lazy (the item and quest pages built from the collected data) out of the Codex again, so a closed Codex holds
+-- almost nothing; they are made again the next time it opens.
+function ns:UnloadLazy(cats)
+    for _, cat in ipairs(cats) do
+        local list = self.byCat[cat]
+        if list then
+            local keep = {}
+            for _, e in ipairs(list) do
+                if e.lazy then self.entries[e.key] = nil else keep[#keep + 1] = e end
+            end
+            self.byCat[cat] = keep
+            self.groups[cat] = {}
+            groupSeen[cat] = {}
+            for _, e in ipairs(keep) do
+                if not groupSeen[cat][e.group] then
+                    groupSeen[cat][e.group] = true
+                    local g = self.groups[cat]
+                    g[#g + 1] = e.group
+                end
+            end
+        end
+    end
+    self.dirty = true
+end
+
 -- Link two entries both ways (e.g. boss <-> item)
 function ns:Link(a, b)
     if not a or not b then return end

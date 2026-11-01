@@ -118,6 +118,8 @@ end
 -- The item pages (about 55,000 entries) are made only when the Items or Materials section is opened, or when a search is typed: the Codex
 -- holds a lot of memory for them, and most players never open that section. Made a few thousand per frame, then the list is refreshed.
 local itemsState   -- nil = not started, "running", "done"
+function ns:ForgetCollectedItems() itemsState = nil end
+
 function ns:EnsureCollectedItems()
     if itemsState then return end
     local db = SFP and SFP.db
@@ -138,7 +140,7 @@ function ns:EnsureCollectedItems()
                 if name and not (db.knownItems and db.knownItems[id]) and not ns:Get("item:" .. id) and cls ~= 7 then
                     local cn = GetItemClassInfo and GetItemClassInfo(cls) or "Other"
                     ns:Add({ cat = "item", id = id, name = name, group = ns:ItemGroupFor(id, cn), icon = C_Item.GetItemIconByID(id),
-                        itemID = id, wh = "item=" .. id, sub = cn })
+                        itemID = id, wh = "item=" .. id, sub = cn, lazy = true })
                 end
             else
                 local r = db.knownItems[id]
@@ -148,7 +150,7 @@ function ns:EnsureCollectedItems()
                     elseif not ns:Get("item:" .. id) then
                         ns:Add({ cat = "item", id = id, name = r.n, group = ns:ItemGroupFor(id, (r.t or "Other") .. ((r.st and r.st ~= "" and r.st ~= r.t) and (" - " .. r.st) or ""), r.x),
                             icon = C_Item.GetItemIconByID(id), itemID = id, wh = "item=" .. id,
-                            sub = (r.t or "") .. ((r.st and r.st ~= "") and (" - " .. r.st) or "") .. ((r.i and r.i > 0) and ("  item level " .. r.i) or "") })
+                            sub = (r.t or "") .. ((r.st and r.st ~= "") and (" - " .. r.st) or "") .. ((r.i and r.i > 0) and ("  item level " .. r.i) or ""), lazy = true })
                     end
                 end
             end
