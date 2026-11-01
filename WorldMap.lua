@@ -1899,7 +1899,7 @@ refresh = function()
     if SFP.db.showSpotList and SFP.zoneByMap[mapID] then SFP:Safe("spot list", drawSpotList, mapID) end
     SFP:Safe("collectables", drawCollectables, mapID)
 
-    drawRoute(mapID)
+    if SFP.db.spotsCollapsed == false then drawRoute(mapID) end   -- the route line shows only while the Farm spots menu is open
     if SFP.zoneByMap[mapID] then
         -- inside a farm zone
         if SFP:IsValuableZone(mapID) then
