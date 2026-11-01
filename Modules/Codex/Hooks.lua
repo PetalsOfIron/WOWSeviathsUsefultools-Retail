@@ -255,7 +255,13 @@ local function QuestHoverTip(owner, questID, append)
                     seenPlace[area] = true
                     shown = shown + 1
                     local clean = {}
-                    for _, n in ipairs(type(p.names) == "table" and p.names or {}) do
+                    -- monsters killed here, and the objects picked up or used here (a spot with only objects shows those)
+                    local src = {}
+                    for _, n in ipairs(type(p.names) == "table" and p.names or {}) do src[#src + 1] = n end
+                    if not p.kill or not p.use then
+                        for _, n in ipairs(type(p.unames) == "table" and p.unames or {}) do src[#src + 1] = n end
+                    end
+                    for _, n in ipairs(src) do
                         if not (n:find("|c", 1, true) or n:find("Seviath", 1, true)) then clean[#clean + 1] = n end
                     end
                     local nm = #clean > 0 and (" - " .. table.concat(clean, ", ")) or ""
