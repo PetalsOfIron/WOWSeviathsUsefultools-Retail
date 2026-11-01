@@ -524,11 +524,6 @@ function SFP:ItemTipLines(id, link)
     if madeBy[id] then
         lines[#lines + 1] = { "Craftable: " .. recipeTexts(madeBy[id], 3), 0.85, 0.85, 0.85, true }
     end
-    -- the auction price of any item the scans saw (farm items already show it in their own tooltip block)
-    if self.GetPrice and not (self.trackedIDs and self.trackedIDs[id]) then
-        local ahp = self:GetPrice(id)
-        if ahp and ahp > 0 then lines[#lines + 1] = { "Auction price: " .. self:FormatPrice(ahp), 0.8, 0.8, 0.8 } end
-    end
     local also = self.AlsoGives[id]
     if also then
         lines[#lines + 1] = { "Also gives: " .. itemName(also[1]) .. " " .. also[2], 0.6, 1, 0.6 }
@@ -720,8 +715,14 @@ local function itemTip(tt, data)
     local link = data and data.hyperlink
     if issecretvalue and issecretvalue(link) then link = nil end
     if not link then link = tipItemLink(tt) end
+    -- the auction price right under the normal sell price (the first thing added), not at the bottom of the block; farm items show it in
+    -- their own block
+    if SFP.GetPrice and not (SFP.trackedIDs and SFP.trackedIDs[id]) then
+        local ahp = SFP:GetPrice(id)
+        if ahp and ahp > 0 then tt:AddDoubleLine("Auction price:", SFP:FormatPrice(ahp), 0.4, 0.9, 1, 1, 1, 1) end
+    end
     local lines = SFP:ItemTipLines(id, link)
-    if #lines == 0 then return end
+    if #lines == 0 then tt:Show() return end
     tt:AddLine(" ")
     tt:AddLine("|c" .. SFP.CYAN_HEX .. "Seviaths|r")
     for _, l in ipairs(lines) do
