@@ -2275,34 +2275,20 @@ end
 
 -- the side lists sit above their button on the line below the map (see MaterialGuide.lua)
 function SFP.DockPanels()
-    -- Farm spots opens below its button (as tall as the screen allows there); the other lists stay above theirs
-    local function dock(panel, key, below, wantH)
+    -- every list opens on the right of the map, in the empty screen next to it (the map stays in view); the buttons that open them are
+    -- in one line right below the map
+    local function dock(panel, wantH)
         if not panel then return end
-        local btn = _G["SeviathsUsefulToolsRow" .. key]
-        if not (btn and btn:IsShown()) then return end
         if panel:GetParent() ~= WorldMapFrame then panel:SetParent(WorldMapFrame) end
+        panel:SetClampedToScreen(true)
         panel:ClearAllPoints()
-        if below then
-            local ps = panel:GetEffectiveScale()
-            local room = ((btn:GetBottom() or 0) * btn:GetEffectiveScale()) / ps - 8
-            if room >= 200 then
-                panel:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -4)
-                if wantH then panel:SetHeight(math.min(wantH, room)) end
-                return
-            end
-            local above = (UIParent:GetTop() * UIParent:GetEffectiveScale() - (btn:GetTop() or 0) * btn:GetEffectiveScale()) / ps - 8
-            panel:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 0, 4)
-            if wantH then panel:SetHeight(math.min(wantH, math.max(above, 200))) end
-        elseif key == "rares" then
-            panel:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 16, 2)   -- opens up and to the right of its button at the map's edge
-        else
-            panel:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 0, 2)
-        end
+        panel:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 8, 0)
+        if wantH then panel:SetHeight(math.min(wantH, WorldMapFrame:GetHeight() or wantH)) end
     end
-    dock(gatherPanel, "gather")
-    dock(farmPanel, "spots", true, 520)
-    dock(spotPanel, "rares")
-    dock(collPanel, "coll")
+    dock(gatherPanel)
+    dock(farmPanel, 520)
+    dock(spotPanel)
+    dock(collPanel)
 end
 
 local function drawCollectables(mapID)
