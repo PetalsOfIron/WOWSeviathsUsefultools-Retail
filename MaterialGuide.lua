@@ -1437,8 +1437,8 @@ local function refreshRow()
     local hasFarm, hasRares = false, false
     if map and SFP.HasFarmLists then hasFarm, hasRares = SFP.HasFarmLists(map) end
     local show = {
-        spots = hasFarm,
-        rares = hasRares,
+        spots = true,   -- the window has its own zone list and search, so these two are always there
+        rares = true,
         coll = false,   -- Collectables is covered by Mount search and Hunter search
         search = true,
         mount = true,
