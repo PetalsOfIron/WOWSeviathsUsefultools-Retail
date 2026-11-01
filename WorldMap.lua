@@ -1922,8 +1922,16 @@ local function spotsOfGroup(zone, group)
     if not SFP._bestDone then markBest() end
     for _, s in ipairs(zone and zone.spawns or {}) do
         if s.points and s._best ~= false and spotGroup(s) == group then
+            -- a monster that drops a battle pet is listed under Battle pets (with its waypoint), not under Farm spots
+            local petDrop = false
+            if group == "farm" then
+                for _, id in ipairs(s.items or {}) do
+                    local info = SFP.Items[id]
+                    if info and info.kind == "pet" then petDrop = true break end
+                end
+            end
             local k = spotKey(s)
-            if not seen[k] then seen[k] = true; list[#list + 1] = s end
+            if not petDrop and not seen[k] then seen[k] = true; list[#list + 1] = s end
         end
     end
     table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
