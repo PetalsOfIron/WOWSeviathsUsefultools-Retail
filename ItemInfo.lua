@@ -78,6 +78,11 @@ local TAG_TEXT = { farm = "farm spot", herb = "herb", ore = "ore", monster = "mo
 local function zoneTexts(id, classID, subID, expID)
     if not zoneIdx then buildZoneIdx() end
     local out = {}
+    -- items that come from a person, not from a zone
+    if id == 6948 then
+        out[#out + 1] = "Any innkeeper gives you a new one for free: the innkeeper where you make your home"
+        return out
+    end
     local found = {}
     for map, e in pairs(zoneIdx[id] or {}) do found[map] = { e.tag, e.n } end
     -- zones where you saw monsters / nodes drop it
@@ -125,8 +130,6 @@ local function zoneTexts(id, classID, subID, expID)
         elseif classID == 7 and (subID == 5 or subID == 6 or subID == 8 or subID == 10 or subID == 11) then
             local what = ({ [5] = "humanoid", [6] = "beast (skinning)", [8] = "beast", [10] = "elemental", [11] = "monster" })[subID]
             add("Dropped by " .. what .. " monsters in:", farmZones(key))
-        elseif classID == 2 or classID == 4 or classID == 15 or classID == 0 then
-            add("Made for the zones of " .. en .. ":", farmZones(key))
         end
     end
     return out
