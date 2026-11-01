@@ -122,7 +122,8 @@ local function scanOne(qid)
     end
     -- progress went up here -> remember this spot as an objective area
     local prog = ObjectiveProgress(qid)
-    if prog and lastProgress[qid] and prog > lastProgress[qid] then
+    -- progress went up since the last look, or the quest is first seen with progress already made (a world quest started before the addon looked)
+    if prog and ((lastProgress[qid] and prog > lastProgress[qid]) or (lastProgress[qid] == nil and prog > 0)) then
         local m, x, y = PlayerSpot()
         if m then
             local l = Loc(qid)
