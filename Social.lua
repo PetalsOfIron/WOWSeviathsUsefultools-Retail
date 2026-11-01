@@ -877,7 +877,12 @@ local function inspectReady(guid)
     local rec = { t = time() }
     if C_PaperDollInfo and C_PaperDollInfo.GetInspectItemLevel then
         local ok, v = pcall(C_PaperDollInfo.GetInspectItemLevel, unit)
-        if ok and type(v) == "number" and not secret(v) and v > 0 then rec.ilvl = math.floor(v) end
+        if ok and type(v) == "number" and not secret(v) and v > 0 then rec.ilvl = math.floor(v)
+        elseif ok and type(v) == "number" and not secret(v) and v == 0 then
+            -- a new low-level character has no gear that counts: the game answers 0, the item level is 1 (not "reading..." forever)
+            local okL, lvl = pcall(UnitLevel, unit)
+            if okL and type(lvl) == "number" and not secret(lvl) and lvl > 0 and lvl < 10 then rec.ilvl = 1 end
+        end
     end
     local GH = SFP.GemHelper
     if GH then
