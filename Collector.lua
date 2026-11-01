@@ -1020,7 +1020,18 @@ SFP:OnLogin(function()
         if n > 0 then step() end
     end)
     -- items we already know that are materials join the farm list straight away
-    for id in SeviathsAllPairs(SFP.db.knownItems) do SFP:ClassifyItem(id) end
+    -- (in the background, a few hundred per frame, one record read at a time: nothing is read all at once at login)
+    C_Timer.After(20, function()
+        local ids = SeviathsKeys(SFP.db.knownItems)
+        local i = 1
+        local function step()
+            local last = math.min(#ids, i + 399)
+            for n = i, last do SFP:ClassifyItem(ids[n]) end
+            i = last + 1
+            if i <= #ids then C_Timer.After(0.05, step) end
+        end
+        step()
+    end)
     local TT = Enum and Enum.TooltipDataType
     local okUnit, okItem = false, false
     if TooltipDataProcessor and TT and TT.Unit then

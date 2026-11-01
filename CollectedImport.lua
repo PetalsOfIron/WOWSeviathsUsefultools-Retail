@@ -21,6 +21,18 @@ local function decode(s)
 end
 SeviathsDecode = decode
 
+-- the keys of a saved table and the shipped table behind it, WITHOUT reading (decoding) any record
+function SeviathsKeys(t)
+    local keys = {}
+    for k in pairs(t or {}) do keys[#keys + 1] = k end
+    local mt = type(t) == "table" and getmetatable(t)
+    local shipped = mt and mt.shipped
+    if shipped then
+        for k in pairs(shipped) do if rawget(t, k) == nil then keys[#keys + 1] = k end end
+    end
+    return keys
+end
+
 -- walks a saved table and the shipped table behind it (a table without a shipped one is walked as pairs does)
 function SeviathsAllPairs(t)
     local mt = type(t) == "table" and getmetatable(t)
