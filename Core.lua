@@ -75,7 +75,7 @@ local defaults = {
     rareAlerts = true,     -- chat line when a rare you still miss something from appears nearby
     rareAlertSound = true, -- and a sound with it
     showSpotList = true,   -- side list on zone maps: every farm spot of the zone, each one can be switched off
-    spotsCollapsed = false,
+    spotsCollapsed = true,
     hiddenSpots  = {},     -- [spot key] = true: switched off in the spot list (map and minimap)
     showUnconfirmed = true, -- possible BoEs from guides that may have changed (listed separately)
     learn        = true,   -- remember where you loot farm materials / BoEs and show those spots

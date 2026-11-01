@@ -1150,6 +1150,11 @@ nameFrame:SetScript("OnEvent", function()
 end)
 
 SFP:OnLogin(function()
+    -- once: the side lists start closed (they are opened with the buttons below the map); older saved settings had the Farm spots list open
+    if SFP.db and not SFP.db.panelsClosedV2 then
+        SFP.db.panelsClosedV2 = true
+        SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed = true, true, true
+    end
     if not WorldMapFrame or not WorldMapFrame.ScrollContainer then return end
     WorldMapFrame:HookScript("OnHide", function()
         if win then win:Hide() end
