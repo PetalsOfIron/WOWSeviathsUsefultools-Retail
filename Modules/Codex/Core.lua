@@ -327,8 +327,12 @@ function ns:RunJob(name, fn)
 end
 
 driver:Hide()
+-- the Codex reads its data only while its window is open: when it is closed the loading stops (it goes on where it was when the
+-- window is opened again)
+function ns:ResumeJobs() if #self.jobs > 0 then driver:Show() end end
 driver:SetScript("OnUpdate", function(self)
     if InCombatLockdown() then return end
+    if ns.IsOpen and not ns:IsOpen() then self:Hide() return end
     local job = ns.jobs[1]
     if not job then
         self:Hide()

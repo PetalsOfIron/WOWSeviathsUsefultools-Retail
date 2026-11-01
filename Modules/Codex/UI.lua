@@ -13,6 +13,7 @@ local BACKDROP    = {
 }
 
 local frame, searchBox, listRows, listSlider, detail, statusText
+function ns:IsOpen() return frame ~= nil and frame:IsShown() end
 local catButtons = {}
 local state = {
     cat = "guide",       -- selected category
@@ -861,6 +862,7 @@ local function CreateWindow()
     statusText:SetPoint("BOTTOMLEFT", 14, 10)
 
     frame:SetScript("OnShow", function()
+        if ns.ResumeJobs then ns:ResumeJobs() end
         -- the item pages are made when the Codex opens (a few thousand per frame in the background), not at login
         if ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
         RefreshCategories()

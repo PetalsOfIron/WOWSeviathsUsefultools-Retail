@@ -128,6 +128,7 @@ function ns:EnsureCollectedItems()
     for id in SeviathsAllPairs(db.knownItems or {}) do ids[#ids + 1] = { id, "known" } end
     local i = 1
     local function step()
+        if ns.IsOpen and not ns:IsOpen() then C_Timer.After(1, step) return end   -- paused while the Codex is closed
         local last = math.min(#ids, i + 2499)
         for n = i, last do
             local id, kind = ids[n][1], ids[n][2]
