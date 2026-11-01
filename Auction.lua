@@ -128,6 +128,7 @@ local function processReplicate()
     local newIDs, newNames, seenIDs = 0, 0, {}
     local allBest, allCount = {}, 0   -- the cheapest buyout of EVERY item in the auction house (the whole-scan snapshot)
     local listings = {}               -- recipe products: the 6 cheapest buyouts and how many are listed
+    local petBest = {}                -- battle pets: the cheapest buyout of each species (all cages share one item ID, the species is in the link)
     local function chunk()
         -- only a few milliseconds of work per frame: the scan runs in the background and the screen never stutters
         local t0 = debugprofilestop and debugprofilestop() or 0
@@ -150,6 +151,11 @@ local function processReplicate()
                         newNames = newNames + 1
                     end
                 end
+            end
+            if itemID == 82800 and buyout and buyout > 0 and C_AuctionHouse.GetReplicateItemLink then
+                local okL, link = pcall(C_AuctionHouse.GetReplicateItemLink, i - 1)
+                local species = okL and type(link) == "string" and not (issecretvalue and issecretvalue(link)) and tonumber(link:match("battlepet:(%d+)"))
+                if species and (not petBest[species] or buyout < petBest[species]) then petBest[species] = buyout end
             end
             if itemID and buyout and buyout > 0 then
                 local cur = allBest[itemID]
@@ -185,6 +191,10 @@ local function processReplicate()
             -- the whole snapshot: every item's price is kept (compact), so any item the scan saw has a price
             SFP.db.ahAll = SFP.db.ahAll or {}
             SFP.db.ahAll[SFP:RealmKey()] = allBest
+            if next(petBest) then
+                SFP.db.petPrices = SFP.db.petPrices or {}
+                SFP.db.petPrices[SFP:RealmKey()] = petBest   -- [speciesID] = copper, replaced by each fast scan
+            end
             SFP.db.ahListings = SFP.db.ahListings or {}
             SFP.db.ahListings[SFP:RealmKey()] = listings
             SFP.db.lastScanKind = "fast scan, whole auction house"
