@@ -1108,31 +1108,50 @@ end
 -- price), over the monsters with at least 3 kills recorded
 local function renderTop()
     local n = 0
-    win.title:SetText("|c" .. SFP.CYAN_HEX .. "Best 15 farm spots|r  |cffaaaaaaby value per kill|r")
+    win.title:SetText("|c" .. SFP.CYAN_HEX .. "Best 15 farm spots|r  |cffaaaaaathis week|r")
     collectedMonsters(0, "farm")
-    local maps, seenMap = {}, {}
-    for map in pairs(SFP.zoneByMap) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
-    for map in pairs(monsterIndex or {}) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
-    local ranked = {}
-    for _, map in ipairs(maps) do
-        for _, s in ipairs(farmSpotsFor(map, "farm")) do
-            local loot, kills = SFP.MonsterLoot(s)
-            if kills >= 3 then
-                local val = 0
-                for _, d in ipairs(loot) do
-                    local price = SFP:GetPrice(d.id)
-                    if price and d.q > 0 then val = val + price * d.q / kills end
-                end
-                if val > 0 then ranked[#ranked + 1] = { map = map, s = s, val = val } end
+    local function valueOf(s)
+        local loot, kills = SFP.MonsterLoot(s)
+        if kills < 3 then return 0 end
+        local val = 0
+        for _, d in ipairs(loot) do
+            local price = SFP:GetPrice(d.id)
+            if price and d.q > 0 then val = val + price * d.q / kills end
+        end
+        return val
+    end
+    -- the ranking is made once a week, at the weekly reset (with that day's prices), and kept for the week; a spot learned later is in
+    -- the database and the search at once, and can be in the next week's ranking
+    local resetIn = C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset and C_DateAndTime.GetSecondsUntilWeeklyReset()
+    local weekKey = resetIn and math.floor((time() + resetIn) / 3600) or nil
+    local saved = SFP.db.topSpots
+    if not (saved and weekKey and saved.week == weekKey and saved.list and #saved.list > 0) then
+        local maps, seenMap = {}, {}
+        for map in pairs(SFP.zoneByMap) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+        for map in pairs(monsterIndex or {}) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+        local ranked = {}
+        for _, map in ipairs(maps) do
+            for _, s in ipairs(farmSpotsFor(map, "farm")) do
+                local val = valueOf(s)
+                if val > 0 then ranked[#ranked + 1] = { map = map, name = tostring(s.name), npc = s.npc, val = val } end
             end
         end
+        table.sort(ranked, function(a, c) return a.val > c.val end)
+        local keep = {}
+        for k = 1, math.min(15, #ranked) do keep[k] = { map = ranked[k].map, name = ranked[k].name, npc = ranked[k].npc } end
+        saved = { week = weekKey, list = keep }
+        if weekKey and #keep > 0 then SFP.db.topSpots = saved end
     end
-    table.sort(ranked, function(a, c) return a.val > c.val end)
-    for i = 1, math.min(15, #ranked) do
-        local r = ranked[i]
-        r.s.rank = i
-        r.s.valueText = "   |cff40ff40" .. SFP:FormatPrice(math.floor(r.val)) .. " per kill|r"
-        n = renderBlocks(n, r.map, { r.s })
+    for k, e in ipairs(saved.list) do
+        for _, s in ipairs(farmSpotsFor(e.map, "farm")) do
+            if (e.npc and s.npc == e.npc) or (not e.npc and tostring(s.name) == e.name) then
+                local val = valueOf(s)
+                s.rank = k
+                s.valueText = "   |cff40ff40" .. (val > 0 and (SFP:FormatPrice(math.floor(val)) .. " per kill") or "no price now") .. "|r"
+                n = renderBlocks(n, e.map, { s })
+                break
+            end
+        end
     end
     if n == 0 then n = headerRow(0, "|cff808080No monster has enough kills and prices recorded yet|r") end
     finish(list, n)
