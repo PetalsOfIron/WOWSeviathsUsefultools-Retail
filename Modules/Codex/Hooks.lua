@@ -221,22 +221,20 @@ C_Timer.NewTicker(3, function() pcall(ScanTracker) end)
 ------------------------------------------------------------------------
 -- Tooltip hint on items
 ------------------------------------------------------------------------
-if TooltipDataProcessor and Enum.TooltipDataType then
+-- Registered a few seconds after login, so this hint is the LAST tooltip block to run: the game calls the item tooltip hooks in the order
+-- they were registered, and the hint must come after the prices and the Seviaths lines. (Adding it a frame later made the tooltip
+-- change size again and again, because the game refreshes a tooltip all the time.)
+local function RegisterItemHint()
+    if not (TooltipDataProcessor and Enum.TooltipDataType) then return end
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tt, data)
         if tt ~= GameTooltip or not data or not data.id or InCombatLockdown() then return end
         if ns.db and ns.db.hideHint then return end
-        -- added a moment later, after every other addon block (prices, Seviaths lines): it is the last line of the tooltip
-        local wantId = data.id
-        C_Timer.After(0, function()
-            if not (tt:IsShown() and tt == GameTooltip) then return end
-            local ok, now = pcall(function() local d = tt:GetTooltipData() return d and d.id end)
-            if ok and now == wantId then
-                tt:AddLine("|cff33e6ffAlt+click: open in Codex|r")
-                tt:Show()
-            end
-        end)
+        tt:AddLine("|cff33e6ffAlt+click: open in Codex|r")
     end)
 end
+local hintFrame = CreateFrame("Frame")
+hintFrame:RegisterEvent("PLAYER_LOGIN")
+hintFrame:SetScript("OnEvent", function() C_Timer.After(8, RegisterItemHint) end)
 
 ------------------------------------------------------------------------
 -- Slash: /codex quest …  /codex item …   (hooked into the main command)
