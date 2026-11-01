@@ -24,8 +24,9 @@ local function zname(map)
 end
 
 -- the place as the map names it: the area at the spot ("Temple of Halazzi"), then the zone it is in
-local function placeName(map, x, y)
+local function placeName(map, x, y, area)
     local zone = zname(map)
+    if type(area) == "string" and area ~= "" and area ~= zone then return area .. " (" .. zone .. ")" end
     if C_Map and C_Map.GetMapInfoAtPosition and type(x) == "number" and type(y) == "number" then
         local ok, info = pcall(C_Map.GetMapInfoAtPosition, map, x, y)
         if ok and type(info) == "table" and type(info.name) == "string" and info.name ~= "" and info.name ~= zone then
@@ -123,7 +124,7 @@ local function zoneTexts(id, classID, subID, expID)
         if rec and type(rec.m) == "table" then map, spots = next(rec.m) end
         local spot1 = type(spots) == "table" and spots[1] or nil
         if rec and rec.n then
-            local place = map and placeName(map, spot1 and spot1[1], spot1 and spot1[2]) or nil
+            local place = map and placeName(map, spot1 and spot1[1], spot1 and spot1[2], spot1 and spot1[3]) or nil
             if d[3] == "o" then
                 if addSrc(("Picked up at: %s|cffffd100%s|r (node or object)"):format(place and (place .. " - ") or "", rec.n)) then shownDrops = shownDrops + 1 end
             else

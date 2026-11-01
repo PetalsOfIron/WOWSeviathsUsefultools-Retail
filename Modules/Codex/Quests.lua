@@ -19,6 +19,13 @@ local function PlayerSpot()
     return m, pos.x, pos.y
 end
 
+-- the text of the minimap's zone line here ("Zeb'Alar Lumbermill"), nil when there is none
+local function AreaText()
+    local ok, z = pcall(GetMinimapZoneText)
+    if ok and type(z) == "string" and not secret(z) and z ~= "" then return z end
+    return nil
+end
+
 local function Loc(qid)
     ns.db.qloc = ns.db.qloc or {}
     local l = ns.db.qloc[qid]
@@ -52,13 +59,16 @@ end
 -- a saved objective spot without an area name gets the text of the minimap's zone line ("Zeb'Alar Lumbermill") when you are near it
 function ns:LearnQuestAreas(qid)
     local ql0 = ns.db and ns.db.qloc and ns.db.qloc[qid]
-    if not (ql0 and ql0.o) then return end
+    if not (ql0 and (ql0.o or ql0.g or ql0.t)) then return end
     local m0, x0, y0 = PlayerSpot()
     if not m0 then return end
-    for _, sp in ipairs(ql0.o) do
+    local all = {}
+    for _, sp in ipairs(ql0.o) do all[#all + 1] = sp end
+    if ql0.g then all[#all + 1] = ql0.g end
+    if ql0.t then all[#all + 1] = ql0.t end
+    for _, sp in ipairs(all) do
         if not sp.a and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.06 and math.abs(sp.y - y0) < 0.06 then
-            local okZ, zt = pcall(GetMinimapZoneText)
-            if okZ and type(zt) == "string" and not secret(zt) and zt ~= "" then sp.a = zt end
+            sp.a = AreaText()
         end
     end
 end
@@ -139,7 +149,7 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         local qid = GetQuestID and GetQuestID()
         local name = NpcName()
         local m, x, y = PlayerSpot()
-        if qid and qid > 0 and m then pendingGiver[qid] = { n = name, m = m, x = x, y = y } end
+        if qid and qid > 0 and m then pendingGiver[qid] = { n = name, m = m, x = x, y = y, a = AreaText() } end
     elseif event == "QUEST_ACCEPTED" then
         local qid = arg1
         local g = qid and pendingGiver[qid]
@@ -149,7 +159,7 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         local qid = GetQuestID and GetQuestID()
         local m, x, y = PlayerSpot()
         if qid and qid > 0 and m then
-            Loc(qid).t = { n = NpcName(), m = m, x = x, y = y }
+            Loc(qid).t = { n = NpcName(), m = m, x = x, y = y, a = AreaText() }
         end
     elseif event == "QUEST_LOG_UPDATE" then
         if logPending then return end
