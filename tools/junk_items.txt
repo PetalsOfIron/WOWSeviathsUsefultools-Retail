@@ -4155,3 +4155,83 @@
 199204|Torn Resilient Leather Scraps|inv_misc_leatherscrap_17|70
 199206|Shattered Adamant Scales|inv_misc_scales_basilliskteal|70
 199476|Singed Cloth Scraps|inv_fabric_spellfire|60
+10579|Explosive Arrow||1
+10651|Cracked Arcane Focusing Crystal||1
+18229|Nat Pagle's Guide to Extreme Anglin'||1
+18365|A Thoroughly Read Copy of "Nat Pagle's Extreme' Anglin."||1
+18769|Torn Scroll||1
+18770|Torn Scroll||1
+18771|Torn Scroll||1
+23357|Hatched Ravager Egg||1
+23940|Pristine Ravager Fang||1
+23941|Crushed Ravager Carapace||1
+23942|Crushed Ravager Fang||1
+23943|Crushed Ravager Claw||1
+23950|Damaged Ravager Carapace||1
+23951|Damaged Ravager Fang||1
+23953|Worn Ravager Carapace||1
+23954|Worn Ravager Fang||1
+23955|Worn Ravager Claw||1
+23957|Weathered Ravager Carapace||1
+23958|Weathered Ravager Fang||1
+23959|Weathered Ravager Claw||1
+23960|Beaten Ravager Carapace||1
+23961|Beaten Ravager Fang||1
+23962|Beaten Ravager Claw||1
+23966|Flawed Ravager Carapace||1
+23967|Flawed Ravager Fang||1
+23968|Flawed Ravager Claw||1
+23969|Imperfect Ravager Carapace||1
+23970|Imperfect Ravager Fang||1
+23971|Imperfect Ravager Claw||1
+23972|Mangled Ravager Carapace||1
+23973|Mangled Ravager Fang||1
+23974|Mangled Ravager Claw||1
+23992|Torn Saurian Pelt||1
+23993|Cracked Saurian Claw||1
+24187|Shiny Rock||10
+24191|Small Gem Shards||30
+24506|Elemental Sliver||1
+24509|Primordial Element||1
+24515|Mangy Mane||1
+24518|Coarse Mane||1
+27894|Tangled Mane||1
+29551|Severed Tail||1
+29552|Broken Rock Flayer Talon||1
+29557|Rainbow Feather||1
+29558|Charged Scale||1
+29566|Raptor Blood Feather||1
+32760|The Macho Gnome's Arrow||1
+32761|The Sarge's Bullet||1
+36795|Unhinged Claw||1
+37839|Abomination Stitching||80
+42929|Broken Spurs||1
+43514|Stamped Identification Tag||1
+44298|Brightly Hued Egg||1
+44299|Crinkly Grass||85
+44300|Smashed Basket||1
+44578|Ruined Herbs||1
+44699|Broken Voice Modulator||1
+44760|Rippling Fur||1
+44761|Ancient Horn||1
+46852|H17 Ammunition Buddy||1
+65879|Cannon Stabilizer||312
+78550|Gutripper Shard||410
+78551|Stoutheart Talisman||410
+78552|Lightning Spirit in a Bottle||410
+78553|Mindbender Lens||410
+78554|Ripfang Relic||410
+78629|Gutripper Shard||384
+78630|Mindbender Lens||384
+78631|Lightning Spirit in a Bottle||384
+78632|Stoutheart Talisman||384
+78633|Ripfang Relic||384
+78896|Shattered Gem Shards||85
+82301|Wool of Bat||85
+82302|Half-Digested Cobra||85
+82329|Toad Toxin||85
+82336|Toe of Frog||85
+82338|Half-Eaten Cobra||85
+84757|Shattered Stone Fragment||85
+90561|Eternium Rose||1
+92524|A Missive From High Tinker Mekkatorque||1
