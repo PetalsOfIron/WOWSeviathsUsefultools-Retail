@@ -203,3 +203,13 @@ f:SetScript("OnEvent", function()
     local first = type(db) == "table" and (db.collectedDate or 0) < (C.date or 0)
     if pcall(addJobs, first) then C_Timer.After(10, function() pcall(step) end) end
 end)
+
+-- the price histories of earlier versions (a table per sample) are turned into flat lists a little after login
+local histFrame = CreateFrame("Frame")
+histFrame:RegisterEvent("PLAYER_LOGIN")
+histFrame:SetScript("OnEvent", function()
+    C_Timer.After(30, function()
+        local S = _G.SeviathsUsefulTools
+        if S and S.CompactPriceHist then pcall(S.CompactPriceHist, S) end
+    end)
+end)

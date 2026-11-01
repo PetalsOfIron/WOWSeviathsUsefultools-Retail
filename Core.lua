@@ -468,13 +468,50 @@ function SFP:StorePrice(itemID, copper, fromOtherAddon)
     if not all then all = {}; self.db.priceHist = all end
     local realm = self:RealmKey()
     all[realm] = all[realm] or {}
+    -- a history is one flat list { price1, time1, price2, time2, ... } (a table per sample used a lot of memory: 190,000 of them)
     local list = all[realm][itemID]
     if not list then list = {}; all[realm][itemID] = list end
-    local last = list[#list]
-    if not last or math.abs(last.p - copper) > last.p * 0.02 or rec.t - last.t > 21600 then
-        list[#list + 1] = { p = copper, t = rec.t }
-        if #list > 14 then table.remove(list, 1) end
+    if type(list[1]) == "table" then list = SFP.FlatHistory(list); all[realm][itemID] = list end
+    local lastP, lastT = list[#list - 1], list[#list]
+    if not lastP or math.abs(lastP - copper) > lastP * 0.02 or rec.t - lastT > 21600 then
+        list[#list + 1] = copper
+        list[#list + 1] = rec.t
+        if #list > 28 then table.remove(list, 1); table.remove(list, 1) end
     end
+end
+
+-- an older history ({ {p=, t=}, ... }) as the flat list
+function SFP.FlatHistory(old)
+    local flat = {}
+    for _, s in ipairs(old) do
+        if type(s) == "table" and s.p then flat[#flat + 1] = s.p; flat[#flat + 1] = s.t or 0 end
+    end
+    return flat
+end
+
+-- the old histories are turned into flat lists in the background (a few thousand per step)
+function SFP:CompactPriceHist()
+    local all = self.db and self.db.priceHist
+    if not all then return end
+    local jobs = {}
+    for realm, items in pairs(all) do
+        local ids = {}
+        for id, list in pairs(items) do if type(list) == "table" and type(list[1]) == "table" then ids[#ids + 1] = id end end
+        if #ids > 0 then jobs[#jobs + 1] = { items = items, ids = ids, i = 1 } end
+    end
+    local j = 1
+    local function step()
+        local job = jobs[j]
+        if not job then return end
+        for n = job.i, math.min(#job.ids, job.i + 2999) do
+            local id = job.ids[n]
+            job.items[id] = SFP.FlatHistory(job.items[id])
+        end
+        job.i = job.i + 3000
+        if job.i > #job.ids then j = j + 1 end
+        C_Timer.After(0.05, step)
+    end
+    step()
 end
 
 -- a price from Auctionator or TradeSkillMaster, whichever has one (nil when neither is installed / knows the item)

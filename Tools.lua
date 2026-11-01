@@ -375,11 +375,12 @@ end
 function SFP:TypicalPrice(itemID)
     local ph = self.db.priceHist and self.db.priceHist[self:RealmKey()]
     local samples = ph and ph[itemID]
-    if samples and #samples >= 3 then
+    if samples and type(samples[1]) == "table" then samples = self.FlatHistory(samples) end   -- an older history
+    if samples and #samples >= 6 then
         local vals = {}
-        -- the newest sample is "now"; the typical price is what came before
-        for i = 1, #samples - 1 do vals[#vals + 1] = samples[i].p end
-        return median(vals), #samples - 1, "your scans"
+        -- the newest sample is "now"; the typical price is what came before (the flat list is price, time, price, time ...)
+        for i = 1, #samples - 2, 2 do vals[#vals + 1] = samples[i] end
+        return median(vals), #vals, "your scans"
     end
     -- no history of our own: Auctionator's own price history (when this version offers it)
     if Auctionator and Auctionator.Database and Auctionator.Database.GetPriceHistory then
