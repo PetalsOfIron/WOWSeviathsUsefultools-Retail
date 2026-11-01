@@ -241,7 +241,8 @@ local function QuestHoverTip(owner, questID)
                 if not seenPlace[area] and shown < 5 then
                     seenPlace[area] = true
                     shown = shown + 1
-                    lines[#lines + 1] = (shown == 1 and (objLabel .. ": ") or "also: ") .. text
+                    local nm = (type(p.names) == "table" and #p.names > 0) and (" - " .. table.concat(p.names, ", ")) or ""
+                lines[#lines + 1] = (shown == 1 and (objLabel .. ": ") or "also: ") .. text .. nm
                     added = true
                 end
             end
