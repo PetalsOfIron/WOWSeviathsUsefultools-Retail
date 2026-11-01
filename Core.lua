@@ -611,13 +611,13 @@ function SFP:ShippedPrice(id)
         end
     end
     local rec = shippedRealm and shippedRealm.p[id]
-    if rec then return rec[1], rec[2] end
+    if rec then return rec, shippedRealm.t end
     -- commodities (materials, consumables, reagents) are one price list for the whole region: the region's file covers every realm of it
     local region = GetCurrentRegion and GetCurrentRegion()
     local regionKey = ({ [1] = "REGION_US", [2] = "REGION_KR", [3] = "REGION_EU", [4] = "REGION_TW" })[region or 0]
     local rr = regionKey and G[regionKey]
     local rrec = rr and rr.p[id]
-    if rrec then return rrec[1], rrec[2] end
+    if rrec then return rrec, rr.t end
 end
 
 function SFP:GetPrice(itemID)

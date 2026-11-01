@@ -49,7 +49,7 @@ def write(key, region, items):
         fh.write('local R = { t = %d, p = {} }\nSeviathsUsefulToolsGold["%s"] = R\n' % (now, key))
         fh.write("local function addP(realm, t) for k, v in pairs(t) do R.p[k] = v end end\n")
         for i in range(0, len(ids), BATCH):
-            chunk = ",".join("[%d]={%d,%d}" % (n, items[n], now) for n in ids[i:i + BATCH])
+            chunk = ",".join("[%d]=%d" % (n, items[n]) for n in ids[i:i + BATCH])
             fh.write(';(function() addP("%s",{%s}) end)()\n' % (key, chunk))
     print("%s: %d prices" % (key, len(items)))
 

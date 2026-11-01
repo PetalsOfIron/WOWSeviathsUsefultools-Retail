@@ -28,10 +28,13 @@ def read_old(path):
         return out
     text = open(path, encoding="utf-8").read()
     p = P(text)
+    mt = re.search(r"R = \{ t = (\d+)", text)
+    file_t = int(mt.group(1)) if mt else 0
     for m in re.finditer(r'^;\(function\(\) addP\("[^"]*",', text, re.M):
         v, _ = p.value(m.end())
         for item, rec in v.items():
-            out[item] = tuple(rec) if isinstance(rec, list) else (rec, 0)
+            # older files kept { copper, time } per item; now one number per item and one time per file (less memory in the game)
+            out[item] = tuple(rec) if isinstance(rec, list) else (rec, file_t)
     return out
 
 
@@ -93,7 +96,7 @@ def main():
             fh.write('local R = { t = %d, p = {} }\nSeviathsUsefulToolsGold["%s"] = R\n' % (newest, key))
             fh.write("local function addP(realm, t) for k, v in pairs(t) do R.p[k] = v end end\n")
             for i in range(0, len(ids), BATCH):
-                chunk = ",".join("[%d]={%d,%d}" % (n, items[n][0], items[n][1]) for n in ids[i:i + BATCH])
+                chunk = ",".join("[%d]=%d" % (n, items[n][0]) for n in ids[i:i + BATCH])
                 fh.write(';(function() addP("%s",{%s}) end)()\n' % (key, chunk))
         print("gold %s: %d prices" % (key, len(items)))
 
