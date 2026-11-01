@@ -406,7 +406,7 @@ local function RecordWorldQuests(mapID)
                     local okA, info = pcall(C_Map.GetMapInfoAtPosition, mapID, x, y)
                     if okA and type(info) == "table" and type(info.name) == "string" and info.name ~= "" then area = info.name end
                 end
-                l.o[#l.o + 1] = { m = mapID, x = x, y = y, a = area }
+                l.o[#l.o + 1] = { m = mapID, x = x, y = y, a = area, icon = true }   -- icon = the spot of its icon on the map, not a place you were at
                 l.w = true   -- a world quest
             end
             -- the quest itself (title, objectives, kind) is saved too, when the game has it loaded (it is asked for first)
