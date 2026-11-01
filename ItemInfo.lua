@@ -95,7 +95,12 @@ local function zoneTexts(id, classID, subID, expID)
         out[#out + 1] = "Vendor: Innkeeper (any innkeeper, free; the one you make your home at)"
         return out
     end
-    -- exact sources first: who sells it (the kind of vendor) and which monsters or nodes gave it, each with its zone
+    -- exact sources first: who sells it (the kind of vendor) and which monsters or nodes gave it, each with its zone. A line that is the same
+    -- as one already written (the same vendor or monster recorded twice, or in the same place) is written once.
+    local seenSrc = {}
+    local function addSrc(text)
+        if not seenSrc[text] then seenSrc[text] = true; out[#out + 1] = text; return true end
+    end
     local CX = _G.SeviathsCodexDB
     local vkeys = CX and CX.vendorItems and CX.vendorItems[id]
     if vkeys and CX.vendors then
@@ -104,12 +109,14 @@ local function zoneTexts(id, classID, subID, expID)
             if v and v.n then
                 local cdx = _G.SeviathsCodex
                 local kind = (cdx and cdx.VendorKind and cdx:VendorKind(v)) or "Vendor"
-                out[#out + 1] = ("Vendor found at: %s - |cffffd100%s|r (%s)"):format(placeName(v.m, v.x, v.y), v.n, kind)
+                addSrc(("Vendor found at: %s - |cffffd100%s|r (%s)"):format(placeName(v.m, v.x, v.y), v.n, kind))
             end
         end
     end
     local drops0 = SFP.db and SFP.DropIndex and SFP:DropIndex()[id]
-    for i = 1, math.min(3, #(drops0 or {})) do
+    local shownDrops = 0
+    for i = 1, math.min(40, #(drops0 or {})) do
+        if shownDrops >= 3 then break end
         local d = drops0[i]
         local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP.db.npcs[d[1]]
         local map, spots = nil, nil
@@ -118,9 +125,9 @@ local function zoneTexts(id, classID, subID, expID)
         if rec and rec.n then
             local place = map and placeName(map, spot1 and spot1[1], spot1 and spot1[2]) or nil
             if d[3] == "o" then
-                out[#out + 1] = ("Picked up at: %s|cffffd100%s|r (node or object)"):format(place and (place .. " - ") or "", rec.n)
+                if addSrc(("Picked up at: %s|cffffd100%s|r (node or object)"):format(place and (place .. " - ") or "", rec.n)) then shownDrops = shownDrops + 1 end
             else
-                out[#out + 1] = ("%s: |cffffd100%s|r (monster)%s"):format(d[3] == "s" and "Skinned from" or "Dropped by", rec.n, place and (" - found at: " .. place) or "")
+                if addSrc(("%s: |cffffd100%s|r (monster)%s"):format(d[3] == "s" and "Skinned from" or "Dropped by", rec.n, place and (" - found at: " .. place) or "")) then shownDrops = shownDrops + 1 end
             end
         end
     end
