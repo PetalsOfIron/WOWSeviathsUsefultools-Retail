@@ -104,6 +104,10 @@ local function place(side, r, n, indent)
 end
 
 -- the list is cut into pages that fit the window (Previous / Next below it); the tree on the left just scrolls
+local mode = "mat"          -- "mat", "mount", "hunter" or "pet"
+local matTab = "monsters"   -- the Material search has two tabs: "monsters" and "gather"
+local gatherExp = "all"    -- expansion shown in the gathering tab
+local expSel = "all"        -- expansion key / family shown in the mount, hunter and pet lists
 local listPage, listSig = 1, nil
 local function finish(side, n)
     for i = n + 1, #side.rows do side.rows[i]:Hide() end
@@ -112,7 +116,7 @@ local function finish(side, n)
         return
     end
     local per = math.max(6, math.floor((list.scroll:GetHeight() or 300) / ROW_H))
-    local sig = tostring(mode) .. "|" .. tostring(selected) .. "|" .. tostring(expSel) .. "|" .. (search and search:GetText() or "")
+    local sig = tostring(mode) .. "|" .. tostring(matTab) .. "|" .. tostring(gatherExp) .. "|" .. tostring(selected) .. "|" .. tostring(expSel) .. "|" .. (search and search:GetText() or "")
     if sig ~= listSig then listSig, listPage = sig, 1 end
     local pages = math.max(1, math.ceil(n / per))
     listPage = math.min(math.max(listPage, 1), pages)
@@ -409,7 +413,7 @@ local function addGatherItem(n, id, withKind)
             m.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
             m.text:SetText("|cff00e5ff" .. (s.area and (s.area .. " - ") or "") .. SFP:ZoneName(s.map) .. "|r  |cff808080" ..
                 string.format("%.1f, %.1f", s.x * 100, s.y * 100) .. "|r")
-            m.right:SetText("|cff808080exact spot|r")
+            m.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|t |cff33e6ffWaypoint|r")
             m.hint = "A spot where gathering was recorded. Click: set a waypoint there and open the map"
             m.click = function() openSpot(s.map, s.x, s.y, tostring(s.name or iname(id))) end
         end
@@ -450,11 +454,11 @@ local function addGatherItem(n, id, withKind)
     return spacer(n)
 end
 
-local gatherExp = "all"   -- expansion key shown in the gathering list
 
-local function renderGather()
+local function renderGather(q)
     local n = 0
-    win.title:SetText("|cff33e6ffGathering reagents|r")
+    local ql = q and q:lower() or nil
+    win.title:SetText("|cff33e6ffGathering|r" .. (ql and ("  |cffffd100" .. q .. "|r") or ""))
     learnedCache = learnedGatherSpots()
     local ids = gatherItems()
     local expOf = {}
@@ -463,12 +467,13 @@ local function renderGather()
     for _, exp in ipairs(SFP.Expansions) do groups[#groups + 1] = { key = exp.key, name = exp.name } end
     groups[#groups + 1] = { key = "other", name = "Other" }
     for _, grp in ipairs(groups) do
-        if gatherExp == "all" or gatherExp == grp.key then
+        if ql or gatherExp == "all" or gatherExp == grp.key then
             for _, sec in ipairs(GATHER_SECTIONS) do
                 local mine = {}
                 for _, id in ipairs(ids) do
                     local e = expOf[id] or "other"
-                    if e == grp.key and gatherKind(id) == sec.key then mine[#mine + 1] = id end
+                    if e == grp.key and gatherKind(id) == sec.key
+                        and (not ql or plain(iname(id)):lower():find(ql, 1, true)) then mine[#mine + 1] = id end
                 end
                 table.sort(mine, function(a, c) return plain(iname(a)) < plain(iname(c)) end)
                 if #mine > 0 then
@@ -498,7 +503,6 @@ end
 
 local function renderZone()
     local n = 0
-    if selected == "gather" then return renderGather() end
     if not selected then
         finish(list, 0)
         win.title:SetText("Pick a zone on the left, or search for a material")
@@ -544,11 +548,6 @@ local function renderSearch(q)
             end
         end
     end
-    learnedCache = learnedGatherSpots()
-    for _, id in ipairs(gatherItems()) do
-        local nm = (iname(id) or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
-        if nm:find(ql, 1, true) and n < 600 then n = addGatherItem(n, id) end
-    end
     if n == 0 then
         n = 1
         local h = rowOf(list, 1)
@@ -564,8 +563,6 @@ end
 -- Mount search and Hunter search: the same window with another list. The left side picks an expansion (or all), the right side lists
 -- every mount / hunter pet with a waypoint on where to get it; the search box filters by name.
 ---------------------------------------------------------------------------
-local mode = "mat"          -- "mat", "mount" or "hunter"
-local expSel = "all"        -- expansion key shown in the mount / hunter lists
 local entriesCache
 
 local function firstPoint(pts)
@@ -858,6 +855,10 @@ end
 
 local function setMode(m)
     mode = m
+    if win and win.tabs then
+        win.tabs.monsters:SetShown(m == "mat")
+        win.tabs.gather:SetShown(m == "mat")
+    end
     entriesCache = nil
     expSel = "all"
     if win then
@@ -872,6 +873,7 @@ local function renderList()
     if mode == "mount" then return renderMounts(q) end
     if mode == "hunter" then return renderHunters(q) end
     if mode == "pet" then return renderPets(q) end
+    if matTab == "gather" then return renderGather(#q >= 2 and q or nil) end
     if #q >= 2 then renderSearch(q) else renderZone() end
 end
 
@@ -880,32 +882,21 @@ end
 ---------------------------------------------------------------------------
 local renderTree
 local function renderTreeMat()
-    local n = 1
-    do
-        local g = rowOf(tree, 1)
-        place(tree, g, 1, 0)
-        g.icon:SetTexture("Interface\\Icons\\Trade_Mining")
-        g.text:SetText((selected == "gather" and "|cff33e6ff" or "|cffffffff") .. "Gathering reagents|r")
-        g.bg:SetColorTexture(0, 0.9, 1, selected == "gather" and 0.15 or 0.06)
-        g.click = function()
-            selected = "gather"
-            search:SetText("")
-            renderTree()
-            renderList()
-        end
-    end
-    if selected == "gather" then
-        local function sub(text, key)
+    local n = 0
+    if matTab == "gather" then
+        local function sub(text, key, indent)
             n = n + 1
             local r = rowOf(tree, n)
-            place(tree, r, n, 14)
+            place(tree, r, n, indent)
             r.icon:SetTexture(nil)
-            r.text:SetText((gatherExp == key and "|cff33e6ff" or "|cffcccccc") .. text .. "|r")
-            if gatherExp == key then r.bg:SetColorTexture(0, 0.9, 1, 0.15) end
-            r.click = function() gatherExp = key; renderTree(); renderList() end
+            r.text:SetText((gatherExp == key and "|cff33e6ff" or "|cffffffff") .. text .. "|r")
+            r.bg:SetColorTexture(0, 0.9, 1, gatherExp == key and 0.15 or 0.06)
+            r.click = function() gatherExp = key; search:SetText(""); renderTree(); renderList() end
         end
-        sub("All expansions", "all")
-        for _, exp in ipairs(SFP.Expansions) do sub(exp.name, exp.key) end
+        sub("All expansions", "all", 0)
+        for _, exp in ipairs(SFP.Expansions) do sub(exp.name, exp.key, 12) end
+        finish(tree, n)
+        return
     end
     for _, exp in ipairs(SFP.Expansions) do
         if #zonesOf(exp) > 0 then
@@ -940,6 +931,17 @@ end
 
 renderTree = function()
     if mode == "mat" then renderTreeMat() else renderModeTree() end
+end
+
+local function setTab(t)
+    matTab = t
+    search:SetText("")
+    if win.tabs then
+        win.tabs.monsters:SetEnabled(t ~= "monsters")
+        win.tabs.gather:SetEnabled(t ~= "gather")
+    end
+    renderTree()
+    renderList()
 end
 
 ---------------------------------------------------------------------------
@@ -1034,6 +1036,18 @@ local function build()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
     end)
     win.refreshList = renderList
+    win.tabs = {}
+    for k, def in ipairs({ { "monsters", "Monsters" }, { "gather", "Gathering" } }) do
+        local key, text = def[1], def[2]
+        local tb = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+        tb:SetSize(110, 24)
+        tb:SetPoint("TOPLEFT", win, "TOPLEFT", 200 + (k - 1) * 114, -8)
+        tb:SetText(text)
+        tb:SetScript("OnClick", function() setTab(key) end)
+        win.tabs[key] = tb
+    end
+    win.tabs.monsters:SetEnabled(matTab ~= "monsters")
+    win.tabs.gather:SetEnabled(matTab ~= "gather")
     win:SetScript("OnHide", function()
         guideIndex = nil
         zonesCache = {}
