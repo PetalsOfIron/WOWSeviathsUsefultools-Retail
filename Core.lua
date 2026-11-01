@@ -1001,6 +1001,8 @@ local itemInfoPending = false
 events:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         SeviathsUsefulToolsDB = SeviathsUsefulToolsDB or {}
+        -- the big tables were saved as text pieces: turned back into tables before anything reads them
+        if SeviathsUnpackSaved then pcall(SeviathsUnpackSaved, SeviathsUsefulToolsDB) end
         local freshInstall = next(SeviathsUsefulToolsDB) == nil
         copyDefaults(defaults, SeviathsUsefulToolsDB)
         SFP.db = SeviathsUsefulToolsDB

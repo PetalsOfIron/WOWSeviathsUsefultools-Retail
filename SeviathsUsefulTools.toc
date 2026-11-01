@@ -16,6 +16,7 @@
 ## X-License: CC BY-NC 3.0
 ## X-Data-Source: wowhead.com
 
+SavedPack.lua
 Core.lua
 Data\Items.lua
 Data\Expansions.lua
@@ -148,3 +149,4 @@ Modules\Codex\UI.lua
 Modules\Codex\Hooks.lua
 Hub.lua
 Menu.lua
+SavedPackLogout.lua
