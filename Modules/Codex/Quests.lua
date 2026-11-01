@@ -26,10 +26,11 @@ local function AreaText()
     return nil
 end
 
--- adds a person (quest giver or hand-in NPC) to the list of the quest unless the same one is there (same name, or the same place)
+-- adds a person (quest giver or hand-in NPC) to the list of the quest unless the SAME one is there (same name at the same place):
+-- different people at one place are all kept, and the same person at another place is another entry
 local function AddPerson(list, p)
     for _, q in ipairs(list) do
-        if (q.n and p.n and q.n == p.n and q.m == p.m) or (q.m == p.m and q.x and p.x and math.abs(q.x - p.x) < 0.01 and math.abs(q.y - p.y) < 0.01) then return end
+        if q.n == p.n and q.m == p.m and q.x and p.x and math.abs(q.x - p.x) < 0.01 and math.abs(q.y - p.y) < 0.01 then return end
     end
     if #list < 8 then list[#list + 1] = p end
 end
