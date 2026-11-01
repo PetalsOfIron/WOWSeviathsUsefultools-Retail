@@ -1327,6 +1327,24 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
             if cx then add("codex entries", cx.entries) end
             table.sort(rows, function(x, y) return x[2] > y[2] end)
             for i = 1, math.min(14, #rows) do SFP:Print(("%s: %d tables"):format(rows[i][1], rows[i][2])) end
+            -- the Codex: how many pages exist now, and how many of them came from the collected data (the ones that are taken out on close)
+            if cx and cx.byCat then
+                local total, lazy = 0, 0
+                for cat, list in pairs(cx.byCat) do
+                    for _, e in ipairs(list) do total = total + 1; if e.lazy then lazy = lazy + 1 end end
+                end
+                local shown = cx.IsOpen and cx:IsOpen()
+                SFP:Print(("Codex pages: %d (%d from collected data, to be removed on close); window %s"):format(total, lazy, shown and "open" or "closed"))
+                local lz = cx.lazy
+                if lz then
+                    for cat, s in pairs(lz) do
+                        local built, groups = 0, 0
+                        for _ in pairs(s.built or {}) do built = built + 1 end
+                        for _ in pairs(s.groups or {}) do groups = groups + 1 end
+                        SFP:Print(("lazy %s: state %s, %d groups counted, %d built"):format(cat, tostring(s.state), groups, built))
+                    end
+                end
+            end
         end
     elseif cmd == "fastscan" then
         -- for testing: the addon's own 15-minute wait is skipped and a fast scan is asked for at once. The game may still ignore a
