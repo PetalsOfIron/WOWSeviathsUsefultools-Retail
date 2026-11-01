@@ -1361,7 +1361,7 @@ local function spotEntries(zone)
     if not SFP._bestDone then markBest() end
     for _, s in ipairs(zone.spawns or {}) do
         -- ores, herbs and special materials are listed in the Mining & Herbalism list, not here
-        if s.points and s._best ~= false and not s.gather and not s.special then
+        if s.points and s._best ~= false and spotGroup(s) == "rare" then
             local g = spotGroup(s)
             by[g] = by[g] or {}
             by[g][#by[g] + 1] = s
@@ -1430,7 +1430,7 @@ local function buildSpotPanel()
     f.toggle = f.head:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     f.toggle:SetPoint("RIGHT", -7, 0)
     f.head:SetScript("OnClick", function()
-        SFP.db.spotsCollapsed = not SFP.db.spotsCollapsed
+        SFP.db.raresCollapsed = not SFP.db.raresCollapsed
         SFP.RefreshWorldMap()
     end)
 
@@ -1572,10 +1572,10 @@ drawSpotList = function(mapID)
             if SFP.db.hiddenSpots and SFP.db.hiddenSpots[spotKey(e.spot)] then nHidden = nHidden + 1 end
         end
     end
-    spotPanel.title:SetText("|c" .. SFP.CYAN_HEX .. "Farm spots|r  |cffaaaaaa" .. (nSpots - nHidden) .. "/" .. nSpots .. "|r")
-    spotPanel.toggle:SetText(SFP.db.spotsCollapsed ~= false and "[+]" or "[-]")
+    spotPanel.title:SetText("|cffff8000Rares|r  |cffaaaaaa" .. (nSpots - nHidden) .. "/" .. nSpots .. "|r")
+    spotPanel.toggle:SetText(SFP.db.raresCollapsed ~= false and "[+]" or "[-]")
     -- closed: nothing of it stays on the map (the button below the map opens it)
-    if SFP.db.spotsCollapsed ~= false then spotPanel:Hide() return end
+    if SFP.db.raresCollapsed ~= false then spotPanel:Hide() return end
     spotPanel.routeCheck:SetChecked(SFP.db.showRoute ~= false)
     spotPanel.allOn:SetScript("OnClick", function()
         for g in pairs(groups) do enableGroup(g) end
@@ -1584,13 +1584,13 @@ drawSpotList = function(mapID)
     spotPanel.allOff:SetScript("OnClick", function() setSpotsHidden(zone, keys, true) end)
     spotPanel.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)
     spotPanel.routeClear:SetScript("OnClick", function() SFP:ClearRoute() end)
-    spotPanel.route:SetShown(not SFP.db.spotsCollapsed)
-    spotPanel.routeClear:SetShown(not SFP.db.spotsCollapsed)
-    spotPanel.allOn:SetShown(not SFP.db.spotsCollapsed)
-    spotPanel.allOff:SetShown(not SFP.db.spotsCollapsed)
+    spotPanel.route:SetShown(not SFP.db.raresCollapsed)
+    spotPanel.routeClear:SetShown(not SFP.db.raresCollapsed)
+    spotPanel.allOn:SetShown(not SFP.db.raresCollapsed)
+    spotPanel.allOff:SetShown(not SFP.db.raresCollapsed)
 
     local shown = 0
-    if not SFP.db.spotsCollapsed then
+    if not SFP.db.raresCollapsed then
         local sc = WorldMapFrame.ScrollContainer
         local maxRows = math.max(6, math.floor((sc:GetHeight() - 80) / SROW_H))
         local maxOffset = math.max(0, #entries - maxRows)
@@ -1627,8 +1627,8 @@ drawSpotList = function(mapID)
         end
     end
     for i = shown + 1, #spotPanel.rows do spotPanel.rows[i]:Hide() end
-    spotPanel:SetHeight((SFP.db.spotsCollapsed and 22) or (42 + shown * SROW_H + 26))
-    spotPanel.top:SetShown(not SFP.db.spotsCollapsed)
+    spotPanel:SetHeight((SFP.db.raresCollapsed and 22) or (42 + shown * SROW_H + 26))
+    spotPanel.top:SetShown(not SFP.db.raresCollapsed)
     spotPanel:Show()
     if SFP.DockPanels then SFP.DockPanels() end
 end
@@ -1870,6 +1870,177 @@ local function petRows(mapID)
     return rows
 end
 
+---------------------------------------------------------------------------
+-- Farm spots and Rares of the zone, as lists like the others: a row is a monster, a click sets a waypoint on it (and pings the spot on
+-- the map). Nothing is switched on or off here any more. Ores, herbs and special materials are in the Mining & Herbalism list, hunter pets
+-- in the Hunter search.
+---------------------------------------------------------------------------
+local simplePanels = {}
+local SIMPLE_H = 22
+
+-- all the drops of a monster (collected data), with how often and the price
+local function addSpotDrops(t, s)
+    local drops, kills = {}, s.kills or 0
+    local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+    if type(rec) == "table" then
+        kills = math.max(kills, rec.k or 0)
+        for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
+            for id, q in pairs(src) do if type(q) == "number" then drops[id] = (drops[id] or 0) + q end end
+        end
+    end
+    for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
+    for _, id in ipairs(s.items or {}) do if not drops[id] then drops[id] = 0 end end
+    local order = {}
+    for id in pairs(drops) do order[#order + 1] = id end
+    table.sort(order, function(a, c)
+        if drops[a] ~= drops[c] then return drops[a] > drops[c] end
+        return a < c
+    end)
+    if #order > 0 then t:AddLine("Drops" .. (kills > 0 and ("  |cff808080" .. kills .. " kills|r") or ""), 0.8, 0.8, 0.8) end
+    for n, id in ipairs(order) do
+        if n > 40 then t:AddLine("+" .. (#order - 40) .. " more", 0.6, 0.6, 0.6) break end
+        local pct = (kills >= 3 and drops[id] > 0) and (" |cffffd100" .. math.min(100, math.floor(drops[id] / kills * 1000) / 10) .. "%|r") or ""
+        local price = SFP:GetPrice(id)
+        t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. pct, price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+    end
+end
+
+local function waypointAt(map, x, y, label)
+    if WorldMapFrame:GetMapID() ~= map then WorldMapFrame:SetMapID(map) end
+    if x and C_Map.CanSetUserWaypointOnMap and C_Map.CanSetUserWaypointOnMap(map) then
+        C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x, y))
+        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+        SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(label), SFP:ZoneName(map), x * 100, y * 100))
+        if SFP.PingSpot then SFP.PingSpot(map, x, y) end
+    end
+end
+
+local function spotsOfGroup(zone, group)
+    local list, seen = {}, {}
+    if not SFP._bestDone then markBest() end
+    for _, s in ipairs(zone and zone.spawns or {}) do
+        if s.points and s._best ~= false and spotGroup(s) == group then
+            local k = spotKey(s)
+            if not seen[k] then seen[k] = true; list[#list + 1] = s end
+        end
+    end
+    table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    return list
+end
+
+function SFP.HasFarmLists(mapID)
+    local zone = SFP.zoneByMap[mapID]
+    return #spotsOfGroup(zone, "farm") > 0, #spotsOfGroup(zone, "rare") > 0
+end
+
+local function buildSimplePanel(key, color)
+    local sc = WorldMapFrame.ScrollContainer
+    local f = CreateFrame("Frame", "SeviathsUsefulTools" .. key .. "List", sc, "BackdropTemplate")
+    f:SetFrameStrata("HIGH")
+    f:SetWidth(262)
+    f:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -8, 8)
+    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    f:SetBackdropColor(0.05, 0.04, 0.02, 0.9)
+    f:SetBackdropBorderColor(color[1], color[2], color[3], 0.8)
+    f:EnableMouse(true)
+    f.head = CreateFrame("Button", nil, f)
+    f.head:SetPoint("TOPLEFT", 0, 0)
+    f.head:SetPoint("TOPRIGHT", 0, 0)
+    f.head:SetHeight(20)
+    f.title = f.head:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.title:SetPoint("LEFT", 7, 0)
+    f.toggle = f.head:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    f.toggle:SetPoint("RIGHT", -7, 0)
+    f.head:SetScript("OnClick", function()
+        SFP.db[key == "spots" and "spotsCollapsed" or "raresCollapsed"] = true
+        SFP.RefreshWorldMap()
+    end)
+    f.toggle:SetText("[-]")
+    f.rows = {}
+    return f
+end
+
+local function simpleRow(f, i)
+    local r = f.rows[i]
+    if r then return r end
+    r = CreateFrame("Button", nil, f)
+    r:SetHeight(SIMPLE_H)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetSize(16, 16)
+    r.icon:SetPoint("LEFT", 6, 0)
+    r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.right:SetPoint("RIGHT", -4, 0)
+    r.right:SetJustifyH("RIGHT")
+    r.name = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
+    r.name:SetPoint("RIGHT", r.right, "LEFT", -4, 0)
+    r.name:SetJustifyH("LEFT")
+    r.name:SetWordWrap(false)
+    r.name:SetMaxLines(1)
+    r:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
+    r:SetScript("OnEnter", function(self)
+        local t = SFP.Tip()
+        t:SetOwner(self, "ANCHOR_LEFT")
+        t:AddLine(self.label or "?", 1, 0.82, 0)
+        if self.spot then addSpotDrops(t, self.spot) end
+        t:AddLine("Click: set a waypoint on it", 0, 0.9, 1)
+        t:Show()
+    end)
+    r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+    r:SetScript("OnClick", function(self) if self.map then waypointAt(self.map, self.x, self.y, self.label) end end)
+    f.rows[i] = r
+    return r
+end
+
+local function drawSimple(key, flag, title, color, mapID, spots)
+    local f = simplePanels[key]
+    if SFP.db[flag] ~= false or #spots == 0 then if f then f:Hide() end return end
+    if not f then f = buildSimplePanel(key, color); simplePanels[key] = f end
+    f.title:SetText(title .. "  |cffaaaaaa" .. SFP:ZoneName(mapID) .. "|r")
+    for i, s in ipairs(spots) do
+        local r = simpleRow(f, i)
+        r:ClearAllPoints()
+        r:SetPoint("TOPLEFT", 4, -22 - (i - 1) * SIMPLE_H)
+        r:SetPoint("TOPRIGHT", -4, -22 - (i - 1) * SIMPLE_H)
+        r.spot, r.label, r.map = s, s.name, mapID
+        r.x, r.y = s.hx, s.hy
+        local id = s.items and s.items[1]
+        r.icon:SetTexture(id and SFP:ItemIcon(id) or "Interface\\Icons\\INV_Misc_QuestionMark")
+        r.name:SetText(tostring(s.name))
+        r.right:SetText("|A:Waypoint-MapPin-Tracked:14:14|t |cff33e6ffWaypoint|r")
+        r:Show()
+    end
+    for i = #spots + 1, #f.rows do f.rows[i]:Hide() end
+    local extra = 0
+    if key == "spots" then
+        if not f.foot then
+            f.foot = CreateFrame("Frame", nil, f)
+            f.foot:SetPoint("BOTTOMLEFT", 0, 0)
+            f.foot:SetPoint("BOTTOMRIGHT", 0, 0)
+            f.foot:SetHeight(28)
+            f.route = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
+            f.route:SetSize(70, 22); f.route:SetPoint("LEFT", 4, 0); f.route:SetText("Route")
+            f.clear = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
+            f.clear:SetSize(70, 22); f.clear:SetPoint("LEFT", f.route, "RIGHT", 2, 0); f.clear:SetText("Clear")
+            f.top = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
+            f.top:SetSize(100, 22); f.top:SetPoint("RIGHT", -4, 0); f.top:SetText("Top 10")
+            f.clear:SetScript("OnClick", function() SFP:ClearRoute() end)
+            f.top:SetScript("OnClick", function() if SFP.ShowTopSpots then SFP:ShowTopSpots() end end)
+        end
+        f.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)
+        f.foot:Show()
+        extra = 28
+    end
+    f:SetHeight(26 + #spots * SIMPLE_H + extra)
+    f:Show()
+    if SFP.DockPanels then SFP.DockPanels() end
+end
+
+local function drawFarmLists(mapID)
+    local zone = SFP.zoneByMap[mapID]
+    drawSimple("spots", "spotsCollapsed", "|c" .. SFP.CYAN_HEX .. "Farm spots|r", { 0, 0.9, 1 }, mapID, spotsOfGroup(zone, "farm"))
+end
+
 function SFP.HasCollectables(mapID)
     return #mountRows(mapID) > 0 or #petRows(mapID) > 0
 end
@@ -1884,7 +2055,14 @@ function SFP.DockPanels()
         end
     end
     dock(gatherPanel, "gather")
-    dock(spotPanel, "spots")
+    dock(simplePanels.spots, "spots")
+    -- the Rares list opens upward from its button at the right edge of the map
+    local rb = _G.SeviathsUsefulToolsRowrares
+    if spotPanel and rb and rb:IsShown() then
+        if spotPanel:GetParent() ~= WorldMapFrame then spotPanel:SetParent(WorldMapFrame) end   -- outside the map: not clipped by it
+        spotPanel:ClearAllPoints()
+        spotPanel:SetPoint("BOTTOMLEFT", rb, "TOPLEFT", 0, 2)
+    end
     dock(collPanel, "coll")
 end
 
@@ -2025,6 +2203,7 @@ refresh = function()
     panel:Hide()
     if gatherPanel then gatherPanel:Hide() end
     if spotPanel then spotPanel:Hide() end
+    if simplePanels.spots then simplePanels.spots:Hide() end
     if collPanel then collPanel:Hide() end
     hookEntrancePins()
     for _, e in ipairs(edges) do e:Hide() end
@@ -2043,6 +2222,7 @@ refresh = function()
         if SFP.zoneByMap[mapID] or (info and info.mapType == zoneType) then drawGatherList(mapID) end
     end
     if SFP.db.showSpotList and SFP.zoneByMap[mapID] then SFP:Safe("spot list", drawSpotList, mapID) end
+    SFP:Safe("farm lists", drawFarmLists, mapID)
     SFP:Safe("collectables", drawCollectables, mapID)
 
     if SFP.db.spotsCollapsed == false then drawRoute(mapID) end   -- the route line shows only while the Farm spots menu is open
