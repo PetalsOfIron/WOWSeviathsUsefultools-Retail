@@ -80,7 +80,7 @@ local function zoneTexts(id, classID, subID, expID)
     local out = {}
     -- items that come from a person, not from a zone
     if id == 6948 then
-        out[#out + 1] = "Any innkeeper gives you a new one for free: the innkeeper where you make your home"
+        out[#out + 1] = "Vendor: Innkeeper (any innkeeper, free; the one you make your home at)"
         return out
     end
     local found = {}
