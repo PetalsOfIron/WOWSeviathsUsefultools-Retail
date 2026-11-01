@@ -154,6 +154,7 @@ end)
 ------------------------------------------------------------------------
 -- Hover a quest (quest log or objective tracker): what to do next and how
 ------------------------------------------------------------------------
+local hoverOwner
 local function QuestHoverTip(owner, questID)
     if not owner or type(questID) ~= "number" or questID <= 0 then return end
     if ns.db and ns.db.hideHint then return end
@@ -185,8 +186,32 @@ local function QuestHoverTip(owner, questID)
         for _, l in ipairs(lines) do GameTooltip:AddLine(l, 1, 1, 1, true) end
         GameTooltip:AddLine("|cff33e6ffAlt+click: open in Codex|r")
         GameTooltip:Show()
+        hoverOwner = owner
     end)
 end
+
+-- the quest tooltip is rebuilt while it is shown when the quest's progress changes (an item picked up, a monster killed): the numbers in
+-- "Next: 1/6 Stolen Equipment" follow the objective instead of staying as they were when the mouse arrived
+local refreshFrame = CreateFrame("Frame")
+for _, ev in ipairs({ "QUEST_LOG_UPDATE", "UNIT_QUEST_LOG_CHANGED", "QUEST_WATCH_UPDATE", "BAG_UPDATE_DELAYED" }) do
+    pcall(refreshFrame.RegisterEvent, refreshFrame, ev)
+end
+local lastRefresh = 0
+refreshFrame:SetScript("OnEvent", function()
+    if not hoverOwner or GetTime() - lastRefresh < 0.4 then return end
+    local owner = hoverOwner
+    if not (GameTooltip:IsShown() and GameTooltip:GetOwner() == owner and owner:IsShown() and owner:IsMouseOver()) then hoverOwner = nil return end
+    lastRefresh = GetTime()
+    C_Timer.After(0.3, function()
+        if hoverOwner ~= owner or not owner:IsMouseOver() then return end
+        local onEnter = owner.GetScript and owner:GetScript("OnEnter")
+        if onEnter then
+            GameTooltip:Hide()
+            pcall(onEnter, owner)   -- the owner builds its tooltip again
+            QuestHoverTip(owner, owner.id or owner.questID)   -- and our lines are added again with the new numbers
+        end
+    end)
+end)
 
 -- quest log entries in the map window
 if _G.QuestMapLogTitleButton_OnEnter then
