@@ -104,7 +104,7 @@ local function place(side, r, n, indent)
 end
 
 -- the list is cut into pages that fit the window (Previous / Next below it); the tree on the left just scrolls
-local mode = "mat"          -- "mat", "mount", "hunter", "pet", "farm" or "rare"
+local mode = "mat"          -- "mat", "mount", "hunter", "pet", "farm", "rare" or "top"
 local matTab = "monsters"   -- the Material search has two tabs: "monsters" and "gather"
 local gatherExp = "zone"   -- what the gathering tab shows: "zone" (the zone on the map), "all" or an expansion key
 local expSel = "all"        -- expansion key / family shown in the mount, hunter and pet lists
@@ -988,13 +988,14 @@ local function setMode(m)
         win.tabs.monsters:SetShown(m == "mat")
         win.tabs.gather:SetShown(m == "mat")
         if win.curBtn then win.curBtn:SetShown(m == "farm" or m == "rare") end
-        if win.topBtn then win.topBtn:SetShown(m == "farm" or m == "rare") end
+        if win.topBtn then win.topBtn:SetShown(m == "farm" or m == "rare" or m == "top") end
+        if win.curBtn then win.curBtn:SetShown(m == "farm" or m == "rare" or m == "top") end
     end
     entriesCache = nil
     expSel = "all"
     if win then
         search:SetText("")
-        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or m == "pet" and "Battle pets" or m == "farm" and "Farm spots" or m == "rare" and "Rares" or "Material search") .. "|r")
+        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "top" and "Best 15 spots" or m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or m == "pet" and "Battle pets" or m == "farm" and "Farm spots" or m == "rare" and "Rares" or "Material search") .. "|r")
     end
 end
 
@@ -1062,7 +1063,7 @@ local function renderBlocks(n, map, spots)
         local r = rowOf(list, n)
         place(list, r, n, 8)
         r.icon:SetTexture(top and SFP:ItemIcon(top) or "Interface\\Icons\\INV_Misc_QuestionMark")
-        r.text:SetText("|cff00e5ff" .. tostring(s.name) .. "|r")
+        r.text:SetText((s.rank and ("|cffffd100" .. s.rank .. ".|r  ") or "") .. "|cff00e5ff" .. tostring(s.name) .. "|r")
         r.right:SetText("|cffff3030WAYPOINT|r")
         r.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         r.click = function() goToMonster(map, s) end
@@ -1071,7 +1072,7 @@ local function renderBlocks(n, map, spots)
         place(list, p, n, 30)
         p.icon:SetTexture(nil)
         p.text:SetText("|cffffd100" .. SFP:ZoneName(map) .. "|r  |cffaaaaaa" .. SFP.AreaAt(map, x0, y0) .. "|r  |cff808080" ..
-            (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r")
+            (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r" .. (s.valueText or ""))
         p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         p.click = function() goToMonster(map, s) end
         for _, d in ipairs(loot) do
@@ -1101,6 +1102,40 @@ end
 -- does a zone have monsters for the list (for the zone tree on the left)
 local function zoneHasMonsters(map, group)
     return #farmSpotsFor(map, group == "rare" and "rare" or "farm") > 0
+end
+
+-- the 15 best farm spots of the whole database: the value of what a monster drops per kill (the chance of each item times its auction
+-- price), over the monsters with at least 3 kills recorded
+local function renderTop()
+    local n = 0
+    win.title:SetText("|c" .. SFP.CYAN_HEX .. "Best 15 farm spots|r  |cffaaaaaaby value per kill|r")
+    collectedMonsters(0, "farm")
+    local maps, seenMap = {}, {}
+    for map in pairs(SFP.zoneByMap) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+    for map in pairs(monsterIndex or {}) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+    local ranked = {}
+    for _, map in ipairs(maps) do
+        for _, s in ipairs(farmSpotsFor(map, "farm")) do
+            local loot, kills = SFP.MonsterLoot(s)
+            if kills >= 3 then
+                local val = 0
+                for _, d in ipairs(loot) do
+                    local price = SFP:GetPrice(d.id)
+                    if price and d.q > 0 then val = val + price * d.q / kills end
+                end
+                if val > 0 then ranked[#ranked + 1] = { map = map, s = s, val = val } end
+            end
+        end
+    end
+    table.sort(ranked, function(a, c) return a.val > c.val end)
+    for i = 1, math.min(15, #ranked) do
+        local r = ranked[i]
+        r.s.rank = i
+        r.s.valueText = "   |cff40ff40" .. SFP:FormatPrice(math.floor(r.val)) .. " per kill|r"
+        n = renderBlocks(n, r.map, { r.s })
+    end
+    if n == 0 then n = headerRow(0, "|cff808080No monster has enough kills and prices recorded yet|r") end
+    finish(list, n)
 end
 
 local function renderFarmList(group)
@@ -1143,6 +1178,7 @@ local function renderList()
     if mode == "hunter" then return renderHunters(q) end
     if mode == "pet" then return renderPets(q) end
     if mode == "farm" then return renderFarmList("farm") end
+    if mode == "top" then return renderTop() end
     if mode == "rare" then return renderFarmList("rare") end
     if matTab == "gather" then return renderGather(#q >= 2 and q or nil) end
     if #q >= 2 then renderSearch(q) else renderZone() end
@@ -1154,7 +1190,7 @@ end
 local renderTree
 local function renderTreeMat()
     local n = 0
-    local monsterMode = (mode == "farm" or mode == "rare")
+    local monsterMode = (mode == "farm" or mode == "rare" or mode == "top")
     local zq = monsterMode and strtrim(search and search:GetText() or "") or ""
     if monsterMode then
         local cur = WorldMapFrame:GetMapID()
@@ -1215,6 +1251,7 @@ local function renderTreeMat()
                     z.text:SetText((selected == map and "|cff33e6ff" or "|cffffffff") .. SFP:ZoneName(map) .. "|r")
                     if selected == map then z.bg:SetColorTexture(0, 0.9, 1, 0.15) end
                     z.click = function()
+                        if mode == "top" then setMode("farm") end
                         selected = map
                         search:SetText("")
                         renderTree()
@@ -1228,7 +1265,7 @@ local function renderTreeMat()
 end
 
 renderTree = function()
-    if mode == "mat" or mode == "farm" or mode == "rare" then renderTreeMat() else renderModeTree() end
+    if mode == "mat" or mode == "farm" or mode == "rare" or mode == "top" then renderTreeMat() else renderModeTree() end
 end
 
 local function setTab(t)
@@ -1316,8 +1353,13 @@ local function build()
     win.topBtn = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
     win.topBtn:SetSize(TREE_W, 26)
     win.topBtn:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 10, 8)
-    win.topBtn:SetText("Top 10 best spots")
-    win.topBtn:SetScript("OnClick", function() if SFP.ShowTopSpots then SFP:ShowTopSpots() end end)
+    win.topBtn:SetText("Top 15 best spots")
+    win.topBtn:SetScript("OnClick", function()
+        setMode("top")
+        win.curBtn:Show()
+        renderTree()
+        renderList()
+    end)
     win.topBtn:Hide()
     list = scrollSide(win, TREE_W + 34, -64, 10)
     list.scroll:ClearAllPoints()
