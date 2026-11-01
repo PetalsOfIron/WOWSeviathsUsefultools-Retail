@@ -292,6 +292,11 @@ local function QuestHoverTip(owner, questID, append)
         local function samePerson(a, c)
             return a.n and c.n and a.n == c.n and a.m == c.m and a.x and c.x and math.abs(a.x - c.x) < 0.01 and math.abs(a.y - c.y) < 0.01
         end
+        -- the people the quest sends you to on the way (every one, with its place)
+        for _, v in ipairs(ql.vs or {}) do
+            lines[#lines + 1] = "Speak to: " .. spotText(v)
+            added = true
+        end
         local doneKey = {}
         for _, g in ipairs(givers) do
             local both = false

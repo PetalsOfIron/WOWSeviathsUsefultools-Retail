@@ -154,6 +154,11 @@ local function scanOne(qid)
                 if area and sp.a == area and sp.m == m then dupSpot = sp break end
             end
             local oname, killed = ObjectiveName()
+            -- progress that came right after talking to an NPC: that NPC is a person to speak to for this quest
+            if lastNpc and GetTime() - lastNpc.t < 20 then
+                l.vs = l.vs or {}
+                AddPerson(l.vs, { n = lastNpc.n, m = lastNpc.m, x = lastNpc.x, y = lastNpc.y, a = lastNpc.a })
+            end
             local target = dupSpot
             if not target and #l.o < 1000 then target = { m = m, x = x, y = y, a = area }; l.o[#l.o + 1] = target end
             -- the names of what was killed or picked up here are kept with the spot (each name once)
@@ -205,7 +210,23 @@ local function ScanLog()
     end
 end
 
+-- the NPC spoken to last (a quest that sends you to several people: each is saved as a place to "Speak to")
+local lastNpc
+local function NpcHere()
+    local n
+    for _, u in ipairs({ "npc", "questnpc" }) do
+        if UnitExists(u) then
+            local ok, nm = pcall(UnitName, u)
+            if ok and type(nm) == "string" and not secret(nm) and nm ~= "" then n = nm break end
+        end
+    end
+    local m, x, y = PlayerSpot()
+    if n and m then return { n = n, m = m, x = x, y = y, a = AreaText() } end
+end
+
 local ev = CreateFrame("Frame")
+pcall(ev.RegisterEvent, ev, "GOSSIP_SHOW")
+pcall(ev.RegisterEvent, ev, "QUEST_PROGRESS")
 pcall(ev.RegisterEvent, ev, "QUEST_DETAIL")
 pcall(ev.RegisterEvent, ev, "QUEST_ACCEPTED")
 pcall(ev.RegisterEvent, ev, "QUEST_COMPLETE")
@@ -213,7 +234,19 @@ pcall(ev.RegisterEvent, ev, "QUEST_LOG_UPDATE")
 local logPending = false
 ev:SetScript("OnEvent", function(_, event, arg1)
     if not ns.db then return end
-    if event == "QUEST_DETAIL" then
+    if event == "GOSSIP_SHOW" then
+        local p = NpcHere()
+        if p then p.t = GetTime(); lastNpc = p end
+    elseif event == "QUEST_PROGRESS" then
+        -- a quest in the log that is not ready to hand in: this NPC is one it sends you to
+        local qid = GetQuestID and GetQuestID()
+        local p = NpcHere()
+        if qid and qid > 0 and p then
+            local l = Loc(qid)
+            l.vs = l.vs or {}
+            AddPerson(l.vs, p)
+        end
+    elseif event == "QUEST_DETAIL" then
         local qid = GetQuestID and GetQuestID()
         local name = NpcName()
         local m, x, y = PlayerSpot()
