@@ -1389,7 +1389,7 @@ local function renderBlocks(n, map, spots, compact)
             end
             t:AddLine("Click: set a waypoint", 0, 0.9, 1)
         end
-        if compact then r.spotTip = { s, map } end
+        r.spotTip = { s, map }   -- hovering the name shows the map's whole tooltip of that monster
         n = n + 1
         local p = rowOf(list, n)
         place(list, p, n, 30)
@@ -1400,7 +1400,7 @@ local function renderBlocks(n, map, spots, compact)
             (s.valueText or ""))
         p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         p.click = function() goToMonster(map, s) end
-        if compact then p.spotTip = { s, map } end
+        p.spotTip = { s, map }
         if not compact and type(s.note) == "string" and s.note ~= "" then
             n = n + 1
             local nr = rowOf(list, n)
