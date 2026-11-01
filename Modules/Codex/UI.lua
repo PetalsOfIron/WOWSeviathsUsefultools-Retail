@@ -397,6 +397,14 @@ local function DetailText(e)
             if #lines > 0 then t = t .. section("You looted it from", table.concat(lines, "\n")) end
         end
     end
+    -- an item that is a transmog item: where it comes from (Wowhead's list, read only for this item)
+    if c == "item" then
+        local S = _G.SeviathsUsefulTools
+        local tm = S and S.TransmogItem and S:TransmogItem(e.itemID or tonumber(e.id) or 0)
+        if tm and tm.source then
+            t = t .. section("Transmog", tm.source .. (tm.sourceName and (": " .. tm.sourceName) or ""))
+        end
+    end
     -- quests: where you accepted and where you turned the quest in (collected by the addon as you do them)
     if c == "quest" then
         local S = _G.SeviathsUsefulTools

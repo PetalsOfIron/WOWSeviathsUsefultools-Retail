@@ -23,6 +23,7 @@ DATA_REPO = os.path.join(HOME, "Projects", "Data-wow")
 CURSE = os.path.join(HOME, "Projects", "sut-curse-release")
 # the monsters and gray items are a second addon folder (load on demand), next to this one in Interface/AddOns
 LOD_DIR = os.path.join(os.path.dirname(ADDON), "SeviathsUsefulTools_Monsters")
+TMOG_DIR = os.path.join(os.path.dirname(ADDON), "SeviathsUsefulTools_Transmog")
 SKIP_DIRS = {".git", ".github", "tools"}
 SKIP_FILES = {".gitignore", ".gitattributes"}
 
@@ -80,6 +81,10 @@ def push_data():
         dst2 = os.path.join(DATA_REPO, "monsters")
         shutil.rmtree(dst2, ignore_errors=True)
         shutil.copytree(LOD_DIR, dst2)
+    if os.path.isdir(TMOG_DIR):
+        dst3 = os.path.join(DATA_REPO, "transmog")
+        shutil.rmtree(dst3, ignore_errors=True)
+        shutil.copytree(TMOG_DIR, dst3)
     readme = os.path.join(HERE, "README-FOR-CLAUDE.md")   # the recovery notes also live in the data repo (outside the addon zip)
     if os.path.exists(readme):
         shutil.copy2(readme, os.path.join(DATA_REPO, "README-FOR-CLAUDE.md"))
@@ -186,11 +191,15 @@ def build_zip():
     shutil.rmtree(lod_target, ignore_errors=True)
     if os.path.isdir(LOD_DIR):
         shutil.copytree(LOD_DIR, lod_target, ignore=ignore, dirs_exist_ok=True)
+    tmog_target = os.path.join(CURSE, "SeviathsUsefulTools_Transmog")
+    shutil.rmtree(tmog_target, ignore_errors=True)
+    if os.path.isdir(TMOG_DIR):
+        shutil.copytree(TMOG_DIR, tmog_target, ignore=ignore, dirs_exist_ok=True)
     zpath = os.path.join(CURSE, "SeviathsUsefulTools-%s.zip" % version())
     if os.path.exists(zpath):
         os.remove(zpath)
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
-        for folder in (target, lod_target):
+        for folder in (target, lod_target, tmog_target):
             for root, _, files in os.walk(folder):
                 for f in files:
                     full = os.path.join(root, f)
