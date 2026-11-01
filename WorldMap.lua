@@ -2281,14 +2281,15 @@ function SFP.DockPanels()
         if not panel then return end
         if panel:GetParent() ~= WorldMapFrame then panel:SetParent(WorldMapFrame) end
         panel:SetClampedToScreen(false)
+        panel:SetFrameStrata("DIALOG")   -- above the map's side tabs, which stand just outside its right edge
         panel:ClearAllPoints()
-        panel:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 4, 0)
-        if full then panel:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 4, 0) end   -- only the Farm spots list is as tall as the map
+        panel:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 48, 0)
+        if full then panel:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 48, 0) end   -- only the Farm spots list is as tall as the map
         local mr, ms = WorldMapFrame:GetRight(), WorldMapFrame:GetEffectiveScale()
         local ur, us = UIParent:GetRight(), UIParent:GetEffectiveScale()
         local ps = panel:GetEffectiveScale()
         local space = (mr and ur and ps > 0) and ((ur * us - mr * ms) / ps) or 0
-        panel:SetWidth(space >= 400 and math.min(space - 8, full and 460 or 400) or 400)
+        panel:SetWidth(space >= 450 and math.min(space - 52, full and 460 or 400) or 400)
     end
     dock(gatherPanel)
     dock(farmPanel, true)

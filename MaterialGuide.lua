@@ -1055,10 +1055,10 @@ local function build()
         local ur, us = UIParent:GetRight(), UIParent:GetEffectiveScale()
         local ws = win:GetEffectiveScale()
         local space = (mr and ur and ws > 0) and ((ur * us - mr * ms) / ws) or 0
-        if space >= 480 then
-            win:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 4, 0)
-            win:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 4, 0)
-            win:SetWidth(math.min(space - 8, 820))
+        if space >= 520 then
+            win:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 48, 0)   -- clear of the map's side tabs
+            win:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 48, 0)
+            win:SetWidth(math.min(space - 52, 820))
         else
             win:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -8, 8)
             local w, h = sc:GetWidth(), sc:GetHeight()
@@ -1159,6 +1159,8 @@ local rowBtns = {}
 local function openMode(m)
     if not win then build() end
     if win:IsShown() and mode == m then win:Hide() return end
+    SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
+    SFP.RefreshWorldMap()
     setMode(m)
     win:Show()
     renderTree()
@@ -1169,6 +1171,7 @@ local function openGuide() openMode("mat") end
 -- which list a button opens: its collapsed flag in the saved settings (one open at a time)
 local FLAGS = { spots = "spotsCollapsed", rares = "raresCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
 local function openOnly(key)
+    if win and win:IsShown() then win:Hide() end
     local wasOpen = SFP.db[FLAGS[key]] == false
     for k, flag in pairs(FLAGS) do SFP.db[flag] = true end
     if not wasOpen then SFP.db[FLAGS[key]] = false end
