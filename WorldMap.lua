@@ -2275,20 +2275,26 @@ end
 
 -- the side lists sit above their button on the line below the map (see MaterialGuide.lua)
 function SFP.DockPanels()
-    -- every list opens on the right of the map, in the empty screen next to it (the map stays in view); the buttons that open them are
-    -- in one line right below the map
-    local function dock(panel, wantH)
+    -- every list opens like the big search window: on the right of the map, in the empty screen next to it, as tall as the map; the
+    -- buttons that open them are in one line right below the map
+    local function dock(panel)
         if not panel then return end
         if panel:GetParent() ~= WorldMapFrame then panel:SetParent(WorldMapFrame) end
-        panel:SetClampedToScreen(true)
+        panel:SetClampedToScreen(false)
         panel:ClearAllPoints()
-        panel:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 8, 0)
-        if wantH then panel:SetHeight(math.min(wantH, WorldMapFrame:GetHeight() or wantH)) end
+        panel:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 4, 0)
+        panel:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 4, 0)
+        local mr, ms = WorldMapFrame:GetRight(), WorldMapFrame:GetEffectiveScale()
+        local ur, us = UIParent:GetRight(), UIParent:GetEffectiveScale()
+        local ps = panel:GetEffectiveScale()
+        local space = (mr and ur and ps > 0) and ((ur * us - mr * ms) / ps) or 0
+        panel:SetWidth(space >= 400 and math.min(space - 8, 820) or 420)
     end
     dock(gatherPanel)
-    dock(farmPanel, 520)
+    dock(farmPanel)
     dock(spotPanel)
     dock(collPanel)
+    if farmPanel then farmPanel.content:SetWidth(math.max(farmPanel:GetWidth() - 40, 300)) end
 end
 
 local function drawCollectables(mapID)
