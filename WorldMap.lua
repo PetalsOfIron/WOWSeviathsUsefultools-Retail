@@ -1454,9 +1454,32 @@ local function spotRow(i)
         local c = spotColor(s)
         SFP.Tip():SetOwner(self, "ANCHOR_RIGHT")
         SFP.Tip():AddLine(s.name or "?", c.r, c.g, c.b)
-        for n, id in ipairs(s.items or {}) do
-            if n > 6 then break end
-            SFP.Tip():AddLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id))
+        -- everything the monster drops: what the addon collected from its kills (the shipped data too), each with how often and its price;
+        -- the items this spot is listed for come first when nothing is known about the monster yet
+        local drops, kills = {}, s.kills or 0
+        local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+        if type(rec) == "table" then
+            kills = math.max(kills, rec.k or 0)
+            for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
+                for id, q in pairs(src) do if type(q) == "number" then drops[id] = (drops[id] or 0) + q end end
+            end
+        end
+        for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
+        for _, id in ipairs(s.items or {}) do if not drops[id] then drops[id] = 0 end end
+        local order = {}
+        for id in pairs(drops) do order[#order + 1] = id end
+        table.sort(order, function(a, c2)
+            if drops[a] ~= drops[c2] then return drops[a] > drops[c2] end
+            return a < c2
+        end)
+        if #order > 0 then
+            SFP.Tip():AddLine("Drops" .. (kills > 0 and ("  |cff808080" .. kills .. " kills|r") or ""), 0.8, 0.8, 0.8)
+        end
+        for n, id in ipairs(order) do
+            if n > 40 then SFP.Tip():AddLine("+" .. (#order - 40) .. " more", 0.6, 0.6, 0.6) break end
+            local pct = (kills >= 3 and drops[id] > 0) and (" |cffffd100" .. math.min(100, math.floor(drops[id] / kills * 1000) / 10) .. "%|r") or ""
+            local price = SFP:GetPrice(id)
+            SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. pct, price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
         end
         if s.hx then SFP.Tip():AddLine(string.format("%.1f, %.1f", s.hx * 100, s.hy * 100), 1, 0.82, 0) end
         SFP.Tip():AddLine("Click: show or hide this spot on the map", 0, 0.9, 1)
