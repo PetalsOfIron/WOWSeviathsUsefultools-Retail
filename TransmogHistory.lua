@@ -261,15 +261,9 @@ end
 
 SFP:OnLogin(function()
     local first = not (SFP.db.history and SFP.db.history.t and SFP.db.history.t > 0)
-    if first then
-        -- first start after the install: read everything automatically, and say so once
-        C_Timer.After(12, function()
-            SFP:Print("First start: reading your transmog, mount and pet collections in the background (this happens by itself, nothing to do).")
-        end)
-    end
+    -- first start after the install: everything is read automatically in the background, nothing is written to the chat
     -- wait until the game is settled, then read in the background (only what is new or changed)
     C_Timer.After(first and 20 or 40, function()
-        if first then SFP.db.historyReport = true end
         SFP:Safe("collection history", SFP.ScanTransmogHistory, SFP)
     end)
 end)
