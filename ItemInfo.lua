@@ -83,6 +83,29 @@ local function zoneTexts(id, classID, subID, expID)
         out[#out + 1] = "Vendor: Innkeeper (any innkeeper, free; the one you make your home at)"
         return out
     end
+    -- exact sources first: who sells it (the kind of vendor) and which monsters or nodes gave it, each with its zone
+    local CX = _G.SeviathsCodexDB
+    local vkeys = CX and CX.vendorItems and CX.vendorItems[id]
+    if vkeys and CX.vendors then
+        for i = 1, math.min(3, #vkeys) do
+            local v = CX.vendors[vkeys[i]]
+            if v and v.n then
+                local cdx = _G.SeviathsCodex
+                local kind = (cdx and cdx.VendorKind and cdx:VendorKind(v)) or "Vendor"
+                out[#out + 1] = ("%s: |cffffd100%s|r in %s"):format(kind, v.n, zname(v.m))
+            end
+        end
+    end
+    local drops0 = SFP.db and SFP.DropIndex and SFP:DropIndex()[id]
+    for i = 1, math.min(3, #(drops0 or {})) do
+        local d = drops0[i]
+        local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP.db.npcs[d[1]]
+        local map = rec and type(rec.m) == "table" and next(rec.m)
+        if rec and rec.n then
+            local what = d[3] == "o" and "Gathered from (node or object)" or (d[3] == "s" and "Skinned from (monster)" or "Dropped by (monster)")
+            out[#out + 1] = ("%s: |cffffd100%s|r%s"):format(what, rec.n, map and (" in " .. zname(map)) or "")
+        end
+    end
     local found = {}
     for map, e in pairs(zoneIdx[id] or {}) do found[map] = { e.tag, e.n } end
     -- zones where you saw monsters / nodes drop it
