@@ -876,6 +876,9 @@ local function petEntries()
     for i = 1, 6000 do
         local ok, name, icon, petType, _, source, _, _, canBattle, tradeable = pcall(C_PetJournal.GetPetInfoBySpeciesID, i)
         if ok and type(name) == "string" and name ~= "" then
+            local kept = SFP.db and SFP.db.petInfo and SFP.db.petInfo[name]
+            if not icon and kept then icon = kept.icon end
+            if (not source or source == "") and kept then source = kept.source end
             out[#out + 1] = { species = i, name = name, icon = icon, petType = petType, source = source, tradeable = tradeable,
                 canBattle = canBattle, price = prices[i] }
         end
@@ -1676,30 +1679,47 @@ local function refreshRow()
     if SFP.DockPanels then SFP.DockPanels() end
 end
 
--- a pet added to your collection (caught, bought, looted): where you were is kept as its place; the Battle pets list uses it first
+-- a pet added to your collection (caught, bought, looted, any way): everything about it is kept in db.petInfo - species, name, icon,
+-- family, where the game says it comes from, whether it can battle or be traded - and, when it was found in the world (not bought at
+-- the auction house, taken from the mail or traded for), where you were: that place is used first by the Battle pets list
 do
     local pf = CreateFrame("Frame")
     pf:RegisterEvent("NEW_PET_ADDED")
     pf:SetScript("OnEvent", function(_, _, petGUID)
         pcall(function()
             if not (SFP.db and petGUID and C_PetJournal and C_PetJournal.GetPetInfoByPetID) then return end
-            local species = C_PetJournal.GetPetInfoByPetID(petGUID)
-            local name = species and C_PetJournal.GetPetInfoBySpeciesID(species)
+            local species, customName = C_PetJournal.GetPetInfoByPetID(petGUID)
+            if not species then return end
+            local name, icon, petType, companionID, source, description, isWild, canBattle, tradeable, unique, obtainable =
+                C_PetJournal.GetPetInfoBySpeciesID(species)
             if type(name) ~= "string" or name == "" then return end
-            if IsInInstance and IsInInstance() then return end
-            -- not where it was found: bought at the auction house, taken from the mail, or traded
+            SFP.db.petInfo = SFP.db.petInfo or {}
+            local info = SFP.db.petInfo[name] or {}
+            info.species, info.icon, info.type, info.creature = species, icon, petType, companionID
+            info.source, info.wild, info.battle, info.tradeable, info.unique = source, isWild, canBattle, tradeable, unique
+            if type(customName) == "string" and customName ~= "" then info.custom = customName end   -- the name you gave it
+            info.t = time()
+            SFP.db.petInfo[name] = info
+            if SFP.StoreIcon then SFP:StoreIcon(companionID) end
+            -- the place: only where it was really found
+            local found = true
+            if IsInInstance and IsInInstance() then found = false end
             for _, fname in ipairs({ "AuctionHouseFrame", "AuctionFrame", "MailFrame", "TradeFrame" }) do
                 local fr = _G[fname]
-                if fr and fr.IsShown and fr:IsShown() then return end
+                if fr and fr.IsShown and fr:IsShown() then found = false end
             end
-            local m = C_Map.GetBestMapForUnit("player")
-            local pos = m and C_Map.GetPlayerMapPosition(m, "player")
-            if not (m and pos) then return end
-            local x, y = pos:GetXY()
-            if issecretvalue and (issecretvalue(x) or issecretvalue(y)) then return end
-            SFP.db.petSpots = SFP.db.petSpots or {}
-            SFP.db.petSpots[name] = { m = m, x = math.floor(x * 10000) / 10000, y = math.floor(y * 10000) / 10000 }
-            entriesCache = nil   -- the list is made again with the new place
+            if found then
+                local m = C_Map.GetBestMapForUnit("player")
+                local pos = m and C_Map.GetPlayerMapPosition(m, "player")
+                if m and pos then
+                    local x, y = pos:GetXY()
+                    if not (issecretvalue and (issecretvalue(x) or issecretvalue(y))) then
+                        SFP.db.petSpots = SFP.db.petSpots or {}
+                        SFP.db.petSpots[name] = { m = m, x = math.floor(x * 10000) / 10000, y = math.floor(y * 10000) / 10000 }
+                    end
+                end
+            end
+            entriesCache = nil   -- the list is made again with what was learned
             if win and win:IsShown() and mode == "pet" and win.refreshList then win.refreshList() end
         end)
     end)
