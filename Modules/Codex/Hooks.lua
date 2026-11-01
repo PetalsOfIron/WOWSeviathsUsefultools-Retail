@@ -206,10 +206,18 @@ local function QuestHoverTip(owner, questID)
         end
         local added = false
         if not complete and ql.o then
-            for n, p in ipairs(ql.o) do
-                if n > 3 then break end
-                lines[#lines + 1] = (n == 1 and (objLabel .. ": ") or "also: ") .. placeText(p)
-                added = true
+            -- one line for a place: spots in the same area are said once
+            local seenPlace = {}
+            local shown = 0
+            for _, p in ipairs(ql.o) do
+                local text = placeText(p)
+                local area = p.a or areaName(p) or text
+                if not seenPlace[area] and shown < 3 then
+                    seenPlace[area] = true
+                    shown = shown + 1
+                    lines[#lines + 1] = (shown == 1 and (objLabel .. ": ") or "also: ") .. text
+                    added = true
+                end
             end
         end
         if ql.t then
