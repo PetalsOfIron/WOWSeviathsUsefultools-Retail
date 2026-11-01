@@ -8,7 +8,7 @@
 local _, SFP = ...
 
 local ROW_H = 20
-local TREE_W = 250
+local TREE_W = 190
 local SECTIONS = {
     { key = "mat",   title = "Materials",   color = "|cff40ff40" },
     { key = "pet",   title = "Battle pets", color = "|cffffd100" },
@@ -124,8 +124,6 @@ local function goToMonster(mapID, sp)
         if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
     end
     SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(sp.name), SFP:ZoneName(mapID), x * 100, y * 100))
-    -- the window closes so the map with the waypoint is in view
-    if win then win:Hide() end
 end
 
 -- add the rows of one item (its line and one line per monster); returns the new row count
@@ -291,8 +289,14 @@ local function build()
     win = CreateFrame("Frame", "SeviathsUsefulToolsMaterialGuide", sc, "BackdropTemplate")
     win:SetFrameStrata("DIALOG")
     -- big: most of the map, with a margin; it is not movable
-    win:SetPoint("TOPLEFT", sc, "TOPLEFT", 40, -44)
-    win:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -40, 40)
+    -- docked at the bottom right of the map so the map itself stays in view; big, but not over the whole map
+    win:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -8, 8)
+    local function fit()
+        local w, h = sc:GetWidth(), sc:GetHeight()
+        if w and w > 0 then win:SetSize(math.max(520, w * 0.46), math.max(360, h * 0.62)) end
+    end
+    fit()
+    sc:HookScript("OnSizeChanged", fit)
     win:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
     win:SetBackdropColor(0.02, 0.03, 0.05, 0.96)
     win:SetBackdropBorderColor(0, 0.9, 1, 0.9)
