@@ -552,106 +552,87 @@ local function build()
 end
 
 ---------------------------------------------------------------------------
--- A line of the zone's materials below the world map, at the right: the most valuable things to farm in the zone on view, as icons.
--- Hover: price and the monsters that drop it; click: the Material search opens on that zone.
+-- The line of buttons below the world map, at the right: Farm spots, Collectables, Material search and, last, Mining & Herbalism. Each
+-- is a button like "Material search"; the side lists open above their button, one at a time.
 ---------------------------------------------------------------------------
-local strip
-local STRIP_MAX = 14
+local row
+local rowBtns = {}
 
-local function openGuideAt(map)
+local function openGuide()
     if not win then build() end
-    selected = map
-    search:SetText("")
-    win:Show()
-    renderTree()
-    renderList()
+    win:SetShown(not win:IsShown())
 end
 
-local function refreshStrip()
-    if not WorldMapFrame or not WorldMapFrame:IsShown() then if strip then strip:Hide() end return end
-    local map = WorldMapFrame:GetMapID()
-    local ids = map and zoneItems(map) or {}
-    if not map or #ids == 0 then if strip then strip:Hide() end return end
-    if not strip then
-        strip = CreateFrame("Frame", "SeviathsUsefulToolsMaterialStrip", WorldMapFrame, "BackdropTemplate")
-        strip:SetFrameStrata("HIGH")
-        strip:SetHeight(30)
-        strip:SetPoint("TOPRIGHT", WorldMapFrame.ScrollContainer, "BOTTOMRIGHT", -4, -2)
-        strip:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-        strip:SetBackdropColor(0.02, 0.03, 0.05, 0.85)
-        strip:SetBackdropBorderColor(0, 0.9, 1, 0.7)
-        strip.label = strip:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        strip.label:SetPoint("LEFT", 8, 0)
-        strip.btns = {}
-    end
-    table.sort(ids, function(a, c)
-        local pa, pc = SFP:GetPrice(a) or 0, SFP:GetPrice(c) or 0
-        if pa ~= pc then return pa > pc end
-        return a < c
+-- which list a button opens: its collapsed flag in the saved settings (one open at a time)
+local FLAGS = { spots = "spotsCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
+local function openOnly(key)
+    local wasOpen = not SFP.db[FLAGS[key]]
+    for k, flag in pairs(FLAGS) do SFP.db[flag] = true end
+    if not wasOpen then SFP.db[FLAGS[key]] = false end
+    SFP.RefreshWorldMap()
+end
+
+local function makeButton(key, text, tip, onClick)
+    local b = CreateFrame("Button", "SeviathsUsefulToolsRow" .. key, row, "UIPanelButtonTemplate")
+    b:SetHeight(26)
+    b:SetText(text)
+    b:SetWidth(b:GetTextWidth() + 28)
+    b:SetScript("OnClick", onClick)
+    b:SetScript("OnEnter", function(self)
+        SFP.Tip():SetOwner(self, "ANCHOR_TOP")
+        SFP.Tip():AddLine(text)
+        SFP.Tip():AddLine(tip, 1, 1, 1, true)
+        SFP.Tip():Show()
     end)
-    strip.label:SetText("|c" .. SFP.CYAN_HEX .. "Farm here|r")
-    local count = math.min(#ids, STRIP_MAX)
-    for i = 1, count do
-        local id = ids[i]
-        local bt = strip.btns[i]
-        if not bt then
-            bt = CreateFrame("Button", nil, strip)
-            bt:SetSize(24, 24)
-            bt.icon = bt:CreateTexture(nil, "ARTWORK")
-            bt.icon:SetAllPoints()
-            bt.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-            bt:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
-            bt:SetScript("OnEnter", function(self)
-                local t = SFP.Tip()
-                t:SetOwner(self, "ANCHOR_TOP")
-                t:SetItemByID(self.item)
-                local price = SFP:GetPrice(self.item)
-                if price then t:AddLine("Auction price: " .. SFP:FormatPrice(price), 1, 1, 1) end
-                local mons = monstersFor(self.map, self.item)
-                for k, sp in ipairs(mons) do
-                    if k > 6 then t:AddLine("+" .. (#mons - 6) .. " more", 0.6, 0.6, 0.6) break end
-                    local pct = sp.drop and sp.drop[self.item]
-                    t:AddLine("|cff00e5ff" .. tostring(sp.name) .. "|r" .. (pct and ("  " .. pct .. "%") or ""), 1, 1, 1)
-                end
-                t:AddLine("Click: open the Material search on this zone", 0, 0.9, 1)
-                t:Show()
-            end)
-            bt:SetScript("OnLeave", function() SFP.Tip():Hide() end)
-            bt:SetScript("OnClick", function(self) openGuideAt(self.map) end)
-            strip.btns[i] = bt
-        end
-        bt.item, bt.map = id, map
-        bt.icon:SetTexture(SFP:ItemIcon(id))
-        bt:ClearAllPoints()
-        bt:SetPoint("RIGHT", strip, "RIGHT", -4 - (count - i) * 27, 0)
-        bt:Show()
+    b:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+    rowBtns[key] = b
+    return b
+end
+
+local function refreshRow()
+    if not WorldMapFrame or not WorldMapFrame:IsShown() then if row then row:Hide() end return end
+    if not row then
+        row = CreateFrame("Frame", "SeviathsUsefulToolsButtonRow", WorldMapFrame)
+        row:SetFrameStrata("HIGH")
+        row:SetHeight(28)
+        row:SetPoint("TOPRIGHT", WorldMapFrame.ScrollContainer, "BOTTOMRIGHT", -4, -2)
+        makeButton("spots", "Farm spots", "The farm spots of this zone, with a checkbox each", function() openOnly("spots") end)
+        makeButton("coll", "Collectables", "Mounts of the dungeons and raids here, and the hunter pets of the zone", function() openOnly("coll") end)
+        makeButton("search", "Material search", "Every zone from Classic to Midnight: what you can farm there and which monsters drop it. Click a monster for a waypoint.", openGuide)
+        makeButton("gather", "Mining & Herbalism", "The ores and herbs of this zone and the best zone for each", function() openOnly("gather") end)
     end
-    for i = count + 1, #strip.btns do strip.btns[i]:Hide() end
-    strip:SetWidth(70 + count * 27)
-    strip:Show()
+    local map = WorldMapFrame:GetMapID()
+    local zone = map and SFP.zoneByMap[map]
+    local show = {
+        spots = SFP.db.showSpotList and zone and zone.spawns and #zone.spawns > 0,
+        coll = map and SFP.HasCollectables and SFP.HasCollectables(map),
+        search = true,
+        gather = SFP.db.showGatherList and map and (zone or SFP.GatherHere) and #SFP.GatherHere(map) > 0,
+    }
+    local x = 0
+    -- right to left: the last of the line is Mining & Herbalism
+    for _, key in ipairs({ "gather", "search", "coll", "spots" }) do
+        local b = rowBtns[key]
+        b:ClearAllPoints()
+        if show[key] then
+            b:SetPoint("RIGHT", row, "RIGHT", -x, 0)
+            x = x + b:GetWidth() + 4
+            b:Show()
+        else
+            b:Hide()
+        end
+    end
+    row:SetWidth(math.max(x, 10))
+    row:Show()
+    if SFP.DockPanels then SFP.DockPanels() end
 end
 
 SFP:OnLogin(function()
     if not WorldMapFrame or not WorldMapFrame.ScrollContainer then return end
-    local sc = WorldMapFrame.ScrollContainer
-    local button = CreateFrame("Button", "SeviathsUsefulToolsMaterialButton", sc, "UIPanelButtonTemplate")
-    button:SetSize(150, 28)
-    button:SetPoint("TOPLEFT", sc, "TOPLEFT", 40, -6)
-    button:SetFrameStrata("HIGH")
-    button:SetText("Material search")
-    button:SetScript("OnClick", function()
-        if not win then build() end
-        win:SetShown(not win:IsShown())
+    WorldMapFrame:HookScript("OnHide", function()
+        if win then win:Hide() end
+        if row then row:Hide() end
     end)
-    button:SetScript("OnEnter", function(self)
-        SFP.Tip():SetOwner(self, "ANCHOR_BOTTOM")
-        SFP.Tip():AddLine("|c" .. SFP.CYAN_HEX .. "Material search|r")
-        SFP.Tip():AddLine("Every zone from Classic to Midnight: what you can farm there and which monsters drop it. Click a monster for a waypoint.", 1, 1, 1, true)
-        SFP.Tip():Show()
-    end)
-    button:SetScript("OnLeave", function() SFP.Tip():Hide() end)
-    WorldMapFrame:HookScript("OnHide", function() if win then win:Hide() end end)
-    SFP:OnRefresh(function() pcall(refreshStrip) end)
-    WorldMapFrame:HookScript("OnShow", function() pcall(refreshStrip) end)
-    WorldMapFrame:HookScript("OnHide", function() if strip then strip:Hide() end end)
+    WorldMapFrame:HookScript("OnShow", function() pcall(refreshRow) end)
+    SFP:OnRefresh(function() pcall(refreshRow) end)
 end)

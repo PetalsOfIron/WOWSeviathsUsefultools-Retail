@@ -1091,8 +1091,9 @@ end
 local gatherPanel
 local GROW_H = 18
 
--- the side lists can be dragged (left mouse on the panel or its title); the place is remembered
+-- (the side lists used to be draggable; they are fixed now)
 local function makeMovable(f, key, sc)
+    do return end   -- the side lists are fixed: they sit above their button on the line below the map
     f:SetMovable(true)
     f:SetClampedToScreen(true)
     local function stop()
@@ -1271,6 +1272,7 @@ local function drawGatherList(mapID)
     for i = n + 1, #gatherPanel.rows do gatherPanel.rows[i]:Hide() end
     gatherPanel:SetHeight(24 + n * GROW_H)
     gatherPanel:Show()
+    if SFP.DockPanels then SFP.DockPanels() end
 end
 
 ---------------------------------------------------------------------------
@@ -1546,6 +1548,7 @@ drawSpotList = function(mapID)
     spotPanel:SetHeight((SFP.db.spotsCollapsed and 22) or (42 + shown * SROW_H + 26))
     spotPanel.top:SetShown(not SFP.db.spotsCollapsed)
     spotPanel:Show()
+    if SFP.DockPanels then SFP.DockPanels() end
 end
 
 ---------------------------------------------------------------------------
@@ -1784,6 +1787,24 @@ local function petRows(mapID)
     return rows
 end
 
+function SFP.HasCollectables(mapID)
+    return #mountRows(mapID) > 0 or #petRows(mapID) > 0
+end
+
+-- the side lists sit above their button on the line below the map (see MaterialGuide.lua)
+function SFP.DockPanels()
+    local function dock(panel, key)
+        local btn = _G["SeviathsUsefulToolsRow" .. key]
+        if panel and btn and btn:IsShown() then
+            panel:ClearAllPoints()
+            panel:SetPoint("BOTTOMRIGHT", btn, "TOPRIGHT", 0, 2)
+        end
+    end
+    dock(gatherPanel, "gather")
+    dock(spotPanel, "spots")
+    dock(collPanel, "coll")
+end
+
 local function drawCollectables(mapID)
     local mr, pr = mountRows(mapID), petRows(mapID)
     if #mr == 0 and #pr == 0 then return end
@@ -1819,6 +1840,7 @@ local function drawCollectables(mapID)
     for i = n + 1, #collPanel.rows do collPanel.rows[i]:Hide() end
     collPanel:SetHeight(24 + n * LROW_H)
     collPanel:Show()
+    if SFP.DockPanels then SFP.DockPanels() end
 end
 
 -- the game's own dungeon/raid circles on the map: the mounts of that instance are added to its tooltip
