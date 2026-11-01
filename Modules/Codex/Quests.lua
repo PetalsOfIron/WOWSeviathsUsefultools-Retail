@@ -26,6 +26,14 @@ local function AreaText()
     return nil
 end
 
+-- a saved area name that is only the name of the whole zone ("Zul'Aman") says nothing: the real area name is learned from the minimap
+-- text when you are near the spot
+local function WeakArea(sp)
+    if not sp.a then return true end
+    local ok, mi = pcall(C_Map.GetMapInfo, sp.m)
+    return ok and mi and mi.name == sp.a
+end
+
 -- adds a person (quest giver or hand-in NPC) to the list of the quest unless the SAME one is there (same name at the same place):
 -- different people at one place are all kept, and the same person at another place is another entry
 local function AddPerson(list, p)
@@ -37,7 +45,13 @@ end
 
 -- the name of what the progress came from: the monster you just killed (your target, dead), else the object or node you just used
 -- (its tooltip name or the name on the gathering cast), else what the mouse is over
+local ObjectiveName0
 local function ObjectiveName()
+    local n, k = ObjectiveName0()
+    if type(n) == "string" and (n:find("|c", 1, true) or n:find("Seviath", 1, true)) then return nil end
+    return n, k
+end
+function ObjectiveName0()
     -- what the last loot came from says it best: a monster (killed) or an object (used)
     local S0 = _G.SeviathsUsefulTools
     local ll = S0 and S0.lastLoot
@@ -99,8 +113,9 @@ function ns:LearnQuestAreas(qid)
     if ql0.g then all[#all + 1] = ql0.g end
     if ql0.t then all[#all + 1] = ql0.t end
     for _, sp in ipairs(all) do
-        if not sp.a and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.06 and math.abs(sp.y - y0) < 0.06 then
-            sp.a = AreaText()
+        if WeakArea(sp) and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.08 and math.abs(sp.y - y0) < 0.08 then
+            local at = AreaText()
+            if at then sp.a = at end
         end
     end
 end
@@ -113,7 +128,7 @@ local function scanOne(qid)
         local m0, x0, y0 = PlayerSpot()
         if m0 then
             for _, sp in ipairs(ql0.o) do
-                if not sp.a and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.025 and math.abs(sp.y - y0) < 0.025 then
+                if WeakArea(sp) and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.05 and math.abs(sp.y - y0) < 0.05 then
                     local okZ, zt = pcall(GetMinimapZoneText)
                     if okZ and type(zt) == "string" and not secret(zt) and zt ~= "" then sp.a = zt end
                 end
