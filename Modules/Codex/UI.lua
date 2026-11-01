@@ -18,6 +18,7 @@ local frame, searchBox, listRows, listSlider, detail, statusText
 -- the pages of a group are made when it is expanded (about 2 seconds) and removed when it is collapsed, another section is opened, or the
 -- Codex is closed. A search builds everything.
 function ns:ShowCategoryData(cat, searching)
+    if searching then ns:IndexCategory("all") elseif cat then ns:IndexCategory(cat) end
     for _, lc in ipairs({ "item", "quest" }) do
         local mine = (cat == lc) or (lc == "item" and cat == "material")
         if searching then
