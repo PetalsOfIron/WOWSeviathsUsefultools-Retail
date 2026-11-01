@@ -64,7 +64,7 @@ end)
 function SFP:ScanProgress()
     local n = (self.db and self.db.scanNext or 1) - 1
     local mats = 0
-    for _, it in pairs(self.db.knownItems or {}) do if it.c == 7 then mats = mats + 1 end end
+    for _, it in SeviathsAllPairs(self.db.knownItems or {}) do if it.c == 7 then mats = mats + 1 end end
     return math.min(100, math.floor(n * 100 / LAST_ID)), mats
 end
 

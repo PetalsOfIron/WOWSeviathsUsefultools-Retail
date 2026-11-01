@@ -69,7 +69,7 @@ Some families need a special unlock (an item or quest) before you can tame them 
 
 The Monsters & Creatures section lists:
 • Rare tames (like the Northrend spirit beasts) with how they work.
-• Every tameable beast you mouse over, grouped by family, with where you saw it — saved for all your characters.]] },
+• Tameable beasts grouped by family, with where to find them.]] },
 
 { id = "worldmounts", group = "3. World & Travel", title = "World monsters that drop mounts", icon = "Ability_Mount_Drake_Proto",
   tags = "rare world boss mount drop farm",
@@ -126,9 +126,9 @@ local function AddBeast(key, b)
         group = "Hunter pets — " .. b.f,
         icon = "Interface\\Icons\\Ability_Hunter_BeastTaming",
         sub = ("%s — %s%s"):format(b.f, ns:MapName(b.m), b.r and (" (" .. b.r .. ")") or ""),
-        body = C .. "Family|r\n" .. b.f .. "\n\n" .. C .. "Seen at|r\n" .. ns:Coords({ m = b.m, x = b.x, y = b.y })
+        body = C .. "Family|r\n" .. b.f .. "\n\n" .. C .. "Where|r\n" .. ns:Coords({ m = b.m, x = b.x, y = b.y })
             .. (b.l and ("\n\n" .. C .. "Level|r\n" .. b.l) or "")
-            .. "\n\n|cff888888Recorded when you moused over it. Exotic families need Beast Mastery.|r",
+            .. "\n\n|cff888888Exotic families need Beast Mastery.|r",
         map = { m = b.m, x = b.x, y = b.y },
         wh = wh(b.n), tags = "hunter pet tame beast " .. b.f:lower() .. (b.r and " rare" or ""),
     })
@@ -138,13 +138,12 @@ local function AddMonster(key, b)
     local cls = b.r and (" (" .. b.r .. ")") or ""
     ns:Add({
         cat = "creature", id = "npc:" .. key, name = b.n,
-        group = "Monsters you've seen — " .. ns:MapName(b.m),
+        group = (_G.SeviathsUsefulTools and _G.SeviathsUsefulTools.ExpansionOfMap and _G.SeviathsUsefulTools:ExpansionOfMap(b.m)) or ns:MapName(b.m),
         icon = "Interface\\Icons\\Ability_Warrior_Revenge",
         sub = ns:MapName(b.m) .. cls .. (b.l and (" · level " .. b.l) or ""),
-        body = C .. "Seen at|r\n" .. ns:Coords({ m = b.m, x = b.x, y = b.y })
+        body = C .. "Where|r\n" .. ns:Coords({ m = b.m, x = b.x, y = b.y })
             .. (b.l and ("\n\n" .. C .. "Level|r\n" .. b.l) or "")
-            .. (b.r and ("\n\n" .. C .. "Type|r\n" .. b.r) or "")
-            .. "\n\n|cff888888Recorded when you moused over it. Show on map points to where you saw it.|r",
+            .. (b.r and ("\n\n" .. C .. "Type|r\n" .. b.r) or ""),
         map = { m = b.m, x = b.x, y = b.y }, tags = "monster npc enemy " .. (b.r or ""),
     })
 end

@@ -96,6 +96,20 @@ ns:RequestHook("LFGListApplicationViewer_UpdateApplicantMember", function(member
   end
   local parts = {}
   local full = name and ns.FullName(name)
+  member.SDRName = full   -- for the hover below (the row is reused for other applicants)
+  if not member.SDRHover and member.HookScript then
+    member.SDRHover = true
+    -- hovering an applicant: what is known about them (their addon's profile, Raider.IO, the baked armory data)
+    member:HookScript("OnEnter", function(self)
+      local S = _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social
+      if not (S and S.AddByName and self.SDRName) then return end
+      if GameTooltip:IsShown() then
+        GameTooltip:AddLine(" ")
+        pcall(S.AddByName, GameTooltip, self.SDRName)
+        GameTooltip:Show()
+      end
+    end)
+  end
   if full then
     local t = ns:TagShortFor(full)
     if t ~= "" then parts[#parts + 1] = t end

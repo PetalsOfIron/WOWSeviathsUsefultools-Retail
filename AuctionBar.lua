@@ -130,6 +130,26 @@ local function build()
     label = status:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("CENTER")
 
+    -- a small timer under the bar: when the game allows the next fast scan (one request per 15 minutes for the whole account)
+    local fastLabel = bar:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    fastLabel:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 104, -2)
+    local acc = 0
+    local timerFrame = CreateFrame("Frame", nil, bar)   -- its own frame: the bar already has an OnUpdate of its own further down
+    timerFrame:SetScript("OnUpdate", function(_, dt)
+        acc = acc + dt
+        if acc < 1 then return end
+        acc = 0
+        local last = SFP.db and SFP.db.lastReplicate
+        local left = last and (15 * 60 + 15 - (time() - last)) or 0
+        if left > 0 then
+            fastLabel:SetText(("Fast scan again in %d:%02d"):format(math.floor(left / 60), left % 60))
+            fastLabel:SetTextColor(1, 0.6, 0.3)
+        else
+            fastLabel:SetText("Fast scan ready")
+            fastLabel:SetTextColor(0.4, 0.9, 0.4)
+        end
+    end)
+
     local deals = CreateFrame("Button", nil, bar, "UIPanelButtonTemplate")
     deals:SetSize(80, 22)
     deals:SetPoint("LEFT", status, "RIGHT", 6, 0)

@@ -530,6 +530,39 @@ function SFP:PriceByName(name)
     return best
 end
 
+-- the price shipped with the addon (collected/gold.<realm>.lua: prices scanned on the author's realms): this realm group's, else a part of
+-- it, else any shipped realm (prices of other servers are usually close). Returns copper and the time it was scanned.
+local shippedRealm
+function SFP:ShippedPriceTime(id)
+    local _, t = self:ShippedPrice(id)
+    return t
+end
+function SFP:ShippedPrice(id)
+    local G = _G.SeviathsUsefulToolsGold
+    if not G then return nil end
+    if shippedRealm == nil then
+        local key = self:RealmKey()
+        shippedRealm = G[key] or false
+        if not shippedRealm then
+            for part in tostring(key):gmatch("[^,]+") do
+                if G[part] then shippedRealm = G[part] break end
+            end
+        end
+        if not shippedRealm then
+            -- the nearest guess: the shipped realm with the most prices
+            local bestN = 0
+            for _, r in pairs(G) do
+                local n = 0
+                for _ in pairs(r.p) do n = n + 1 if n > 1000 then break end end
+                if n > bestN then bestN, shippedRealm = n, r end
+            end
+            shippedRealm = shippedRealm or false
+        end
+    end
+    local rec = shippedRealm and shippedRealm.p[id]
+    if rec then return rec[1], rec[2] end
+end
+
 function SFP:GetPrice(itemID)
     local best
     local here = self:RealmPrices()
@@ -548,6 +581,11 @@ function SFP:GetPrice(itemID)
         end
         rec = rec or self.db.prices[id]
         if rec and rec.ext and not self:ExternalOn(rec.ext) then rec = nil end
+        -- the shipped price fills in an item this player never scanned, and replaces his when it is newer (never a copied Auctionator/TSM one)
+        if not rec or (not rec.ext and (rec.t or 0) < (self:ShippedPriceTime(id) or 0)) then
+            local sp = self:ShippedPrice(id)
+            if sp then rec = { p = sp, t = self:ShippedPriceTime(id) } end
+        end
         local p = rec and rec.p
         if p and (not best or p < best) then best = p end
     end
@@ -999,12 +1037,20 @@ SLASH_SEVIATHSUSEFULTOOLS1 = "/sfp"
 SLASH_SEVIATHSUSEFULTOOLS2 = "/farmpack"
 SLASH_SEVIATHSUSEFULTOOLS3 = "/sut"
 SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
+    local rawMsg = msg or ""   -- with its capital letters (names and realms)
     msg = (msg or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
     local cmd, rest = msg:match("^(%S*)%s*(.*)$")
     if cmd == "" or cmd == "show" then
         if SFP.ToggleMenu then SFP:ToggleMenu() else SFP:ToggleBrowser() end
     elseif cmd == "browser" or cmd == "farm" then
         SFP:ToggleBrowser()
+    elseif cmd == "rio" then
+        if SFP.Social and SFP.Social.RioDebug then SFP.Social.RioDebug((rawMsg:gsub("^%s*[Rr][Ii][Oo]%s*", ""))) else SFP:Print("not loaded yet") end
+    elseif cmd == "near" then
+        if SFP.Social and SFP.Social.NearDebug then SFP.Social.NearDebug(rest) else SFP:Print("not loaded yet") end
+    elseif cmd == "stats" then
+        -- which of the game's statistics the delve / key / raid boss totals read
+        if SFP.Social and SFP.Social.StatsDebug then SFP.Social.StatsDebug() else SFP:Print("not loaded yet") end
     elseif cmd == "version" or cmd == "about" then
         SFP:Print("version " .. SFP.VERSION .. " by " .. SFP.AUTHOR .. " - Classic to Midnight, data from wowhead.com")
         if SFP.OpenAbout then SFP:OpenAbout() end
@@ -1135,6 +1181,14 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
     elseif cmd == "alerts" then
         SFP.db.rareAlerts = (SFP.db.rareAlerts == false)
         SFP:Print("Rare alerts " .. (SFP.db.rareAlerts ~= false and "ON" or "OFF"))
+    elseif cmd == "fastscan" then
+        -- for testing: the addon's own 15-minute wait is skipped and a fast scan is asked for at once. The game may still ignore a
+        -- request that comes too soon after another one (then the bar waits 2 minutes and the addon says so).
+        SFP.db.lastReplicate = nil
+        if SFP.TryFullScan then SFP:TryFullScan(true) end
+    elseif cmd == "sections" then
+        -- for testing: only the section scan (the second scan), at once; the auction house window must be open
+        if SFP.StartCategoryScan and not SFP:StartCategoryScan() then SFP:Print("The section scan could not start (is the auction house open?).") end
     elseif cmd == "history" then
         if rest == "rescan" then
             SFP.db.historyReport = true

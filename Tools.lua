@@ -80,8 +80,25 @@ function SFP.MakeRowList(parent, x, y, w, h, rowH)
                 r.text:SetJustifyH("LEFT")
                 r.text:SetWordWrap(false)
                 r.btns = {}
+                -- a row with a unit shows that player's tooltip (all the stats the addon knows) when hovered
+                r:EnableMouse(true)
+                r:SetScript("OnEnter", function(self)
+                    if self.unit and UnitExists(self.unit) then
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        GameTooltip:SetUnit(self.unit)
+                        GameTooltip:Show()
+                    elseif self.tip then
+                        -- a row without a unit (a listed player): its own tooltip lines
+                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+                        pcall(self.tip, GameTooltip)
+                        GameTooltip:Show()
+                    end
+                end)
+                r:SetScript("OnLeave", function() GameTooltip:Hide() end)
                 rows[i] = r
             end
+            r.unit = it.unit
+            r.tip = it.tip
             r.text:SetText(it.text or "")
             -- an optional tick box in front of the row: it.check = true / false, it.onToggle(ticked)
             if it.check ~= nil then

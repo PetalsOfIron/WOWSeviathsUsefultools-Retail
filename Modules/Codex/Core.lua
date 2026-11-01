@@ -18,8 +18,12 @@ ns.CATEGORIES = {
     { key = "dungeon",    name = "Dungeons",                icon = "Interface\\Icons\\INV_Misc_Key_14" },
     { key = "raid",       name = "Raids",                   icon = "Interface\\Icons\\Achievement_Boss_Ragnaros" },
     { key = "boss",       name = "Bosses",                  icon = "Interface\\Icons\\Achievement_Dungeon_ClassicDungeonMaster" },
+    { key = "rare",       name = "Rares",                   icon = "Interface\\Icons\\Achievement_Boss_Archaedas" },
     { key = "creature",   name = "Monsters & Creatures",    icon = "Interface\\Icons\\Ability_Hunter_BeastTaming" },
+    { key = "npc",        name = "NPCs (vendors & more)",   icon = "Interface\\Icons\\Achievement_Character_Human_Male" },
     { key = "item",       name = "Loot & Items",            icon = "Interface\\Icons\\INV_Chest_Plate16" },
+    { key = "town",       name = "Towns & Cities",          icon = "Interface\\Icons\\INV_Misc_Map_01" },
+    { key = "node",       name = "Nodes & Objects",         icon = "Interface\\Icons\\INV_Misc_Herb_Felblossom" },
     { key = "delve",      name = "Delves",                  icon = "Interface\\Icons\\INV_Misc_Lantern_01" },
     { key = "entrance",   name = "Entrances (How to Enter)", icon = "Interface\\Icons\\Spell_Arcane_PortalDalaran" },
     { key = "quest",      name = "Quests (what to do)",     icon = "Interface\\Icons\\INV_Misc_Note_01" },
@@ -30,7 +34,6 @@ ns.CATEGORIES = {
     { key = "material",   name = "Materials (what for)",   icon = "Interface\\Icons\\INV_Fabric_Linen_01" },
     { key = "mats",       name = "Gold Farming",            icon = "Interface\\Icons\\INV_Misc_Herb_Felblossom" },
     { key = "grind",      name = "Best Grinding Spots",     icon = "Interface\\Icons\\INV_Misc_Coin_01" },
-    { key = "history",    name = "My Collection History",   icon = "Interface\\Icons\\INV_Misc_Book_11" },
 }
 -- Mists of Pandaria has no transmog sets window: leave that section out
 if not (C_TransmogSets and C_TransmogSets.GetAllSets) then

@@ -50,7 +50,7 @@ function ns:OpenItem(itemID, linkName)
         local _, itemType = C_Item.GetItemInfoInstant(itemID)
         self:Add({
             cat = "item", id = itemID, name = name, itemID = itemID,
-            group = "Seen items — " .. (itemType or "Other"), sub = itemType or "",
+            group = self:ItemGroupFor(itemID, itemType), sub = itemType or "",
             icon = C_Item.GetItemIconByID(itemID), wh = "item=" .. itemID,
         })
         if not C_Item.GetItemNameByID(itemID) then

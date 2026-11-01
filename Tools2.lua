@@ -1182,7 +1182,7 @@ local function questGiver(title)
     if not (db and db.quests and db.qloc) then return nil end
     if not questByTitle then
         questByTitle = {}
-        for id, q in pairs(db.quests) do
+        for id, q in SeviathsAllPairs(db.quests) do
             if type(q) == "table" and q.t then questByTitle[q.t] = id end
         end
     end

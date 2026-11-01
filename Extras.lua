@@ -553,7 +553,7 @@ function SFP:ImportString(str)
             end
         end
     end
-    for id in pairs(self.db.knownItems) do pcall(self.ClassifyItem, self, id) end
+    for id in SeviathsAllPairs(self.db.knownItems) do pcall(self.ClassifyItem, self, id) end
     if self.ApplyLearned then pcall(self.ApplyLearned, self) end
     if self.RefreshAll then self:RefreshAll() end
     return true, ("Imported: %d monsters, %d nodes, %d items, %d recipes, %d learned spots."):format(

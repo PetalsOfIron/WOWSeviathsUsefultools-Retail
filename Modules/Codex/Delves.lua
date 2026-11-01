@@ -34,6 +34,14 @@ local TIERS = C .. "Tiers (Season 2)|r\n"
 
 local function DelveText(e)
     local out = {}
+    -- what the addon collected when you entered it, and whether you finished it
+    local S = _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social
+    local lib = S and S.Config and S.Config().lib
+    local seen = lib and lib.delve and e.name and lib.delve[e.name]
+    local done = S and S.Config and S.Config().done and S.Config().done.delve and e.name and S.Config().done.delve[e.name:lower()]
+    if seen or done then
+        out[#out + 1] = C .. "You|r\nEntered " .. ((seen and seen.n) or 0) .. " time" .. (((seen and seen.n) or 0) == 1 and "" or "s") .. (done and ", finished" or "")
+    end
     if e.map then
         local cont = ns.ContinentOf and select(2, ns.ContinentOf(e.map.m))
         out[#out + 1] = C .. "Where|r\n" .. ns:Coords(e.map) .. (cont and (" » " .. cont) or "")
@@ -81,6 +89,21 @@ function ns:IndexDelves()
             icon = "Interface\\Icons\\INV_Misc_Lantern_01", sub = d[2], zoneName = d[2],
             nemesis = d[1] == "Torment's Rise", tags = "delve " .. d[2],
         })
+    end
+    -- the delves you entered that the lists above do not have: the addon saved them (with their IDs) when you walked in
+    do
+        local S = _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social
+        local lib = S and S.Config and S.Config().lib
+        for name, rec in pairs((lib and lib.delve) or {}) do
+            local l = name:lower()
+            if not self:Get("delve:" .. l) then
+                self:Add({
+                    cat = "delve", id = l, name = name, group = "1. Midnight — entered",
+                    icon = "Interface\\Icons\\INV_Misc_Lantern_01", sub = "Collected when you entered it" .. (rec.id and (" (instance " .. rec.id .. ")") or ""),
+                    zoneName = nil, tags = "delve entered",
+                })
+            end
+        end
     end
     -- live: every delve the map knows, with exact spot and today's state
     local zones = C_Map.GetMapChildrenInfo(946, Enum.UIMapType.Zone, true) or {}

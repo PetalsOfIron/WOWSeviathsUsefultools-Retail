@@ -207,10 +207,19 @@ local TABS = {
   { key = "mplus",     label = "Mythic+" },
   { key = "raid",      label = "Raids" },
   { key = "custom",    label = "Custom" },
+  -- the group selected in the list: one tab of its own in every section (docked: next to the section's tab)
+  { key = "listed_quest",   label = "Listed", row = 3, listedFor = "quest" },
+  { key = "listed_delve",   label = "Listed", row = 3, listedFor = "delve" },
+  { key = "listed_dungeon", label = "Listed", row = 3, listedFor = "dungeon" },
+  { key = "listed_mplus",   label = "Listed", row = 3, listedFor = "mplus" },
+  { key = "listed_raid",    label = "Listed", row = 3, listedFor = "raid" },
+  { key = "listed_custom",  label = "Listed", row = 3, listedFor = "custom" },
   -- row 2: tools
   { key = "players",   label = "Players",  row = 2 },
   { key = "templates", label = "Notes",    row = 2 },
   { key = "group",     label = "My Group", row = 2 },
+  { key = "members",   label = "Members",  row = 2 },
+  { key = "listed",    label = "Listed",   row = 2, generic = true },   -- free-floating window: whichever group is selected
   { key = "settings",  label = "Settings", row = 2 },
 }
 
@@ -342,8 +351,24 @@ local function PickerHeader(pk, idx)
   return h
 end
 
+-- how often you entered a place (collected by the Social module when you walk in): exact name, or one containing the other
+local function Visits(seen, name)
+  if not seen then return 0 end
+  local v = seen[name]
+  if v then return v.n or 1 end
+  local l = name:lower()
+  for en, rec in pairs(seen) do
+    local el = en:lower()
+    if el:find(l, 1, true) or l:find(el, 1, true) then return rec.n or 1 end
+  end
+  return 0
+end
+
 function UI:RefreshPickers()
   for kind, pk in pairs(pickers) do
+    local Soc = _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social
+    local lib = Soc and Soc.Config and Soc.Config().lib
+    local seen = lib and lib[(kind == "mplus") and "dungeon" or kind]
     if pk.byExpansion then ns:LoadEJPlaces(kind) end
     local o = ns.db[kind]
     local counts = ns.placeCounts and ns.placeCounts[kind] or {}
@@ -371,16 +396,18 @@ function UI:RefreshPickers()
       if pk.byExpansion then
         hi = hi + 1
         local h = PickerHeader(pk, hi)
-        local groupsHere, picked = 0, 0
+        local groupsHere, picked, entered = 0, 0, 0
         for _, n in ipairs(names) do
           groupsHere = groupsHere + (counts[n] or 0)
           if o.picked[n] then picked = picked + 1 end
+          if Visits(seen, n) > 0 then entered = entered + 1 end
         end
         h.kind, h.names = kind, names
         h.tierName = tier == 0 and "Other" or ns:TierName(tier)
         h.text:SetText(h.tierName
           .. (groupsHere > 0 and ("   |cff40ff60" .. groupsHere .. (groupsHere == 1 and " group" or " groups") .. "|r") or "")
-          .. (picked > 0 and ("   |cffffffff" .. picked .. " ticked|r") or ""))
+          .. (picked > 0 and ("   |cffffffff" .. picked .. " ticked|r") or "")
+          .. (entered > 0 and ("   |cffaaaaaa" .. entered .. " / " .. #names .. " entered|r") or ""))
         h.text:SetTextColor(C[1], C[2], C[3])
         h:ClearAllPoints()
         h:SetPoint("TOPLEFT", 16, y)
@@ -394,7 +421,8 @@ function UI:RefreshPickers()
         cb:ClearAllPoints()
         cb:SetPoint("TOPLEFT", col == 0 and 16 or COL2, y - row * 24)
         cb.kind, cb.place = kind, name
-        cb.label:SetText(name)
+        local visits = Visits(seen, name)
+        cb.label:SetText(name .. (visits > 0 and (" |cff808080(" .. visits .. "x)|r") or ""))
         cb:SetChecked(o.picked[name] and true or false)
         local n = counts[name] or 0
         cb.count:SetText(n > 0 and ("|cff40ff60" .. n .. "|r") or "")
@@ -687,6 +715,73 @@ function UI:RefreshGroup()
   if p and p.text and p:IsVisible() then p.text:SetText(ns:GroupCompText()) end
 end
 
+-- Members: a big section of its own. The players of the group you are in, and the players of the group selected in the Premade
+-- Groups list, each with everything the addon knows (the same lines as the player tooltip, Raider.IO score included).
+local function BuildListed(p)
+  Header(p, p.listedFor and ("The selected " .. (ns.KIND_LABEL and ns.KIND_LABEL[p.listedFor] or p.listedFor) .. " group") or "The group selected in the list", 16, -10)
+  p.SDRHeight = 720
+  p.text = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  p.text:SetPoint("TOPLEFT", 20, -40)
+  p.text:SetPoint("RIGHT", -20, 0)
+  p.text:SetJustifyH("LEFT")
+  p.text:SetJustifyV("TOP")
+  p.text:SetSpacing(2)
+  local b = UI.Button(p, "Refresh", 80, 20, function() UI:RefreshListed() end)
+  b:SetPoint("TOPRIGHT", -16, -8)
+end
+
+local function BuildMembers(p)
+  Header(p, "Group members", 16, -10)
+  -- every player is written out with the whole tooltip: name, guild, level, faction, item level, talents, gear, collectables, done
+  p.SDRHeight = 720
+  p.text = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  p.text:SetPoint("TOPLEFT", 20, -40)
+  p.text:SetPoint("RIGHT", -20, 0)
+  p.text:SetJustifyH("LEFT")
+  p.text:SetJustifyV("TOP")
+  p.text:SetSpacing(2)
+  local b = UI.Button(p, "Refresh", 80, 20, function() UI:RefreshMembers() end)
+  b:SetPoint("TOPRIGHT", -16, -8)
+end
+
+function UI:RefreshMembers()
+  local p = pages.members
+  if not (p and p.text and p:IsVisible()) then return end
+  local parts = {}
+  local S = _G.SeviathsUsefulTools
+  if S and S.Social and S.Social.GroupMembersText then
+    local ok, members = pcall(S.Social.GroupMembersText)
+    if ok and members then parts[#parts + 1] = "|cff00e5ffMy group|r\n\n" .. members end
+  end
+  if #parts == 0 then parts[1] = "|cff808080Not in a group.|r" end
+  p.text:SetText(table.concat(parts, "\n\n\n"))
+  p.SDRHeight = math.max(720, p.text:GetStringHeight() + 110)
+  if UI.frame and UI.current and pages[UI.current] == p then
+    UI.frame.content:SetHeight(math.max(p.SDRHeight, 410))
+  end
+end
+
+-- the group you selected in the Premade Groups list: its leader and every player, each with the whole tooltip; follows every click
+function UI:RefreshListed()
+  for key, p in pairs(pages) do
+    if (key == "listed" or key:find("^listed_")) and p.text and p:IsVisible() then
+      local text
+      if ns.membersResult and ns.MembersText and (not p.listedFor or p.listedFor == ns.membersKind or ((p.listedFor == "dungeon" or p.listedFor == "mplus") and (ns.membersKind == "dungeon" or ns.membersKind == "mplus"))) then
+        local ok, listed = pcall(ns.MembersText, ns.membersResult)
+        text = (ok and listed) or ("|cffff6060Could not read the group:|r " .. tostring(listed))
+      else
+        local what = p.listedFor and ((ns.KIND_LABEL and ns.KIND_LABEL[p.listedFor] or p.listedFor) .. " ") or ""
+        text = "|cff808080Select a " .. what .. "group in the Premade Groups list to see its players here.|r"
+      end
+      p.text:SetText(text)
+      p.SDRHeight = math.max(720, p.text:GetStringHeight() + 110)
+      if UI.frame and UI.current and pages[UI.current] == p then
+        UI.frame.content:SetHeight(math.max(p.SDRHeight, 410))
+      end
+    end
+  end
+end
+
 local function BuildSettings(p)
   local db = ns.db
   Header(p, "General", 16, -10)
@@ -743,7 +838,9 @@ end
 local BUILDERS = {
   quest = BuildQuest, delve = BuildDelve, dungeon = BuildDungeon, mplus = BuildMPlus,
   raid = BuildRaid, custom = BuildCustom, players = BuildPlayers,
-  templates = BuildTemplates, group = BuildGroup, settings = BuildSettings,
+  templates = BuildTemplates, group = BuildGroup, members = BuildMembers, listed = BuildListed, settings = BuildSettings,
+  listed_quest = BuildListed, listed_delve = BuildListed, listed_dungeon = BuildListed,
+  listed_mplus = BuildListed, listed_raid = BuildListed, listed_custom = BuildListed,
 }
 
 ---------------------------------------------------------------------------
@@ -822,15 +919,22 @@ function UI:Build()
     local b = UI.Button(f, tab.label, 88, 22, function() UI:Select(tab.key) end)
     b.key = tab.key
     b.row = tab.row or 1
+    b.listedFor, b.generic = tab.listedFor, tab.generic
     f.tabButtons[#f.tabButtons + 1] = b
 
     local p = CreateFrame("Frame", nil, content)
     p:SetAllPoints(content)
     p:Hide()
+    p.listedFor = tab.listedFor
     pages[tab.key] = p
     BUILDERS[tab.key](p)
   end
   pages.group:HookScript("OnShow", function() UI:RefreshGroup() end)
+  pages.members:HookScript("OnShow", function() UI:RefreshMembers() end)
+  for key, page in pairs(pages) do
+    if key == "listed" or key:find("^listed_") then page:HookScript("OnShow", function() UI:RefreshListed() end) end
+  end
+  C_Timer.NewTicker(4, function() UI:RefreshMembers() UI:RefreshListed() end)   -- answers from the players' addons arrive later
   pages.players:HookScript("OnShow", function() UI:RefreshPlayers() end)
   self.frame = f
   self:Layout(nil)
@@ -844,16 +948,25 @@ function UI:Layout(section)
   local f = self.frame
   self.section = section
   local col = { 0, 0 }
+  -- one row of tabs when docked: they share the width of the window
+  local count = 0
+  for _, b in ipairs(f.tabButtons) do
+    if section and ((b.row == 2 and not b.generic) or b.key == section or (section == "dungeon" and b.key == "mplus") or b.listedFor == section) then count = count + 1 end
+  end
+  local step = section and math.min(92, math.floor(520 / math.max(count, 1))) or 92
   for _, b in ipairs(f.tabButtons) do
     b:ClearAllPoints()
     if section then
-      -- one row: [current section] [Players] [Notes] [My Group] [Settings]
-      local show = b.row == 2 or b.key == section or (section == "dungeon" and b.key == "mplus")
+      -- one row: [current section] [Players] [Notes] [My Group] [Members] [Settings]
+      local show = (b.row == 2 and not b.generic) or b.key == section or (section == "dungeon" and b.key == "mplus") or b.listedFor == section
       b:SetShown(show)
       if show then
-        b:SetPoint("TOPLEFT", 14 + col[1] * 92, -40)
+        b:SetWidth(step - 4)
+        b:SetPoint("TOPLEFT", 14 + col[1] * step, -40)
         col[1] = col[1] + 1
       end
+    elseif b.row == 3 then
+      b:Hide()   -- a free-floating window has the one "Listed" tab of the tool row
     else
       b:Show()
       b:SetPoint("TOPLEFT", 14 + col[b.row] * 92, b.row == 1 and -40 or -66)

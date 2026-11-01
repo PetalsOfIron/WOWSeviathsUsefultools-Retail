@@ -76,9 +76,86 @@ local function initSpellNames()
     end
 end
 
+-- the name of an object (a chest, a node, a note) is what its tooltip said when the mouse was over it: kept for a short while, so a
+-- object looted by clicking it (no gathering spell) still gets its name
+local lastObjectTip = { name = nil, line2 = nil, quest = nil, t = 0 }
+pcall(function()
+    GameTooltip:HookScript("OnShow", function()
+        if UnitExists("mouseover") then return end
+        local line = _G.GameTooltipTextLeft1
+        local txt = line and line:GetText()
+        if type(txt) == "string" and not (issecretvalue and issecretvalue(txt)) and txt ~= "" then
+            lastObjectTip.name, lastObjectTip.t = txt, GetTime()
+            -- the second line often says what it is ("Herbalism", "Mining", "Treasure"): kept as the object's kind
+            local l2 = _G.GameTooltipTextLeft2 and _G.GameTooltipTextLeft2:GetText()
+            if type(l2) == "string" and not (issecretvalue and issecretvalue(l2)) and l2 ~= "" and #l2 <= 40 and not l2:find("%d") then
+                lastObjectTip.line2 = l2
+            else
+                lastObjectTip.line2 = nil
+            end
+            -- a quest objective in the tooltip ("0/1 ...") means the object is for a quest: the line above it is the quest title
+            lastObjectTip.quest = nil
+            for i = 2, 6 do
+                local ln = _G["GameTooltipTextLeft" .. i]
+                local s = ln and ln:GetText()
+                if type(s) == "string" and not (issecretvalue and issecretvalue(s)) and s:find("%d+/%d+") then
+                    local prev = _G["GameTooltipTextLeft" .. (i - 1)]
+                    local title = prev and prev:GetText()
+                    if type(title) ~= "string" or (issecretvalue and issecretvalue(title)) or i == 2 then title = nil end
+                    lastObjectTip.quest = title or "Quest objective"
+                    break
+                end
+            end
+        end
+    end)
+end)
+
+-- what kind of object a recorded object is: what the tooltip said, else by what it gave (herbs, ore, leather ...)
+local OBJECT_KIND = { herb = "Herb node", ore = "Mining node", leather = "Skinnable / leather", cloth = "Cloth source",
+    meat = "Meat source", element = "Elemental node", enchant = "Disenchant source" }
+function SFP:ObjectKind(rec)
+    if not rec then return nil end
+    if rec.ot then return rec.ot end
+    local counts, best, bestN = {}, nil, 0
+    for itemID, n in pairs(rec.d or {}) do
+        local kind = self.ClassifyItem and self:ClassifyItem(itemID)
+        if kind and OBJECT_KIND[kind] then
+            counts[kind] = (counts[kind] or 0) + n
+            if counts[kind] > bestN then best, bestN = kind, counts[kind] end
+        end
+    end
+    return best and OBJECT_KIND[best] or nil
+end
+
+-- what an object is for: the quests it was an objective of, else what it gave
+function SFP:ObjectPurpose(rec)
+    if not rec then return nil end
+    local qs = {}
+    for title in pairs(rec.qs or {}) do qs[#qs + 1] = title end
+    table.sort(qs)
+    if #qs > 0 then return "Quest objective: " .. table.concat(qs, ", ") end
+    for itemID in pairs(rec.d or {}) do
+        local _, _, _, _, _, classID = C_Item.GetItemInfoInstant(itemID)
+        if classID == 12 then return "Quest item" end
+    end
+    local kind = self:ObjectKind(rec)
+    if kind then return "Gathering (" .. kind .. ")" end
+    if rec.d and next(rec.d) then return "Loot container / treasure" end
+end
+
+function SFP:RecentObjectQuest()
+    if lastObjectTip.quest and GetTime() - lastObjectTip.t < 12 then return lastObjectTip.quest end
+end
+
+function SFP:RecentObjectKind()
+    if lastObjectTip.line2 and GetTime() - lastObjectTip.t < 12 then return lastObjectTip.line2 end
+end
+
 function SFP:RecentCastTarget()
     local t = lastCast.target
     if t and not (issecretvalue and issecretvalue(t)) and t ~= "" and GetTime() - lastCast.t < 8 then return t end
+    local o = lastObjectTip.name
+    if o and GetTime() - lastObjectTip.t < 12 then return o end
 end
 
 ---------------------------------------------------------------------------
@@ -101,7 +178,7 @@ end
 
 local function recordItem(id)
     if not id or not SFP.db then return end
-    local name, _, q, ilvl, minLvl, itype, subtype, _, equip, _, price, classID, subID, bind = C_Item.GetItemInfo(id)
+    local name, _, q, ilvl, minLvl, itype, subtype, _, equip, _, price, classID, subID, bind, expID = C_Item.GetItemInfo(id)
     if not name then
         pendingItems[id] = true
         C_Item.RequestLoadItemDataByID(id)
@@ -111,6 +188,7 @@ local function recordItem(id)
     local it = SFP.db.knownItems[id] or {}
     it.n, it.q, it.i, it.r = name, q, ilvl, minLvl
     it.t, it.st, it.e, it.p, it.c, it.s, it.b = itype, subtype, equip, price, classID, subID, bind
+    if type(expID) == "number" then it.x = expID end   -- the expansion of the item: the Codex groups items by it
     SFP.db.knownItems[id] = it
     SFP:ClassifyItem(id)
 end
@@ -213,6 +291,9 @@ local function onLoot()
                 if not rec then rec = { n = SFP:RecentCastTarget() or ("Object " .. id), k = 0 }; SFP.db.objects[id] = rec end
                 local nm = SFP:RecentCastTarget()
                 if nm and (rec.n or ""):find("^Object %d+$") then rec.n = nm end
+                if not rec.ot then rec.ot = SFP:RecentObjectKind() or SFP:ObjectKind(rec) end
+                local qt = SFP:RecentObjectQuest()
+                if qt then rec.qs = rec.qs or {}; rec.qs[qt] = true end
                 if not seenGuid[guid] then
                     seenGuid[guid] = true
                     rec.k = (rec.k or 0) + 1
@@ -927,7 +1008,7 @@ SFP:OnLogin(function()
         if n > 0 then step() end
     end)
     -- items we already know that are materials join the farm list straight away
-    for id in pairs(SFP.db.knownItems) do SFP:ClassifyItem(id) end
+    for id in SeviathsAllPairs(SFP.db.knownItems) do SFP:ClassifyItem(id) end
     local TT = Enum and Enum.TooltipDataType
     local okUnit, okItem = false, false
     if TooltipDataProcessor and TT and TT.Unit then
@@ -944,6 +1025,41 @@ end)
 ---------------------------------------------------------------------------
 -- Codex bridge: what you met becomes Codex pages (called while the Codex indexes)
 ---------------------------------------------------------------------------
+-- the expansion a zone belongs to, by the continent it is on (Midnight zones by name: they share continents with older ones)
+local EXP_BY_CONTINENT = {
+    ["eastern kingdoms"] = "Classic", ["kalimdor"] = "Classic", ["outland"] = "The Burning Crusade", ["northrend"] = "Wrath of the Lich King",
+    ["the maelstrom"] = "Cataclysm", ["pandaria"] = "Mists of Pandaria", ["draenor"] = "Warlords of Draenor",
+    ["broken isles"] = "Legion", ["argus"] = "Legion", ["zandalar"] = "Battle for Azeroth", ["kul tiras"] = "Battle for Azeroth",
+    ["shadowlands"] = "Shadowlands", ["dragon isles"] = "Dragonflight", ["khaz algar"] = "The War Within",
+}
+local EXP_BY_ZONE = {
+    ["eversong woods"] = "Midnight", ["silvermoon city"] = "Midnight", ["zul'aman"] = "Midnight", ["harandar"] = "Midnight",
+    ["voidstorm"] = "Midnight", ["ghostlands"] = "Midnight",
+}
+local expCache = {}
+function SFP:ExpansionOfMap(map)
+    if not map then return "Other" end
+    if expCache[map] then return expCache[map] end
+    local result
+    local m, guard = map, 0
+    local first = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(map)
+    if first and first.name and EXP_BY_ZONE[first.name:lower()] then result = EXP_BY_ZONE[first.name:lower()] end
+    while not result and m and guard < 10 do
+        local info = C_Map.GetMapInfo(m)
+        if not info then break end
+        if info.name and EXP_BY_ZONE[info.name:lower()] then result = EXP_BY_ZONE[info.name:lower()] break end
+        if Enum and Enum.UIMapType and info.mapType == Enum.UIMapType.Continent then
+            result = EXP_BY_CONTINENT[(info.name or ""):lower()]
+            break
+        end
+        m = info.parentMapID
+        guard = guard + 1
+    end
+    result = result or "Other"
+    expCache[map] = result
+    return result
+end
+
 function SFP:FeedLearned(cx)
     if not (cx and cx.Add and self.db) then return end
     local c = cx.CYAN or ""
@@ -968,12 +1084,14 @@ function SFP:FeedLearned(cx)
         local body = c .. "Monster|r  ID " .. id .. "\n" ..
             "Level " .. lvl .. (rec.t and ("  " .. rec.t) or "") .. (rec.f and ("  " .. rec.f) or "") ..
             (rec.c and ("  " .. rec.c) or "") ..
-            (#where > 0 and ("\n\n" .. c .. "Seen in|r\n" .. table.concat(where, ", ")) or "") ..
+            (#where > 0 and ("\n\n" .. c .. "Found in|r\n" .. table.concat(where, ", ")) or "") ..
             ((rec.d and next(rec.d)) and ("\n\n" .. c .. "Drops (" .. (rec.k or 0) .. " kills)|r\n" .. dropText(rec.d, rec.k)) or "") ..
             ((rec.s and next(rec.s)) and ("\n\n" .. c .. "Skinning|r\n" .. dropText(rec.s, rec.sk)) or "")
+        -- a monster is one that was fought (kills, drops); the rest (vendors, trainers, quest givers, passers-by) are NPCs
+        local fought = (rec.k or 0) > 0 or (rec.d and next(rec.d)) or (rec.s and next(rec.s))
         cx:Add({
-            cat = "creature", id = "sut:npc:" .. id, name = rec.n,
-            group = "Monsters you have met (" .. (where[1] or "unknown") .. ")",
+            cat = fought and "creature" or "npc", id = "sut:npc:" .. id, name = rec.n,
+            group = fought and self:ExpansionOfMap(mapFirst and mapFirst[1]) or (where[1] or "Other"),   -- monsters by expansion, NPCs by place
             icon = "Interface\\Icons\\Ability_Warrior_Revenge",
             sub = lvl .. (rec.t and (" " .. rec.t) or ""), body = body,
             map = mapFirst and { m = mapFirst[1], x = mapFirst[2][1], y = mapFirst[2][2] } or nil,

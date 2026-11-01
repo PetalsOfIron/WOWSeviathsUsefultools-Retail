@@ -71,12 +71,40 @@ ev:SetScript("OnEvent", function(_, event)
     if event == "MERCHANT_SHOW" then C_Timer.After(0.5, function() pcall(RecordVendor) end) end
 end)
 
+-- what kind of vendor: by the kind of item most of its goods are (item class and subclass as the game gives them)
+function ns:VendorKind(v)
+    local count, total = {}, 0
+    for id in pairs(v.items or {}) do
+        local _, _, _, _, _, classID, subID = C_Item.GetItemInfoInstant(id)
+        local kind
+        if classID == 0 then kind = (subID == 5) and "Food & drink" or "Potions & consumables"
+        elseif classID == 1 then kind = "Bags"
+        elseif classID == 2 then kind = "Weapons"
+        elseif classID == 3 then kind = "Gems"
+        elseif classID == 4 then kind = "Armor"
+        elseif classID == 7 then kind = "Reagents & materials"
+        elseif classID == 8 then kind = "Item enhancements"
+        elseif classID == 9 then kind = "Recipes"
+        elseif classID == 12 then kind = "Quest items"
+        elseif classID == 15 then kind = (subID == 2) and "Pets" or (subID == 5) and "Mounts" or "Miscellaneous goods"
+        elseif classID == 17 then kind = "Battle pets"
+        end
+        if kind then count[kind] = (count[kind] or 0) + 1; total = total + 1 end
+    end
+    local best, bestN
+    for kind, n in pairs(count) do if not bestN or n > bestN then best, bestN = kind, n end end
+    if not best then return "Vendor" end
+    if bestN / total < 0.5 then return "General goods vendor" end
+    return best .. " vendor"
+end
+
 function ns:AddVendor(key, v)
     local count = 0
     for _ in pairs(v.items) do count = count + 1 end
     local e = self:Add({
-        cat = "creature", id = "vendor:" .. key, name = v.n, group = "Vendors you've visited",
-        icon = "Interface\\Icons\\INV_Misc_Coin_02", sub = "Vendor — " .. self:MapName(v.m) .. " (" .. count .. " items)",
+        cat = "npc", id = "vendor:" .. key, name = v.n,
+        group = self:MapName(v.m) or "Other",
+        icon = "Interface\\Icons\\INV_Misc_Coin_02", sub = self:VendorKind(v) .. " — " .. self:MapName(v.m) .. " (" .. count .. " items)",
         map = { m = v.m, x = v.x, y = v.y }, vendorKey = key, tags = "vendor merchant shop",
     })
     if e then e.map = { m = v.m, x = v.x, y = v.y } end
@@ -100,7 +128,7 @@ function ns:VendorText(e)
         lines[#lines + 1] = "• " .. n .. "   |cffaaaaaa" .. cost .. "|r"
     end
     table.sort(lines)
-    return C .. "Where|r\n" .. self:Coords(e.map) .. "\n\n" .. C .. "Sells|r\n" .. table.concat(lines, "\n")
+    return C .. "Type|r\n" .. self:VendorKind(v) .. "\n\n" .. C .. "Where|r\n" .. self:Coords(e.map) .. "\n\n" .. C .. "Sells|r\n" .. table.concat(lines, "\n")
 end
 
 -- "Sold by" lines for an item; also returns the first vendor's map spot
