@@ -719,7 +719,7 @@ local function itemTip(tt, data)
     -- their own block
     if SFP.GetPrice and not (SFP.trackedIDs and SFP.trackedIDs[id]) then
         local ahp = SFP:GetPrice(id)
-        if ahp and ahp > 0 then tt:AddDoubleLine("Auction price:", SFP:FormatPrice(ahp), 0.4, 0.9, 1, 1, 1, 1) end
+        if ahp and ahp > 0 then tt:AddLine("Auction price: " .. SFP:FormatPrice(ahp), 0.4, 0.9, 1) end
     end
     local lines = SFP:ItemTipLines(id, link)
     if #lines == 0 then tt:Show() return end
