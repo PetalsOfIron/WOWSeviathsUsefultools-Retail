@@ -23,6 +23,18 @@ local function zname(map)
     return SFP.ZoneName and SFP:ZoneName(map) or mapName(map)
 end
 
+-- the place as the map names it: the area at the spot ("Temple of Halazzi"), then the zone it is in
+local function placeName(map, x, y)
+    local zone = zname(map)
+    if C_Map and C_Map.GetMapInfoAtPosition and type(x) == "number" and type(y) == "number" then
+        local ok, info = pcall(C_Map.GetMapInfoAtPosition, map, x, y)
+        if ok and type(info) == "table" and type(info.name) == "string" and info.name ~= "" and info.name ~= zone then
+            return info.name .. " (" .. zone .. ")"
+        end
+    end
+    return zone
+end
+
 local function buildZoneIdx()
     zoneIdx, expByKey = {}, {}
     local function add(id, map, tag, n)
@@ -92,7 +104,7 @@ local function zoneTexts(id, classID, subID, expID)
             if v and v.n then
                 local cdx = _G.SeviathsCodex
                 local kind = (cdx and cdx.VendorKind and cdx:VendorKind(v)) or "Vendor"
-                out[#out + 1] = ("%s: |cffffd100%s|r in %s"):format(kind, v.n, zname(v.m))
+                out[#out + 1] = ("%s: |cffffd100%s|r in %s"):format(kind, v.n, placeName(v.m, v.x, v.y))
             end
         end
     end
@@ -100,10 +112,12 @@ local function zoneTexts(id, classID, subID, expID)
     for i = 1, math.min(3, #(drops0 or {})) do
         local d = drops0[i]
         local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP.db.npcs[d[1]]
-        local map = rec and type(rec.m) == "table" and next(rec.m)
+        local map, spots = nil, nil
+        if rec and type(rec.m) == "table" then map, spots = next(rec.m) end
+        local spot1 = type(spots) == "table" and spots[1] or nil
         if rec and rec.n then
             local what = d[3] == "o" and "Gathered from (node or object)" or (d[3] == "s" and "Skinned from (monster)" or "Dropped by (monster)")
-            out[#out + 1] = ("%s: |cffffd100%s|r%s"):format(what, rec.n, map and (" in " .. zname(map)) or "")
+            out[#out + 1] = ("%s: |cffffd100%s|r%s"):format(what, rec.n, map and (" in " .. placeName(map, spot1 and spot1[1], spot1 and spot1[2])) or "")
         end
     end
     local found = {}
