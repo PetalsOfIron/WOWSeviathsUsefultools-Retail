@@ -93,13 +93,13 @@ function ns:Get(key) return self.entries[key] end
 
 -- Takes the entries marked lazy (the item and quest pages built from the collected data) out of the Codex again, so a closed Codex holds
 -- almost nothing; they are made again the next time it opens.
-function ns:UnloadLazy(cats)
+function ns:UnloadLazy(cats, onlyGroup)
     for _, cat in ipairs(cats) do
         local list = self.byCat[cat]
         if list then
             local keep = {}
             for _, e in ipairs(list) do
-                if e.lazy then self.entries[e.key] = nil else keep[#keep + 1] = e end
+                if e.lazy and (not onlyGroup or e.group == onlyGroup) then self.entries[e.key] = nil else keep[#keep + 1] = e end
             end
             self.byCat[cat] = keep
             self.groups[cat] = {}

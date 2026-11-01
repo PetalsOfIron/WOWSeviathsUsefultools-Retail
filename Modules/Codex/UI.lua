@@ -14,31 +14,21 @@ local BACKDROP    = {
 
 local frame, searchBox, listRows, listSlider, detail, statusText
 
--- Only the section that is open holds its big data: the item pages (about 55,000) and the quest pages (about 37,000) are made when that
--- section (or a search) is opened, in the background, a few thousand per frame (about 2 seconds), and taken out again when another
--- section is opened or the Codex has been closed for 10 seconds.
-local questsLoaded = false
+-- Only the group that is open holds its big data (see Lazy.lua): opening the Items or Quests section only counts the pages of each group,
+-- the pages of a group are made when it is expanded (about 2 seconds) and removed when it is collapsed, another section is opened, or the
+-- Codex is closed. A search builds everything.
 function ns:ShowCategoryData(cat, searching)
-    local wantItems = searching or cat == "item" or cat == "material"
-    local wantQuests = searching or cat == "quest"
-    if wantItems then
-        if ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
-    elseif ns.ItemsLoaded and ns:ItemsLoaded() then
-        ns:UnloadLazy({ "item" })
-        if ns.ForgetCollectedItems then ns:ForgetCollectedItems() end
-    end
-    if wantQuests then
-        if not questsLoaded and ns.LoadQuestsLazy then
-            questsLoaded = true
-            ns:RunJob("Loading saved quests", ns.LoadQuestsLazy)
-            if ns.ResumeJobs then ns:ResumeJobs() end
+    for _, lc in ipairs({ "item", "quest" }) do
+        local mine = (cat == lc) or (lc == "item" and cat == "material")
+        if searching then
+            ns:LazyIndex(lc, function() ns:BuildAllLazy(lc) end)
+        elseif mine then
+            ns:LazyIndex(lc)
+        else
+            ns:UnloadAllLazy(lc)
         end
-    elseif questsLoaded then
-        questsLoaded = false
-        ns:UnloadLazy({ "quest" })
     end
 end
-function ns:ForgetQuestsLoaded() questsLoaded = false end
 function ns:IsOpen() return frame ~= nil and frame:IsShown() end
 local catButtons = {}
 local state = {
@@ -120,15 +110,24 @@ local function BuildFlat()
         for g in pairs(byGroup) do
             if not seenG[g] then groups[#groups + 1] = g; seenG[g] = true end   -- entries whose group changed later
         end
+        local lz = ns.lazy and ns.lazy[cat]
+        if lz then
+            for g in pairs(lz.groups) do
+                if not seenG[g] then groups[#groups + 1] = g; seenG[g] = true end   -- groups whose pages are not built yet
+            end
+            table.sort(groups)
+        end
         if ns.TEXTCAT[cat] or cat == "mats" or cat == "delve" then table.sort(groups) end
-        local small = #ns.byCat[cat] < 80
+        local small = #ns.byCat[cat] < 80 and not lz
         for _, gname in ipairs(groups) do
-            local list = byGroup[gname]
-            if list and #list > 0 then
+            local list = byGroup[gname] or {}
+            local pending = lz and ns:LazyPending(cat, gname) or 0
+            if #list + pending > 0 then
                 local ck = cat .. "\001" .. gname
                 local collapsed = state.collapsed[ck]
                 if collapsed == nil then collapsed = not small end
-                flat[#flat + 1] = { header = true, label = gname, count = #list, ckey = ck, collapsed = collapsed }
+                flat[#flat + 1] = { header = true, label = gname, count = #list + pending, ckey = ck, collapsed = collapsed, lazyCat = lz and cat or nil, lazyGroup = gname }
+                if not collapsed and pending > 0 then ns:BuildLazyGroup(cat, gname) end
                 if not collapsed then
                     sortEntries(cat, list)
                     for _, e in ipairs(list) do flat[#flat + 1] = { entry = e } end
@@ -740,6 +739,8 @@ local function CreateWindow()
             if it.header then
                 if it.ckey then
                     state.collapsed[it.ckey] = not it.collapsed
+                    -- a group of a lazy section that was just collapsed gives its pages back
+                    if it.lazyCat and state.collapsed[it.ckey] then ns:UnloadLazyGroup(it.lazyCat, it.lazyGroup) end
                     ns:RefreshList(true)
                 end
             else
@@ -891,9 +892,8 @@ local function CreateWindow()
         -- closed: the section's big pages are taken out of memory at once (only one section holds data), made again when it opens
         C_Timer.After(0.2, function()
             if frame:IsShown() then return end
-            ns:UnloadLazy({ "item", "quest" })
-            if ns.ForgetCollectedItems then ns:ForgetCollectedItems() end
-            ns:ForgetQuestsLoaded()
+            ns:UnloadAllLazy("item")
+            ns:UnloadAllLazy("quest")
             state.selected = nil
             state.history = {}
             collectgarbage("collect")
