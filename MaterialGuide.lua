@@ -1243,7 +1243,8 @@ end
 local nameWait
 local nameFrame = CreateFrame("Frame")
 nameFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-nameFrame:SetScript("OnEvent", function()
+nameFrame:SetScript("OnEvent", function(_, _, itemID)
+    if itemID and SFP.StoreIcon then SFP:StoreIcon(itemID) end   -- a delivered item: its icon is kept too
     if nameWait or not (win and win:IsShown()) then return end
     nameWait = true
     C_Timer.After(0.5, function()
@@ -1258,6 +1259,21 @@ SFP:OnLogin(function()
         SFP.db.panelsClosedV2 = true
         SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
     end
+    -- the icons of all crafting reagents are stored a little after login (the game knows an item's icon without asking the server), a few
+    -- hundred per frame, so the Material search shows the right icon for every material
+    C_Timer.After(12, function()
+        local ids = {}
+        for id, a2 in pairs(SFP.AuctionItems or {}) do if a2[1] == 7 then ids[#ids + 1] = id end end
+        for id, info in pairs(SFP.Items or {}) do if info.kind and info.kind ~= "mount" then ids[#ids + 1] = id end end
+        local i = 1
+        local function step()
+            local last = math.min(i + 400, #ids)
+            for k = i, last do pcall(SFP.StoreIcon, SFP, ids[k]) end
+            i = last + 1
+            if i <= #ids then C_Timer.After(0, step) end
+        end
+        step()
+    end)
     if not WorldMapFrame or not WorldMapFrame.ScrollContainer then return end
     WorldMapFrame:HookScript("OnHide", function()
         if win then win:Hide() end
