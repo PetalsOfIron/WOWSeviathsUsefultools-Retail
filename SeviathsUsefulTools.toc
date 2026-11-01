@@ -48,6 +48,7 @@ collected\dungeonsraids.dungeon.lua
 collected\dungeonsraids.mplus.lua
 collected\dungeonsraids.quest.lua
 collected\dungeonsraids.raid.lua
+collected\gold.Arathor_Hellfire_Kilrogg_Nagrand_Runetotem.lua
 collected\gold.ArgentDawn.lua
 collected\gold.Bloodfeather_BurningSteppes_Darkspear_Executus_Kor_gall_Saurfang_ShatteredHand_Terokkar.lua
 collected\gold.DarkmoonFaire_DefiasBrotherhood_EarthenRing_Ravenholdt_ScarshieldLegion_Sporeggar_TheVentureCo.lua
