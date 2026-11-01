@@ -1339,6 +1339,30 @@ local function renderBlocks(n, map, spots, compact)
             if type(s.note) == "string" and s.note ~= "" then t:AddLine(s.note, 0.8, 0.8, 0.8, true) end
             t:AddLine(" ")
             if SFP.AddSpotDrops then SFP.AddSpotDrops(t, s) end
+            -- like the map tooltip: everything else worth farming in the zone, any mob there can drop it
+            local zone = SFP.zoneByMap[map]
+            local exp = SFP.zoneExp and SFP.zoneExp[map]
+            local have = {}
+            for _, id in ipairs(s.items or {}) do have[id] = true end
+            local rest = {}
+            local function add(id)
+                local info = SFP.Items[id]
+                if not have[id] and not (info and (info.kind == "ore" or info.kind == "herb" or info.kind == "enchant")) then
+                    have[id] = true
+                    rest[#rest + 1] = id
+                end
+            end
+            for _, id in ipairs(zone and zone.items or {}) do add(id) end
+            for _, id in ipairs(exp and exp.anywhere or {}) do add(id) end
+            if #rest > 0 then
+                t:AddLine(" ")
+                t:AddLine("Also in " .. SFP:ZoneName(map) .. "  |cff808080any monster there|r", 0.8, 0.8, 0.8)
+                table.sort(rest, function(x, y) return (SFP:GetPrice(x) or 0) > (SFP:GetPrice(y) or 0) end)
+                for k, id in ipairs(rest) do
+                    if k > 30 then t:AddLine("+" .. (#rest - 30) .. " more", 0.6, 0.6, 0.6) break end
+                    t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. iname(id), priceText(id), 1, 1, 1, 1, 1, 1)
+                end
+            end
             t:AddLine("Click: set a waypoint", 0, 0.9, 1)
         end
         if compact then r.tipFn = lootTip end
