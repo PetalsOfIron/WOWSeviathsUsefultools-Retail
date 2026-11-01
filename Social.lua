@@ -1175,16 +1175,30 @@ end
 
 -- The nameplate of a player COPIED: the game's tooltip of the unit and Raider.IO's own block, line by line.
 local function captureNameplateText(unit)
-    if not rioScanTip then rioScanTip = CreateFrame("GameTooltip", "SeviathsUsefulToolsRioScan", UIParent, "GameTooltipTemplate") end
-    rioScanTip:SetOwner(UIParent, "ANCHOR_NONE")
-    rioScanTip:ClearLines()
-    -- through securecallfunction: our code must not taint the game's own tooltip code (its health bar compares secret values)
-    local okU = pcall(securecallfunction or function(fn, ...) return fn(...) end, rioScanTip.SetUnit, rioScanTip, unit)
-    if not okU then rioScanTip:Hide() return nil end
+    -- The game's own lines of the unit come from the tooltip DATA (C_TooltipInfo), not from a tooltip frame of ours told to show the unit:
+    -- a frame made by an addon is tainted, and the game's health bar code fails on secret values when it runs there.
+    local out = {}
+    local okI, data = pcall(function() return C_TooltipInfo and C_TooltipInfo.GetUnit and C_TooltipInfo.GetUnit(unit) end)
+    if okI and type(data) == "table" and type(data.lines) == "table" then
+        for _, ln in ipairs(data.lines) do
+            local l, r = ln.leftText, ln.rightText
+            if type(l) == "string" and not secret(l) and l ~= "" then
+                local lc, rc = ln.leftColor, ln.rightColor
+                local function col(c) return type(c) == "table" and { c.r or 1, c.g or 1, c.b or 1 } or { 1, 1, 1 } end
+                out[#out + 1] = { l = l, r = (type(r) == "string" and not secret(r) and r ~= "") and r or nil, lc = col(lc), rc = col(rc) }
+            end
+        end
+    end
+    -- Raider.IO's own block: written into a private tooltip that is never told to show a unit
     local RIO = _G.RaiderIO
-    if RIO and RIO.ShowProfile then pcall(RIO.ShowProfile, rioScanTip, unit) end
-    local out = readTipLines(rioScanTip, "SeviathsUsefulToolsRioScan")
-    rioScanTip:Hide()
+    if RIO and RIO.ShowProfile then
+        if not rioScanTip then rioScanTip = CreateFrame("GameTooltip", "SeviathsUsefulToolsRioScan", UIParent, "GameTooltipTemplate") end
+        rioScanTip:SetOwner(UIParent, "ANCHOR_NONE")
+        rioScanTip:ClearLines()
+        pcall(RIO.ShowProfile, rioScanTip, unit)
+        for _, ln in ipairs(readTipLines(rioScanTip, "SeviathsUsefulToolsRioScan")) do out[#out + 1] = ln end
+        rioScanTip:Hide()
+    end
     if #out == 0 then return nil end
     return out
 end
