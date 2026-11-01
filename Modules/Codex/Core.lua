@@ -148,16 +148,12 @@ local function prepare(e)
     if e._normFor == e.name then return end
     e._normFor = e.name
     e.nname = norm(e.name)
-    local words, init = {}, {}
-    for w in e.nname:gmatch("%S+") do
-        words[#words + 1] = w
-        init[#init + 1] = w:sub(1, 1)
-    end
-    e.nwords = words
+    local init = {}
+    for w in e.nname:gmatch("%S+") do init[#init + 1] = w:sub(1, 1) end
     e.ninit = table.concat(init)
     local extra = (e.sub or "") .. " " .. (e.group or "") .. " " .. (e.tags or "") .. " "
         .. (e.source or "") .. " " .. (e.zone or "") .. " " .. ((e.cat == "achievement" or e.cat == "quest") and (e.body or e.objectives or "") or "")
-    e.nall = norm(extra):sub(1, 400)
+    e.nall = norm(extra):sub(1, 240)
 end
 
 -- edit distance <= 1 (one typo: insert, delete or change a letter)
@@ -230,7 +226,8 @@ function ns:Search(query, cat, limit)
         if sw ~= w and e.nname:find(sw, 1, true) then return 20 end
         if e.nall:find(w, 1, true) then return 5 end
         if allowTypos and #w >= 4 and (#words == 1 or e._exactHit) then
-            for _, nw in ipairs(e.nwords) do
+            -- the words of the name are cut out of it now (kept as a table per entry they used up a lot of memory)
+            for nw in e.nname:gmatch("%S+") do
                 if oneTypo(w, nw) or (#nw > #w and oneTypo(w, nw:sub(1, #w))) then return 10 end
             end
         end
