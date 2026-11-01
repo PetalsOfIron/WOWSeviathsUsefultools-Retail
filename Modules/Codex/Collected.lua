@@ -113,29 +113,53 @@ function ns:LoadCollected()
             if n % 400 == 0 then ns:Yield() end
         end
     end
-    -- items seen at the auction house that are not in the learned list: by expansion too (by their auction section when it is not known)
-    for id, cls in pairs(db.ahItems or {}) do
-        local name = db.ahNames and db.ahNames[id]
-        if name and not (db.knownItems and db.knownItems[id]) and not ns:Get("item:" .. id) and cls ~= 7 then
-            local cn = GetItemClassInfo and GetItemClassInfo(cls) or "Other"
-            ns:Add({ cat = "item", id = id, name = name, group = ns:ItemGroupFor(id, cn), icon = C_Item.GetItemIconByID(id),
-                itemID = id, wh = "item=" .. id, sub = cn })
-        end
-    end
-    ns:Yield()
-    -- the learned item list: materials go to Materials, everything else to Loot & Items
-    n = 0
-    for id, r in SeviathsAllPairs(db.knownItems or {}) do
-        if type(r) == "table" and r.n then
-            if r.c == 7 then
-                if ns.MaybeMaterial then pcall(ns.MaybeMaterial, ns, id, r.n) end
-            elseif not ns:Get("item:" .. id) then
-                ns:Add({ cat = "item", id = id, name = r.n, group = ns:ItemGroupFor(id, (r.t or "Other") .. ((r.st and r.st ~= "" and r.st ~= r.t) and (" — " .. r.st) or ""), r.x),
-                    icon = C_Item.GetItemIconByID(id), itemID = id, wh = "item=" .. id,
-                    sub = (r.t or "") .. ((r.st and r.st ~= "") and (" - " .. r.st) or "") .. ((r.i and r.i > 0) and ("  item level " .. r.i) or "") })
+end
+
+-- The item pages (about 55,000 entries) are made only when the Items or Materials section is opened, or when a search is typed: the Codex
+-- holds a lot of memory for them, and most players never open that section. Made a few thousand per frame, then the list is refreshed.
+local itemsState   -- nil = not started, "running", "done"
+function ns:EnsureCollectedItems()
+    if itemsState then return end
+    local db = SFP and SFP.db
+    if not db then return end
+    itemsState = "running"
+    local ids = {}
+    for id in pairs(db.ahItems or {}) do ids[#ids + 1] = { id, "ah" } end
+    for id in SeviathsAllPairs(db.knownItems or {}) do ids[#ids + 1] = { id, "known" } end
+    local i = 1
+    local function step()
+        local last = math.min(#ids, i + 2499)
+        for n = i, last do
+            local id, kind = ids[n][1], ids[n][2]
+            if kind == "ah" then
+                local cls = db.ahItems[id]
+                local name = db.ahNames and db.ahNames[id]
+                if name and not (db.knownItems and db.knownItems[id]) and not ns:Get("item:" .. id) and cls ~= 7 then
+                    local cn = GetItemClassInfo and GetItemClassInfo(cls) or "Other"
+                    ns:Add({ cat = "item", id = id, name = name, group = ns:ItemGroupFor(id, cn), icon = C_Item.GetItemIconByID(id),
+                        itemID = id, wh = "item=" .. id, sub = cn })
+                end
+            else
+                local r = db.knownItems[id]
+                if type(r) == "table" and r.n then
+                    if r.c == 7 then
+                        if ns.MaybeMaterial then pcall(ns.MaybeMaterial, ns, id, r.n) end
+                    elseif not ns:Get("item:" .. id) then
+                        ns:Add({ cat = "item", id = id, name = r.n, group = ns:ItemGroupFor(id, (r.t or "Other") .. ((r.st and r.st ~= "" and r.st ~= r.t) and (" - " .. r.st) or ""), r.x),
+                            icon = C_Item.GetItemIconByID(id), itemID = id, wh = "item=" .. id,
+                            sub = (r.t or "") .. ((r.st and r.st ~= "") and (" - " .. r.st) or "") .. ((r.i and r.i > 0) and ("  item level " .. r.i) or "") })
+                    end
+                end
             end
-            n = n + 1
-            if n % 500 == 0 then ns:Yield() end
+        end
+        i = last + 1
+        if i <= #ids then
+            C_Timer.After(0.03, step)
+        else
+            ids = nil
+            itemsState = "done"
+            if ns.RefreshList then pcall(ns.RefreshList, ns, true) end
         end
     end
+    step()
 end
