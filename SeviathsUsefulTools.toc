@@ -30,6 +30,7 @@ Data\TalentBuilds.lua
 Data\Affixes.lua
 Data\PlayerData.lua
 Data\Realms.lua
+Data\ConnectedRealms.lua
 Data\GuildLeaders.lua
 collected\codex.beasts.lua
 collected\codex.items.lua
