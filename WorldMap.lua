@@ -2007,7 +2007,7 @@ local function drawSimple(key, flag, title, color, mapID, spots)
         local id = s.items and s.items[1]
         r.icon:SetTexture(id and SFP:ItemIcon(id) or "Interface\\Icons\\INV_Misc_QuestionMark")
         r.name:SetText(tostring(s.name))
-        r.right:SetText("|A:Waypoint-MapPin-Tracked:14:14|t |cff33e6ffWaypoint|r")
+        r.right:SetText("|A:Waypoint-MapPin-Tracked:14:14|a |cff33e6ffWaypoint|r")
         r:Show()
     end
     for i = #spots + 1, #f.rows do f.rows[i]:Hide() end
@@ -2051,7 +2051,219 @@ end
 
 local function drawFarmLists(mapID)
     local zone = SFP.zoneByMap[mapID]
-    drawSimple("spots", "spotsCollapsed", "|c" .. SFP.CYAN_HEX .. "Farm spots|r", { 0, 0.9, 1 }, mapID, spotsOfGroup(zone, "farm"))
+    drawFarmScroll(mapID, spotsOfGroup(zone, "farm"))
+end
+
+---------------------------------------------------------------------------
+-- The Farm spots list: a block per monster - its name, its place and a big red waypoint, then everything it drops (grey items too)
+-- with how often and the price, and a wide space before the next monster. It scrolls.
+---------------------------------------------------------------------------
+local function areaAt(map, x, y)
+    if C_Map.GetMapInfoAtPosition and x and y then
+        local ok, info = pcall(C_Map.GetMapInfoAtPosition, map, x, y)
+        if ok and type(info) == "table" and type(info.name) == "string" and info.name ~= "" then return info.name end
+    end
+    return SFP:ZoneName(map)
+end
+
+-- every item a monster drops, most often first: { { id, qty } }, and its kill count
+local function monsterLoot(s)
+    local drops, kills = {}, s.kills or 0
+    local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+    if type(rec) == "table" then
+        kills = math.max(kills, rec.k or 0)
+        for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
+            for id, q in pairs(src) do if type(q) == "number" then drops[id] = (drops[id] or 0) + q end end
+        end
+    end
+    for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
+    for _, id in ipairs(s.items or {}) do if not drops[id] then drops[id] = 0 end end
+    local order = {}
+    for id, q in pairs(drops) do order[#order + 1] = { id = id, q = q } end
+    table.sort(order, function(a, c)
+        if a.q ~= c.q then return a.q > c.q end
+        return a.id < c.id
+    end)
+    return order, kills
+end
+
+local farmPanel
+local function buildFarmPanel()
+    local sc = WorldMapFrame.ScrollContainer
+    local f = CreateFrame("Frame", "SeviathsUsefulToolsFarmList", WorldMapFrame, "BackdropTemplate")
+    f:SetFrameStrata("HIGH")
+    f:SetSize(420, 520)
+    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    f:SetBackdropColor(0.02, 0.03, 0.05, 0.96)
+    f:SetBackdropBorderColor(0, 0.9, 1, 0.9)
+    f:EnableMouse(true)
+    f.head = CreateFrame("Button", nil, f)
+    f.head:SetPoint("TOPLEFT", 0, 0)
+    f.head:SetPoint("TOPRIGHT", 0, 0)
+    f.head:SetHeight(24)
+    f.title = f.head:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    f.title:SetPoint("LEFT", 10, 0)
+    f.toggle = f.head:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    f.toggle:SetPoint("RIGHT", -8, 0)
+    f.toggle:SetText("[-]")
+    f.head:SetScript("OnClick", function()
+        SFP.db.spotsCollapsed = true
+        SFP.RefreshWorldMap()
+    end)
+    f.scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+    f.scroll:SetPoint("TOPLEFT", 8, -28)
+    f.scroll:SetPoint("BOTTOMRIGHT", -28, 62)
+    f.content = CreateFrame("Frame", nil, f.scroll)
+    f.content:SetSize(380, 1)
+    f.scroll:SetScrollChild(f.content)
+    f.rows = {}
+    -- the footer: route line tick box, Route, Clear, and the ten best spots
+    f.foot = CreateFrame("Frame", nil, f)
+    f.foot:SetPoint("BOTTOMLEFT", 0, 0)
+    f.foot:SetPoint("BOTTOMRIGHT", 0, 0)
+    f.foot:SetHeight(58)
+    f.routeCheck = CreateFrame("CheckButton", nil, f.foot, "UICheckButtonTemplate")
+    f.routeCheck:SetSize(20, 20)
+    f.routeCheck:SetPoint("TOPLEFT", 6, -4)
+    f.routeCheck:SetHitRectInsets(0, -60, 0, 0)
+    f.routeCheck.label = f.routeCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    f.routeCheck.label:SetPoint("LEFT", f.routeCheck, "RIGHT", 0, 0)
+    f.routeCheck.label:SetText("Route line")
+    f.routeCheck:SetScript("OnClick", function(self)
+        SFP.db.showRoute = self:GetChecked() and true or false
+        SFP.RefreshWorldMap()
+    end)
+    f.route = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
+    f.route:SetSize(80, 22); f.route:SetPoint("TOPRIGHT", -92, -4); f.route:SetText("Route")
+    f.clear = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
+    f.clear:SetSize(80, 22); f.clear:SetPoint("TOPRIGHT", -8, -4); f.clear:SetText("Clear")
+    f.top = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
+    f.top:SetHeight(24); f.top:SetPoint("BOTTOMLEFT", 8, 6); f.top:SetPoint("BOTTOMRIGHT", -8, 6)
+    f.top:SetText("Top 10 best spots")
+    f.clear:SetScript("OnClick", function() SFP:ClearRoute() end)
+    f.top:SetScript("OnClick", function() if SFP.ShowTopSpots then SFP:ShowTopSpots() end end)
+    return f
+end
+
+local function farmRow(f, i)
+    local r = f.rows[i]
+    if r then return r end
+    r = CreateFrame("Button", nil, f.content)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.right = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    r.right:SetPoint("RIGHT", -4, 0)
+    r.right:SetJustifyH("RIGHT")
+    r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)
+    r.text:SetMaxLines(1)
+    r.hl = r:CreateTexture(nil, "HIGHLIGHT")
+    r.hl:SetAllPoints()
+    r.hl:SetTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
+    r.hl:SetBlendMode("ADD")
+    r:SetScript("OnEnter", function(self)
+        local t = SFP.Tip()
+        t:SetOwner(self, "ANCHOR_LEFT")
+        if self.item then t:SetItemByID(self.item) else t:AddLine(self.hint or "", 1, 1, 1, true) end
+        t:Show()
+    end)
+    r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+    r:SetScript("OnClick", function(self) if self.map then waypointAt(self.map, self.x, self.y, self.label) end end)
+    f.rows[i] = r
+    return r
+end
+
+local function drawFarmScroll(mapID, spots)
+    if SFP.db.spotsCollapsed ~= false or #spots == 0 then if farmPanel then farmPanel:Hide() end return end
+    if not farmPanel then farmPanel = buildFarmPanel() end
+    local f = farmPanel
+    f.title:SetText("|c" .. SFP.CYAN_HEX .. "Farm spots|r  |cffaaaaaa" .. SFP:ZoneName(mapID) .. "|r")
+    f.routeCheck:SetChecked(SFP.db.showRoute ~= false)
+    f.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)
+    local y, n = 0, 0
+    local function put(h, setup)
+        n = n + 1
+        local r = farmRow(f, n)
+        r:SetHeight(h)
+        r:ClearAllPoints()
+        r:SetPoint("TOPLEFT", f.content, "TOPLEFT", 0, -y)
+        r:SetPoint("TOPRIGHT", f.content, "TOPRIGHT", 0, -y)
+        r.item, r.map, r.x, r.y, r.label, r.hint = nil, nil, nil, nil, nil, nil
+        r.icon:ClearAllPoints()
+        r.text:ClearAllPoints()
+        r.right:SetText("")
+        r.hl:Show()
+        setup(r)
+        r:Show()
+        y = y + h
+    end
+    for _, s in ipairs(spots) do
+        local loot, kills = monsterLoot(s)
+        local x0, y0 = s.hx, s.hy
+        local firstId = s.items and s.items[1]
+        -- the monster: name and a big red waypoint
+        put(34, function(r)
+            r.icon:SetSize(26, 26); r.icon:SetPoint("LEFT", 4, 0)
+            r.icon:SetTexture(firstId and SFP:ItemIcon(firstId) or "Interface\\Icons\\INV_Misc_QuestionMark")
+            r.right:SetFontObject("GameFontNormalLarge")
+            r.right:SetText("|A:Waypoint-MapPin-Tracked:24:24|a |cffff3030WAYPOINT|r")
+            r.text:SetFontObject("GameFontNormalLarge")
+            r.text:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+            r.text:SetPoint("RIGHT", r.right, "LEFT", -6, 0)
+            r.text:SetText("|cff00e5ff" .. tostring(s.name) .. "|r")
+            r.map, r.x, r.y, r.label = mapID, x0, y0, s.name
+            r.hint = "Click: set a waypoint on " .. tostring(s.name)
+        end)
+        -- its place
+        put(22, function(r)
+            r.icon:SetSize(1, 1); r.icon:SetPoint("LEFT", 8, 0); r.icon:SetTexture(nil)
+            r.right:SetFontObject("GameFontNormal")
+            r.text:SetFontObject("GameFontHighlight")
+            r.text:SetPoint("LEFT", r.icon, "RIGHT", 28, 0)
+            r.text:SetPoint("RIGHT", r, "RIGHT", -4, 0)
+            r.text:SetText("|cffffd100" .. areaAt(mapID, x0, y0) .. "|r  |cff808080" ..
+                (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r")
+            r.map, r.x, r.y, r.label = mapID, x0, y0, s.name
+            r.hint = "Click: set a waypoint on " .. tostring(s.name)
+        end)
+        -- everything it drops, greys included
+        for _, d in ipairs(loot) do
+            put(22, function(r)
+                r.icon:SetSize(18, 18); r.icon:SetPoint("LEFT", 28, 0)
+                r.icon:SetTexture(SFP:ItemIcon(d.id))
+                r.right:SetFontObject("GameFontHighlightSmall")
+                local price = SFP:GetPrice(d.id)
+                local pct = (kills >= 3 and d.q > 0) and ("|cffffd100" .. math.min(100, math.floor(d.q / kills * 1000) / 10) .. "%|r  ") or ""
+                r.right:SetText(pct .. (price and SFP:FormatPrice(price) or ""))
+                r.text:SetFontObject("GameFontHighlight")
+                r.text:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+                r.text:SetPoint("RIGHT", r.right, "LEFT", -6, 0)
+                r.text:SetText(SFP:ItemName(d.id))
+                r.item = d.id
+                r.hl:Show()
+            end)
+        end
+        if #loot == 0 then
+            put(22, function(r)
+                r.icon:SetSize(1, 1); r.icon:SetPoint("LEFT", 8, 0); r.icon:SetTexture(nil)
+                r.text:SetPoint("LEFT", r.icon, "RIGHT", 28, 0)
+                r.text:SetPoint("RIGHT", r, "RIGHT", -4, 0)
+                r.text:SetText("|cff808080no loot recorded yet|r")
+                r.hl:Hide()
+            end)
+        end
+        -- a wide space before the next monster
+        put(30, function(r)
+            r.icon:SetSize(1, 1); r.icon:SetPoint("LEFT", 0, 0); r.icon:SetTexture(nil)
+            r.text:SetPoint("LEFT", r, "LEFT", 0, 0)
+            r.text:SetText("")
+            r.hl:Hide()
+        end)
+    end
+    for i = n + 1, #f.rows do f.rows[i]:Hide() end
+    f.content:SetHeight(math.max(y, 1))
+    f:Show()
+    if SFP.DockPanels then SFP.DockPanels() end
 end
 
 function SFP.HasCollectables(mapID)
@@ -2060,22 +2272,29 @@ end
 
 -- the side lists sit above their button on the line below the map (see MaterialGuide.lua)
 function SFP.DockPanels()
-    local function dock(panel, key)
+    -- each list opens below its own button (the line below the map), as tall as the screen allows there; with too little room below
+    -- it opens above the button instead
+    local function dock(panel, key, wantH)
+        if not panel then return end
         local btn = _G["SeviathsUsefulToolsRow" .. key]
-        if panel and btn and btn:IsShown() then
-            panel:ClearAllPoints()
-            panel:SetPoint("BOTTOMRIGHT", btn, "TOPRIGHT", 0, 2)
+        if not (btn and btn:IsShown()) then return end
+        if panel:GetParent() ~= WorldMapFrame then panel:SetParent(WorldMapFrame) end
+        local ps = panel:GetEffectiveScale()
+        local below = ((btn:GetBottom() or 0) * btn:GetEffectiveScale()) / ps - 8
+        panel:ClearAllPoints()
+        local edge = key == "rares" and "LEFT" or "RIGHT"
+        if below >= 200 then
+            panel:SetPoint("TOP" .. edge, btn, "BOTTOM" .. edge, 0, -4)
+            if wantH then panel:SetHeight(math.min(wantH, below)) end
+        else
+            local above = (UIParent:GetTop() * UIParent:GetEffectiveScale() - (btn:GetTop() or 0) * btn:GetEffectiveScale()) / ps - 8
+            panel:SetPoint("BOTTOM" .. edge, btn, "TOP" .. edge, 0, 4)
+            if wantH then panel:SetHeight(math.min(wantH, math.max(above, 200))) end
         end
     end
     dock(gatherPanel, "gather")
-    dock(simplePanels.spots, "spots")
-    -- the Rares list opens upward from its button at the right edge of the map
-    local rb = _G.SeviathsUsefulToolsRowrares
-    if spotPanel and rb and rb:IsShown() then
-        if spotPanel:GetParent() ~= WorldMapFrame then spotPanel:SetParent(WorldMapFrame) end   -- outside the map: not clipped by it
-        spotPanel:ClearAllPoints()
-        spotPanel:SetPoint("BOTTOMLEFT", rb, "TOPLEFT", 16, 2)
-    end
+    dock(farmPanel, "spots", 520)
+    dock(spotPanel, "rares")
     dock(collPanel, "coll")
 end
 
@@ -2216,7 +2435,7 @@ refresh = function()
     panel:Hide()
     if gatherPanel then gatherPanel:Hide() end
     if spotPanel then spotPanel:Hide() end
-    if simplePanels.spots then simplePanels.spots:Hide() end
+    if farmPanel then farmPanel:Hide() end
     if collPanel then collPanel:Hide() end
     hookEntrancePins()
     for _, e in ipairs(edges) do e:Hide() end
