@@ -67,9 +67,6 @@ collected\tools.itemExp.lua
 collected\tools.itemFrom.lua
 collected\tools.itemZones.lua
 collected\tools.killPos.lua
-collected\tools.knownItems.1.lua
-collected\tools.knownItems.2.lua
-collected\tools.knownItems.3.lua
 collected\tools.learned.lua
 collected\tools.learnedCurios.lua
 collected\tools.learnedDecor.lua
