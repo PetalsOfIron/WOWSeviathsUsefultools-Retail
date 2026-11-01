@@ -1538,43 +1538,15 @@ local function renderFarmList(group)
             end
             if #mine > 0 and found < 80 then
                 found = found + #mine
-                n = renderBlocks(n, map, mine)
+                n = renderBlocks(n, map, mine, true)
             end
         end
     else
         local map = selected
         if type(map) ~= "number" then map = WorldMapFrame:GetMapID() end
         win.title:SetText(label .. "  |cffaaaaaa" .. (map and SFP:ZoneName(map) or "") .. "|r")
-        if map then n = renderBlocks(n, map, farmSpotsFor(map, group), group == "rare") end
-        -- Farm spots: the loot of the whole zone at the end - what any monster there can drop (the farm data of the zone), with prices
-        if map and group == "farm" then
-            local zone = SFP.zoneByMap[map]
-            local exp = SFP.zoneExp and SFP.zoneExp[map]
-            local seen, rest = {}, {}
-            local function add(id)
-                local info = SFP.Items[id]
-                if not seen[id] and not (info and (info.kind == "ore" or info.kind == "herb" or info.kind == "enchant")) then
-                    seen[id] = true
-                    rest[#rest + 1] = id
-                end
-            end
-            for _, id in ipairs(zone and zone.items or {}) do add(id) end
-            for _, id in ipairs(exp and exp.anywhere or {}) do add(id) end
-            for _, w in ipairs(guideList(map)) do for id in pairs(w.drop or {}) do add(id) end end
-            if #rest > 0 then
-                table.sort(rest, function(x, y) return (SFP:GetPrice(x) or 0) > (SFP:GetPrice(y) or 0) end)
-                n = headerRow(n, "|cffffd100Loot of " .. SFP:ZoneName(map) .. "|r  |cff808080any monster there, " .. #rest .. " items|r")
-                for _, id in ipairs(rest) do
-                    n = n + 1
-                    local l = rowOf(list, n)
-                    place(list, l, n, 8)
-                    l.icon:SetTexture(SFP:ItemIcon(id))
-                    l.text:SetText(iname(id))
-                    l.right:SetText(priceText(id))
-                    l.item = id
-                end
-            end
-        end
+        -- Farm spots and Rares work the same: a row is the name and the place, and hovering it shows the map's whole tooltip of that monster
+        if map then n = renderBlocks(n, map, farmSpotsFor(map, group), true) end
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing recorded|r") end
     finish(list, n)
