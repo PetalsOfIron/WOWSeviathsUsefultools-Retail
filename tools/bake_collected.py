@@ -118,6 +118,15 @@ def main():
                 if isinstance(v, (dict, list)) and v:
                     cur = data.setdefault(db, {}).get(key)
                     data[db][key] = merge(cur, v) if cur is not None else v
+    # gray items (quality 0) are worth only their vendor price: a short record (name, quality, sell price, class, subclass) instead of the whole
+    # item record, and they come last, so they sit in files of their own
+    ki = (data.get("SeviathsUsefulToolsDB") or {}).get("knownItems")
+    if isinstance(ki, dict):
+        keep = ("n", "q", "p", "c", "s")
+        normal = {k: v for k, v in ki.items() if not (isinstance(v, dict) and v.get("q") == 0)}
+        gray = {k: {f: v[f] for f in keep if f in v} for k, v in ki.items() if isinstance(v, dict) and v.get("q") == 0}
+        data["SeviathsUsefulToolsDB"]["knownItems"] = {**normal, **gray}
+        print("gray items:", len(gray), "of", len(ki))
     stamp = int(time.time())
     lines = []
     for db, keys in data.items():
