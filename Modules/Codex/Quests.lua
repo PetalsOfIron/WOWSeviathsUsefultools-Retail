@@ -38,6 +38,12 @@ end
 -- the name of what the progress came from: the monster you just killed (your target, dead), else the object or node you just used
 -- (its tooltip name or the name on the gathering cast), else what the mouse is over
 local function ObjectiveName()
+    -- what the last loot came from says it best: a monster (killed) or an object (used)
+    local S0 = _G.SeviathsUsefulTools
+    local ll = S0 and S0.lastLoot
+    if ll and ll.name and GetTime() - ll.t < 8 then
+        return ll.name, (ll.kind == "n" or ll.kind == "s")
+    end
     local okD, dead = pcall(UnitIsDead, "target")
     if okD and not secret(dead) and dead then
         local okN, n = pcall(UnitName, "target")
@@ -47,7 +53,8 @@ local function ObjectiveName()
     local n2 = S and S.RecentCastTarget and S:RecentCastTarget()
     if type(n2) == "string" and not secret(n2) and n2 ~= "" then return n2 end
     local okM, n3 = pcall(UnitName, "mouseover")
-    if okM and type(n3) == "string" and not secret(n3) and n3 ~= "" and not (UnitIsPlayer and UnitIsPlayer("mouseover")) then return n3 end
+    if okM and type(n3) == "string" and not secret(n3) and n3 ~= "" and n3 ~= UNKNOWNOBJECT and n3 ~= "Retrieving data"
+        and not (UnitIsPlayer and UnitIsPlayer("mouseover")) then return n3 end
     return nil
 end
 
