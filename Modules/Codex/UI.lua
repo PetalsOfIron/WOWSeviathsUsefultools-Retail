@@ -13,6 +13,32 @@ local BACKDROP    = {
 }
 
 local frame, searchBox, listRows, listSlider, detail, statusText
+
+-- Only the section that is open holds its big data: the item pages (about 55,000) and the quest pages (about 37,000) are made when that
+-- section (or a search) is opened, in the background, a few thousand per frame (about 2 seconds), and taken out again when another
+-- section is opened or the Codex has been closed for 10 seconds.
+local questsLoaded = false
+function ns:ShowCategoryData(cat, searching)
+    local wantItems = searching or cat == "item" or cat == "material"
+    local wantQuests = searching or cat == "quest"
+    if wantItems then
+        if ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
+    elseif ns.ItemsLoaded and ns:ItemsLoaded() then
+        ns:UnloadLazy({ "item" })
+        if ns.ForgetCollectedItems then ns:ForgetCollectedItems() end
+    end
+    if wantQuests then
+        if not questsLoaded and ns.LoadQuestsLazy then
+            questsLoaded = true
+            ns:RunJob("Loading saved quests", ns.LoadQuestsLazy)
+            if ns.ResumeJobs then ns:ResumeJobs() end
+        end
+    elseif questsLoaded then
+        questsLoaded = false
+        ns:UnloadLazy({ "quest" })
+    end
+end
+function ns:ForgetQuestsLoaded() questsLoaded = false end
 function ns:IsOpen() return frame ~= nil and frame:IsShown() end
 local catButtons = {}
 local state = {
@@ -626,7 +652,7 @@ local function CreateWindow()
         if pending then pending:Cancel() end
         pending = C_Timer.NewTimer(0.25, function()
             state.query = txt
-            if txt ~= "" and ns.EnsureCollectedItems then ns:EnsureCollectedItems() end   -- the item pages are made when a search is first typed
+            if txt ~= "" then ns:ShowCategoryData(state.cat, true) end   -- a search looks in everything: the big pages are made
             ns:RefreshList()
             RefreshCategories()
         end)
@@ -668,7 +694,7 @@ local function CreateWindow()
         b.cat = c.key
         b:SetScript("OnClick", function()
             state.cat = c.key
-            if (c.key == "item" or c.key == "material") and ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
+            ns:ShowCategoryData(c.key, false)
             if searchBox:GetText() ~= "" then searchBox:SetText("") end
             state.query = ""
             ns:RefreshList()
@@ -867,22 +893,15 @@ local function CreateWindow()
             if frame:IsShown() then return end
             ns:UnloadLazy({ "item", "quest" })
             if ns.ForgetCollectedItems then ns:ForgetCollectedItems() end
-            ns.questsUnloaded = true
+            ns:ForgetQuestsLoaded()
             state.selected = nil
             state.history = {}
             collectgarbage("collect")
         end)
     end)
     frame:SetScript("OnShow", function()
-        if ns.questsUnloaded then
-            ns.questsUnloaded = nil
-            for _, step in ipairs(ns.INDEXERS or {}) do
-                if step.name == "Loading saved quests" then ns:RunJob(step.name, step.fn) end
-            end
-        end
         if ns.ResumeJobs then ns:ResumeJobs() end
-        -- the item pages are made when the Codex opens (a few thousand per frame in the background), not at login
-        if ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
+        ns:ShowCategoryData(state.cat, state.query ~= "")   -- the section that was open last (the guide page when it is a new session)
         RefreshCategories()
         ns:RefreshList()
         if not state.selected then ns:ShowEntry("guide:codex", true) end
@@ -916,7 +935,7 @@ function ns:OpenCategory(key)
     frame:Show()
     if ns.CATBYKEY[key] then
         state.cat = key
-        if (key == "item" or key == "material") and ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
+        ns:ShowCategoryData(key, false)
         if searchBox:GetText() ~= "" then searchBox:SetText("") end
         state.query = ""
         ns:RefreshList()

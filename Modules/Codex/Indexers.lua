@@ -736,6 +736,8 @@ local function IndexSeenItems()
     end
 end
 
+ns.LoadQuestsLazy = LoadQuests   -- run when the quest section is opened (see UI.lua: ns:ShowCategoryData)
+
 ns.INDEXERS = {
     { name = "Reading the Adventure Guide",   fn = IndexJournal },
     { name = "Finding instance entrances",    fn = function() if C_EncounterJournal and C_EncounterJournal.GetDungeonEntrancesForMap then (IndexEntrances)() end end },
@@ -749,7 +751,6 @@ ns.INDEXERS = {
     { name = "Reading your items",            fn = IndexSeenItems },
     { name = "Loading collected data",        fn = function() if ns.LoadCollected then ns:LoadCollected() end end },
     { name = "Reading materials",             fn = function() if ns.IndexMaterials then ns:IndexMaterials() end end },
-    { name = "Loading saved quests",          fn = LoadQuests },
     { name = "Reading the mount journal",     fn = IndexMounts },
     { name = "Reading the pet journal",       fn = IndexPets },
     { name = "Reading achievements",          fn = IndexAchievements },
