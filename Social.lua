@@ -1203,9 +1203,14 @@ local function addProfileLines(tt, rec)
     local l3
     if rec.prog then
         -- done out of the whole: delves, dungeons, this season's keys, the bosses of this week's raids
-        local function pair(label, p) return p and p[2] > 0 and ("%s |cffffffff%d / %d|r"):format(label, p[1], p[2]) or nil end
+        -- the number done is never below what was counted this week (a delve finished this week is a delve done)
+        local function pair(label, p, floorN)
+            if not (p and p[2] > 0) then return nil end
+            local n = math.max(p[1], floorN or 0)
+            return ("%s |cffffffff%d / %d|r"):format(label, n, math.max(p[2], n))
+        end
         local out = {}
-        for _, e in ipairs({ pair("delves", rec.prog.delve), pair("dungeons", rec.prog.dun), pair("keys", rec.prog.key), pair("raid bosses", rec.prog.raid) }) do out[#out + 1] = e end
+        for _, e in ipairs({ pair("delves", rec.prog.delve, rec.dl), pair("dungeons", rec.prog.dun, rec.dw), pair("keys", rec.prog.key), pair("raid bosses", rec.prog.raid, rec.rw) }) do out[#out + 1] = e end
         l3 = table.concat(out, "   ")
     elseif rec.tot then
         -- done this week / done in all of Midnight (counted by the addon as they are done)
@@ -1225,11 +1230,6 @@ local function addProfileLines(tt, rec)
         if (e[2] or 0) > 0 then tt:AddLine(("%s: |cffffffff%d|r"):format(e[1], e[2]), 0.8, 0.8, 0.8) end
     end
     if l3 ~= "" then tt:AddLine((rec.prog and "Done: " or rec.tot and "This week / in Midnight: " or "This week: ") .. l3, 0.8, 0.8, 0.8, true) end
-    -- and what was done in this week (since the weekly reset), listed on a line of its own
-    if rec.prog then
-        local wk = parts({ { "dungeons and keys", rec.dw }, { "raid bosses", rec.rw }, { "delves", rec.dl } })
-        if wk ~= "" then tt:AddLine("This week: " .. wk, 0.8, 0.8, 0.8, true) end
-    end
     -- the faction of the account's characters is not a play style: its own line, the play styles (Casual, Hardcore, Collector, Gold farmer ...) below it
     local plays, sides = {}, {}
     for _, id in ipairs(rec.style) do
