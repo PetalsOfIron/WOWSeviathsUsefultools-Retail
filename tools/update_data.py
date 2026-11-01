@@ -194,7 +194,31 @@ def build_zip():
     print("copied to " + out)
 
 
+def take_lock():
+    """Only one update runs at a time (the watcher and a manual run would rewrite the collected files under each other):
+    the others wait here. A lock older than 30 minutes belongs to a run that died and is taken over."""
+    import time
+    path = os.path.join(os.environ.get("TEMP", HERE), "sut_update.lock")
+    while True:
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return path
+        except FileExistsError:
+            try:
+                if time.time() - os.path.getmtime(path) > 1800:
+                    os.remove(path)
+                    continue
+            except OSError:
+                pass
+            time.sleep(3)
+
+
 if __name__ == "__main__":
+    _lock = take_lock()
+    import atexit
+    atexit.register(lambda: os.path.exists(_lock) and os.remove(_lock))
     print(run(sys.executable, os.path.join(HERE, "bake_collected.py"))[1].splitlines()[-1])
     print(run(sys.executable, os.path.join(HERE, "bake_gold.py"))[1])
     sync_toc()
