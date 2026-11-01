@@ -221,8 +221,15 @@ local function QuestHoverTip(owner, questID)
                 end
             end
         end
+        -- the people of the quest: who gave it and who takes it back (one line when it is the same person at the same place)
+        local sameNpc = ql.g and ql.t and ql.g.n and ql.g.n == ql.t.n and ql.g.m == ql.t.m
+            and ql.g.x and ql.t.x and math.abs(ql.g.x - ql.t.x) < 0.01 and math.abs(ql.g.y - ql.t.y) < 0.01
+        if ql.g and not sameNpc then
+            lines[#lines + 1] = "Quest giver: " .. spotText(ql.g)
+            added = true
+        end
         if ql.t then
-            lines[#lines + 1] = (complete and "Hand in to: " or "Then speak with: ") .. spotText(ql.t)
+            lines[#lines + 1] = (sameNpc and "Quest giver and hand-in: " or (complete and "Hand in to: " or "Then speak with: ")) .. spotText(ql.t)
             added = true
         end
         if not added then
