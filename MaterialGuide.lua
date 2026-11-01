@@ -559,6 +559,7 @@ local function expOrder(key)
 end
 
 local function renderModeTree()
+    if mode == "pet" then return renderPetTree() end
     local n = 1
     local function row(i, text, key, indent, header)
         local r = rowOf(tree, i)
@@ -579,6 +580,85 @@ local function renderModeTree()
         row(n, exp.name, exp.key, 12)
     end
     finish(tree, n)
+end
+
+-- Battle pets: every pet species of the game with its auction price (own realm's last scan); the families on the left filter the list
+local function petPrices()
+    local all = SFP.db and SFP.db.petPrices
+    if type(all) ~= "table" then return {} end
+    local own = all[SFP:RealmKey()]
+    if own and next(own) then return own end
+    for _, t in pairs(all) do if type(t) == "table" and next(t) then return t end end
+    return {}
+end
+
+local function petEntries()
+    local out = {}
+    if not (C_PetJournal and C_PetJournal.GetPetInfoBySpeciesID) then return out end
+    local prices = petPrices()
+    for i = 1, 6000 do
+        local ok, name, icon, petType, _, source, _, _, canBattle, tradeable = pcall(C_PetJournal.GetPetInfoBySpeciesID, i)
+        if ok and type(name) == "string" and name ~= "" then
+            out[#out + 1] = { species = i, name = name, icon = icon, petType = petType, source = source, tradeable = tradeable,
+                canBattle = canBattle, price = prices[i] }
+        end
+    end
+    return out
+end
+
+local function renderPetTree()
+    local n = 0
+    local function row(text, key)
+        n = n + 1
+        local r = rowOf(tree, n)
+        place(tree, r, n, key == "all" and 0 or 12)
+        r.icon:SetTexture(nil)
+        r.text:SetText((expSel == key and "|cff33e6ff" or "|cffffffff") .. text .. "|r")
+        r.bg:SetColorTexture(0, 0.9, 1, expSel == key and 0.15 or 0.06)
+        r.click = function()
+            expSel = key
+            search:SetText("")
+            renderPetTree()
+            win.refreshList()
+        end
+    end
+    row("All battle pets", "all")
+    row("With an auction price", "priced")
+    for t = 1, 10 do row(_G["BATTLE_PET_NAME_" .. t] or ("Family " .. t), t) end
+    finish(tree, n)
+end
+
+local function renderPets(q)
+    local ql = q and q:lower() or ""
+    win.title:SetText("|cffffd100Battle pets|r" .. (#ql > 0 and ("  |cffffd100" .. q .. "|r") or ""))
+    entriesCache = entriesCache or petEntries()
+    local entries = {}
+    for _, e in ipairs(entriesCache) do
+        local ok
+        if #ql >= 2 then ok = e.name:lower():find(ql, 1, true)
+        elseif expSel == "all" then ok = true
+        elseif expSel == "priced" then ok = e.price
+        else ok = e.petType == expSel end
+        if ok then entries[#entries + 1] = e end
+    end
+    table.sort(entries, function(a, c)
+        if (a.price and 1 or 0) ~= (c.price and 1 or 0) then return a.price ~= nil end
+        if a.price and a.price ~= c.price then return a.price > c.price end
+        return a.name < c.name
+    end)
+    local n = 0
+    for _, e in ipairs(entries) do
+        if n >= 800 then break end
+        n = n + 1
+        local r = rowOf(list, n)
+        place(list, r, n, 8)
+        r.icon:SetTexture(e.icon)
+        r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r")
+        r.right:SetText(e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r")
+        r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r")
+    end
+    if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
+    finish(list, n)
 end
 
 local function openWaypoint(map, x, y, label)
@@ -692,7 +772,7 @@ local function setMode(m)
     expSel = "all"
     if win then
         search:SetText("")
-        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or "Material search") .. "|r")
+        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or m == "pet" and "Battle pets" or "Material search") .. "|r")
     end
 end
 
@@ -701,6 +781,7 @@ local function renderList()
     local q = strtrim(search:GetText() or "")
     if mode == "mount" then return renderMounts(q) end
     if mode == "hunter" then return renderHunters(q) end
+    if mode == "pet" then return renderPets(q) end
     if #q >= 2 then renderSearch(q) else renderZone() end
 end
 
@@ -774,16 +855,28 @@ end
 
 local function build()
     local sc = WorldMapFrame.ScrollContainer
-    win = CreateFrame("Frame", "SeviathsUsefulToolsMaterialGuide", sc, "BackdropTemplate")
+    win = CreateFrame("Frame", "SeviathsUsefulToolsMaterialGuide", WorldMapFrame, "BackdropTemplate")
     win:SetFrameStrata("DIALOG")
-    -- big: most of the map, with a margin; it is not movable
-    -- docked at the bottom right of the map so the map itself stays in view; big, but not over the whole map
-    win:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -8, 8)
+    -- it is not movable. The map cannot be moved either, so the window uses the empty screen to the right of it, as tall as the map;
+    -- when the map leaves no room there (a maximized map) it sits at the bottom right of the map instead
     local function fit()
-        local w, h = sc:GetWidth(), sc:GetHeight()
-        if w and w > 0 then win:SetSize(math.max(520, w * 0.46), math.max(360, h * 0.62)) end
+        win:ClearAllPoints()
+        local mr, ms = WorldMapFrame:GetRight(), WorldMapFrame:GetEffectiveScale()
+        local ur, us = UIParent:GetRight(), UIParent:GetEffectiveScale()
+        local ws = win:GetEffectiveScale()
+        local space = (mr and ur and ws > 0) and ((ur * us - mr * ms) / ws) or 0
+        if space >= 480 then
+            win:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 4, 0)
+            win:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 4, 0)
+            win:SetWidth(math.min(space - 8, 820))
+        else
+            win:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -8, 8)
+            local w, h = sc:GetWidth(), sc:GetHeight()
+            if w and w > 0 then win:SetSize(math.max(520, w * 0.46), math.max(360, h * 0.62)) end
+        end
     end
     fit()
+    win.fit = fit
     sc:HookScript("OnSizeChanged", fit)
     win:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
     win:SetBackdropColor(0.02, 0.03, 0.05, 0.96)
@@ -823,6 +916,7 @@ local function build()
         zonesCache = {}
     end)
     win:SetScript("OnShow", function()
+        fit()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
         if not selected then
             local m = WorldMapFrame:GetMapID()
@@ -882,12 +976,13 @@ local function refreshRow()
         row = CreateFrame("Frame", "SeviathsUsefulToolsButtonRow", WorldMapFrame)
         row:SetFrameStrata("HIGH")
         row:SetHeight(28)
-        row:SetPoint("TOPRIGHT", WorldMapFrame.ScrollContainer, "BOTTOMRIGHT", -4, -2)
+        row:SetPoint("TOPRIGHT", WorldMapFrame, "BOTTOMRIGHT", -2, 2)
         makeButton("spots", "Farm spots", "The farm spots of this zone, with a checkbox each", function() openOnly("spots") end)
         makeButton("coll", "Collectables", "Mounts of the dungeons and raids here, and the hunter pets of the zone", function() openOnly("coll") end)
         makeButton("search", "Material search", "Every zone from Classic to Midnight: what you can farm there and which monsters drop it. Click a monster for a waypoint.", openGuide)
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
+        makeButton("pet", "Battle pets", "Every battle pet with its auction price - search by name, or pick a family", function() openMode("pet") end)
         makeButton("gather", "Mining & Herbalism", "The ores and herbs of this zone and the best zone for each", function() openOnly("gather") end)
     end
     local map = WorldMapFrame:GetMapID()
@@ -898,11 +993,12 @@ local function refreshRow()
         search = true,
         mount = true,
         hunter = true,
+        pet = true,
         gather = SFP.db.showGatherList and map and (zone or SFP.GatherHere) and #SFP.GatherHere(map) > 0,
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "gather", "hunter", "mount", "search", "coll", "spots" }) do
+    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "search", "coll", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
