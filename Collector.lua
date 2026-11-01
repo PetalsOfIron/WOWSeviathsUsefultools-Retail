@@ -277,6 +277,89 @@ moneyFrame:SetScript("OnEvent", function()
     lootMoney = nil
 end)
 
+---------------------------------------------------------------------------
+-- Mounts: how many tries and how many drops. Every boss kill of a dungeon or raid counts as a try for the mounts that boss can drop; every
+-- kill of a rare that can drop a mount counts too; a mount that is looted counts as a drop for the boss (or the rare) it came from. So
+-- db.mountStats[itemID][source] = { n = tries, d = drops } and the chance is what the Mount search shows. The place you stood just
+-- before you went into a dungeon or raid is kept as its entrance (db.instanceEntrances).
+---------------------------------------------------------------------------
+local lastBoss
+local lastOutdoor
+local rareMounts
+
+local function mountStat(itemID, key)
+    SFP.db.mountStats = SFP.db.mountStats or {}
+    local t = SFP.db.mountStats[itemID]
+    if not t then t = {}; SFP.db.mountStats[itemID] = t end
+    local s = t[key]
+    if not s then s = { n = 0, d = 0 }; t[key] = s end
+    return s
+end
+
+local function isMountItem(id)
+    local info = SFP.Items and SFP.Items[id]
+    return info and info.kind == "mount"
+end
+
+function SFP:RareKillTry(npcID)
+    if not rareMounts then
+        rareMounts = {}
+        for _, list in pairs(self.Rares or {}) do
+            for _, sp in ipairs(list) do
+                for _, id in ipairs(sp.items or {}) do
+                    if sp.npc and isMountItem(id) then
+                        rareMounts[sp.npc] = rareMounts[sp.npc] or {}
+                        table.insert(rareMounts[sp.npc], id)
+                    end
+                end
+            end
+        end
+    end
+    for _, id in ipairs(rareMounts[npcID] or {}) do mountStat(id, "npc|" .. npcID).n = mountStat(id, "npc|" .. npcID).n + 1 end
+end
+
+local mountFrame = CreateFrame("Frame")
+mountFrame:RegisterEvent("BOSS_KILL")
+mountFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+mountFrame:SetScript("OnEvent", function(_, event, encounterID, encounterName)
+    if not SFP.db then return end
+    if event == "BOSS_KILL" then
+        local inst = GetInstanceInfo()
+        if type(inst) ~= "string" or type(encounterName) ~= "string" then return end
+        lastBoss = { inst = inst, boss = encounterName, t = GetTime() }
+        local li = inst:lower()
+        for itemID, list in pairs(SFP.lootIndex or {}) do
+            if isMountItem(itemID) then
+                for _, l in ipairs(list) do
+                    if type(l[1]) == "string" and l[1]:lower() == li and l[2] == encounterName then
+                        local s = mountStat(itemID, "boss|" .. inst .. "|" .. encounterName)
+                        s.n = s.n + 1
+                        break
+                    end
+                end
+            end
+        end
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        local inInstance = IsInInstance and IsInInstance()
+        if inInstance then
+            local name = GetInstanceInfo()
+            if type(name) == "string" and lastOutdoor then
+                SFP.db.instanceEntrances = SFP.db.instanceEntrances or {}
+                SFP.db.instanceEntrances[name] = { m = lastOutdoor.m, x = lastOutdoor.x, y = lastOutdoor.y }
+            end
+        end
+    end
+end)
+C_Timer.NewTicker(4, function()
+    if not SFP.db or (IsInInstance and IsInInstance()) then return end
+    local m = C_Map.GetBestMapForUnit("player")
+    local pos = m and C_Map.GetPlayerMapPosition(m, "player")
+    if not pos then return end
+    local x, y = pos:GetXY()
+    if issecretvalue and (issecretvalue(x) or issecretvalue(y)) then return end
+    lastOutdoor = { m = m, x = floor(x * 10000) / 10000, y = floor(y * 10000) / 10000 }
+end)
+
 local function onLoot()
     if not SFP.db then return end
     if SFP.SessionLootOpened then SFP:SessionLootOpened() end
@@ -289,6 +372,18 @@ local function onLoot()
         local itemID = link and tonumber(link:match("item:(%d+)"))
         if itemID then
             recordItem(itemID)
+            -- a mount looted: a drop for the boss (just killed in an instance) or the monster it came from
+            if isMountItem(itemID) then
+                local key
+                if IsInInstance and IsInInstance() and lastBoss and GetTime() - lastBoss.t < 900 then
+                    key = "boss|" .. lastBoss.inst .. "|" .. lastBoss.boss
+                else
+                    local g1 = GetLootSourceInfo(slot)
+                    local k1, id1 = guidInfo(g1)
+                    if k1 == "npc" then key = "npc|" .. id1 end
+                end
+                if key then mountStat(itemID, key).d = mountStat(itemID, key).d + 1 end
+            end
             -- the place of the last time it was collected: the Material search shows it as a waypoint when no monster is known for it
             if map and px and py and not (issecretvalue and (issecretvalue(px) or issecretvalue(py))) then
                 SFP.db.itemSpots = SFP.db.itemSpots or {}
@@ -320,7 +415,7 @@ local function onLoot()
                 end
                 if not seenGuid[guid .. (skin and "s" or "")] then
                     seenGuid[guid .. (skin and "s" or "")] = true
-                    if skin then rec.sk = (rec.sk or 0) + 1 else rec.k = (rec.k or 0) + 1; if SFP.NoteKill then SFP:NoteKill(id) end end
+                    if skin then rec.sk = (rec.sk or 0) + 1 else rec.k = (rec.k or 0) + 1; if SFP.NoteKill then SFP:NoteKill(id) end; SFP:RareKillTry(id) end
                     if map then addPoint(rec, map, px, py) end
                 end
                 if itemID then
