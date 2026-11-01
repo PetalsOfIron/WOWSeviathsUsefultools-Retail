@@ -275,6 +275,7 @@ local function goToMonster(mapID, sp)
         if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
     end
     SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(sp.name), SFP:ZoneName(mapID), x * 100, y * 100))
+    if SFP.PingSpot then SFP.PingSpot(mapID, x, y) end
 end
 
 -- add the rows of one item (its line and one line per monster); returns the new row count
@@ -379,6 +380,7 @@ local function openSpot(map, x, y, label)
         C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x, y))
         if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
         SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(label), SFP:ZoneName(map), x * 100, y * 100))
+        if SFP.PingSpot then SFP.PingSpot(map, x, y) end
     end
 end
 
@@ -613,6 +615,7 @@ local function expOrder(key)
     return 99
 end
 
+local renderPetTree   -- defined below (the battle pets list)
 local function renderModeTree()
     if mode == "pet" then return renderPetTree() end
     local n = 1
@@ -637,6 +640,7 @@ local function renderModeTree()
     finish(tree, n)
 end
 
+local headerRow   -- defined below
 -- Battle pets: every pet species of the game with its auction price (own realm's last scan); the families on the left filter the list
 local function petPrices()
     local all = SFP.db and SFP.db.petPrices
@@ -661,7 +665,7 @@ local function petEntries()
     return out
 end
 
-local function renderPetTree()
+renderPetTree = function()
     local n = 0
     local function row(text, key)
         n = n + 1
@@ -723,10 +727,11 @@ local function openWaypoint(map, x, y, label)
         C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x, y))
         if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
         SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(label), SFP:ZoneName(map), x * 100, y * 100))
+        if SFP.PingSpot then SFP.PingSpot(map, x, y) end
     end
 end
 
-local function headerRow(n, text)
+headerRow = function(n, text)
     n = n + 1
     local h = rowOf(list, n)
     place(list, h, n, 0)

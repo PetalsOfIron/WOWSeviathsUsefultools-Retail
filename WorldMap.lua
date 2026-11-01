@@ -1738,6 +1738,7 @@ local function collRow(f, i)
     r:SetScript("OnClick", function(self)
         if self.header or not self.map then return end
         SFP:SetWaypoint(self.map, self.x, self.y, self.label)
+        if SFP.PingSpot then SFP.PingSpot(self.map, self.x, self.y) end
         if WorldMapFrame:GetMapID() ~= self.map then WorldMapFrame:SetMapID(self.map) end
     end)
     f.rows[i] = r
@@ -1865,6 +1866,70 @@ local function hookEntrancePins()
                         if GameTooltip:IsShown() and addMountLines(GameTooltip, inst) then GameTooltip:Show() end
                     end
                 end
+            end
+        end)
+    end)
+end
+
+-- A ping on the map where a waypoint was set: three bright rings that grow and fade at the spot (about four seconds), and a pin above
+-- it that bounces. It shows when the map has opened at that zone.
+local pingFrame
+function SFP.PingSpot(map, x, y)
+    if not (map and x and y) then return end
+    C_Timer.After(0.4, function()
+        if not (WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() == map and spawnLayer) then return end
+        local w, h = spawnLayer:GetWidth(), spawnLayer:GetHeight()
+        if not w or w <= 0 then return end
+        if not pingFrame then
+            pingFrame = CreateFrame("Frame", nil, spawnLayer)
+            pingFrame:SetFrameStrata("HIGH")
+            pingFrame:SetSize(10, 10)
+            pingFrame.rings = {}
+            for i = 1, 3 do
+                local t = pingFrame:CreateTexture(nil, "OVERLAY")
+                t:SetTexture("Interface\\Cooldown\\ping4")
+                t:SetBlendMode("ADD")
+                t:SetPoint("CENTER")
+                t:SetSize(40, 40)
+                t:SetVertexColor(0.2, 0.9, 1, 1)
+                local ag = t:CreateAnimationGroup()
+                ag:SetLooping("REPEAT")
+                local sc = ag:CreateAnimation("Scale")
+                sc:SetScaleFrom(0.3, 0.3)
+                sc:SetScaleTo(3.2, 3.2)
+                sc:SetDuration(1.4)
+                sc:SetStartDelay((i - 1) * 0.45)
+                local al = ag:CreateAnimation("Alpha")
+                al:SetFromAlpha(1)
+                al:SetToAlpha(0)
+                al:SetDuration(1.4)
+                al:SetStartDelay((i - 1) * 0.45)
+                t.ag = ag
+                pingFrame.rings[i] = t
+            end
+            pingFrame.pin = pingFrame:CreateTexture(nil, "OVERLAY")
+            pingFrame.pin:SetAtlas("Waypoint-MapPin-Tracked")
+            pingFrame.pin:SetSize(34, 34)
+            pingFrame.pin:SetPoint("BOTTOM", pingFrame, "CENTER", 0, 0)
+            local pg = pingFrame.pin:CreateAnimationGroup()
+            pg:SetLooping("BOUNCE")
+            local tr = pg:CreateAnimation("Translation")
+            tr:SetOffset(0, 10)
+            tr:SetDuration(0.5)
+            pingFrame.pin.ag = pg
+        end
+        pingFrame:ClearAllPoints()
+        pingFrame:SetPoint("CENTER", spawnLayer, "TOPLEFT", x * w, -y * h)
+        pingFrame:Show()
+        for _, t in ipairs(pingFrame.rings) do t.ag:Stop(); t.ag:Play() end
+        pingFrame.pin.ag:Stop(); pingFrame.pin.ag:Play()
+        pingFrame.token = (pingFrame.token or 0) + 1
+        local token = pingFrame.token
+        C_Timer.After(4.5, function()
+            if pingFrame.token == token then
+                for _, t in ipairs(pingFrame.rings) do t.ag:Stop() end
+                pingFrame.pin.ag:Stop()
+                pingFrame:Hide()
             end
         end)
     end)
