@@ -392,6 +392,14 @@ local function catRead()
             end
         end
         if id and price and price > 0 and (not catAll[id] or price < catAll[id]) then catAll[id] = price end
+        -- battle pets: the species is in the item key; its cheapest price is kept per species
+        local species = r and r.itemKey and r.itemKey.battlePetSpeciesID
+        if type(species) == "number" and species > 0 and price and price > 0 and not (issecretvalue and issecretvalue(species)) then
+            SFP.db.petPrices = SFP.db.petPrices or {}
+            local mine = SFP.db.petPrices[SFP:RealmKey()]
+            if not mine then mine = {}; SFP.db.petPrices[SFP:RealmKey()] = mine end
+            if not mine[species] or price < mine[species] then mine[species] = price end
+        end
         if id and price and price > 0 and (tracked or catSeenIDs[id] or longScan or isCraftID(id)) and (not catBest[id] or price < catBest[id]) then catBest[id] = price end
     end
     catSeen = #results
