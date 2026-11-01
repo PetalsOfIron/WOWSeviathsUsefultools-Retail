@@ -40,6 +40,16 @@ local collapsed = {}    -- [expansion key] = true
 local function sectionOf(id)
     local info = SFP.Items[id]
     local k = info and info.kind
+    if not k then
+        -- an item the addon only collected (not in its farm data): the class the game gave it decides
+        local kn = SFP.db and SFP.db.knownItems and SFP.db.knownItems[id]
+        local c, s = type(kn) == "table" and kn.c, type(kn) == "table" and kn.s
+        if c == 17 or (c == 15 and s == 2) then return "pet" end
+        if c == 2 or c == 4 then return "boe" end
+        if c == 7 then return "mat" end
+        if c == 15 and s == 5 then return "other" end
+        if c then return "other" end
+    end
     if k == "boe" then return "boe" end
     if PET_KINDS[k] then return "pet" end
     if OTHER_KINDS[k] then return "other" end
@@ -309,12 +319,21 @@ local function addItem(n, mapID, id, withZone)
     local mons = monstersFor(mapID, id)
     if mons[1] then r.click = function() goToMonster(mapID, mons[1]) end end
     if #mons == 0 then
+        local spot = SFP.db and SFP.db.itemSpots and SFP.db.itemSpots[id]
         n = n + 1
         local m = rowOf(list, n)
         place(list, m, n, 30)
         m.icon:SetTexture(nil)
-        m.text:SetText("|cff808080monsters of the zone (no spot known yet)|r")
-        m.hl:Hide()
+        if type(spot) == "table" and spot.m and spot.x then
+            m.text:SetText("|cff00e5ffcollected at|r " .. SFP:ZoneName(spot.m) .. "  |cff808080" .. string.format("%.1f, %.1f", spot.x * 100, spot.y * 100) .. "|r")
+            m.right:SetText("|cffff3030WAYPOINT|r")
+            m.hint = "Click: set a waypoint where you collected it and open the map there"
+            m.click = function() goToMonster(spot.m, { hx = spot.x, hy = spot.y, name = iname(id) }) end
+            if not r.click then r.click = m.click end
+        else
+            m.text:SetText("|cff808080monsters of the zone (no spot known yet)|r")
+            m.hl:Hide()
+        end
     end
     for _, sp in ipairs(mons) do
         n = n + 1
@@ -922,14 +941,26 @@ local function renderPets(q)
         else ok = e.petType == expSel end
         if ok then entries[#entries + 1] = e end
     end
+    for _, e in ipairs(entries) do
+        local label = plain(e.source or ""):match("^%s*([%a][%a%s%-']-):")
+        e.section = label or "Other"
+    end
     table.sort(entries, function(a, c)
+        if a.section ~= c.section then return a.section < c.section end
         if (a.price and 1 or 0) ~= (c.price and 1 or 0) then return a.price ~= nil end
         if a.price and a.price ~= c.price then return a.price > c.price end
         return a.name < c.name
     end)
+    local counts = {}
+    for _, e in ipairs(entries) do counts[e.section] = (counts[e.section] or 0) + 1 end
     local n = 0
+    local lastSection
     for _, e in ipairs(entries) do
         if n >= 800 then break end
+        if e.section ~= lastSection then
+            lastSection = e.section
+            n = headerRow(n, "|cffffd100" .. e.section .. "|r  |cff808080" .. counts[e.section] .. "|r")
+        end
         n = n + 1
         local r = rowOf(list, n)
         place(list, r, n, 8)
@@ -1094,7 +1125,9 @@ local function collectedMonsters(map, group)
     if not monsterIndex then
         monsterIndex = {}
         for npcID, rec in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.npcs or {}) do
-            if type(rec) == "table" and rec.n and type(rec.m) == "table" and (rec.d or rec.s) and not rec.boss then
+            -- a rare is listed as soon as it was seen or killed, with or without loot (the farm data does not have to know it yet)
+            local isRare = type(rec) == "table" and (rec.c == "rare" or rec.c == "rareelite")
+            if type(rec) == "table" and rec.n and type(rec.m) == "table" and (rec.d or rec.s or isRare) and not rec.boss then
                 local cls = rec.c
                 local g = (cls == "rare" or cls == "rareelite") and "rare" or ((cls == nil or cls == "normal" or cls == "elite") and "farm" or nil)
                 if g then
@@ -1112,7 +1145,8 @@ local function collectedMonsters(map, group)
                                 local byMap = monsterIndex[m]
                                 if not byMap then byMap = { farm = {}, rare = {} }; monsterIndex[m] = byMap end
                                 local list = byMap[g]
-                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0, map = m }
+                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0, map = m,
+                                    level = rec.lmax or rec.lmin, ctype = rec.t, family = rec.f }
                             end
                         end
                     end
@@ -1177,7 +1211,9 @@ local function renderBlocks(n, map, spots)
         place(list, p, n, 30)
         p.icon:SetTexture(nil)
         p.text:SetText("|cffffd100" .. SFP:ZoneName(map) .. "|r  |cffaaaaaa" .. SFP.AreaAt(map, x0, y0) .. "|r  |cff808080" ..
-            (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r" .. (s.valueText or ""))
+            (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r" ..
+            ((s.level or s.ctype) and ("  |cff808080" .. (s.level and ("level " .. s.level .. " ") or "") .. (s.family or s.ctype or "") .. "|r") or "") ..
+            (s.valueText or ""))
         p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         p.click = function() goToMonster(map, s) end
         for _, d in ipairs(loot) do

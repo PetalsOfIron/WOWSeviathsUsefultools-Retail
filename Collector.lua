@@ -264,6 +264,11 @@ local function onLoot()
         local itemID = link and tonumber(link:match("item:(%d+)"))
         if itemID then
             recordItem(itemID)
+            -- the place of the last time it was collected: the Material search shows it as a waypoint when no monster is known for it
+            if map and px and py and not (issecretvalue and (issecretvalue(px) or issecretvalue(py))) then
+                SFP.db.itemSpots = SFP.db.itemSpots or {}
+                SFP.db.itemSpots[itemID] = { m = map, x = floor(px * 10000) / 10000, y = floor(py * 10000) / 10000 }
+            end
             if SFP.SessionItem then
                 local _, _, qty = GetLootSlotInfo(slot)
                 SFP:SessionItem(itemID, qty)
