@@ -413,7 +413,7 @@ local function onLoot()
                     if ok and type(nm) == "string" and nm ~= "" and not nm:find("^NPC %d+$") then rec.n = nm end
                 end
                 if not skin and lootMoney then lootMoney.npcs[id] = true end
-                SFP.lastLoot = { kind = skin and "s" or "n", name = rec.n, t = GetTime() }   -- what the last loot came from (a monster)
+                SFP.lastLoot = { kind = skin and "s" or "n", name = rec.n, t = GetTime(), itemID = itemID }   -- what the last loot came from (a monster)
                 if safeGUID("target") == guid then
                     local cls = UnitClassification("target")
                     if cls and cls ~= "normal" then rec.c = cls end
@@ -433,7 +433,7 @@ local function onLoot()
                 if not rec then rec = { n = SFP:RecentCastTarget() or ("Object " .. id), k = 0 }; SFP.db.objects[id] = rec end
                 local nm = SFP:RecentCastTarget()
                 if nm and (rec.n or ""):find("^Object %d+$") then rec.n = nm end
-                SFP.lastLoot = { kind = "o", name = rec.n, t = GetTime() }   -- ... or an object
+                SFP.lastLoot = { kind = "o", name = rec.n, t = GetTime(), itemID = itemID }   -- ... or an object
                 if not rec.ot then rec.ot = SFP:RecentObjectKind() or SFP:ObjectKind(rec) end
                 local qt = SFP:RecentObjectQuest()
                 if qt then rec.qs = rec.qs or {}; rec.qs[qt] = true end

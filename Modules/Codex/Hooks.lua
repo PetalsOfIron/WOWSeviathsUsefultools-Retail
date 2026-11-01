@@ -214,6 +214,7 @@ local function QuestHoverTip(owner, questID, append)
         local function spotText(p) return placeText(p) .. (p.n and (" - " .. p.n) or "") end
         -- what the next objective asks for decides the words: an item is picked up, a monster is killed
         local objLabel = "Objective at"
+        local objItemName   -- the item the quest asks for ("Hunter's Tablet"), from the objective's own text
         local objIsItem = false   -- the objective is something to collect (an item), which monsters may drop
         local okO, objs = pcall(C_QuestLog.GetQuestObjectives, questID)
         if okO and type(objs) == "table" then
@@ -221,6 +222,10 @@ local function QuestHoverTip(owner, questID, append)
                 if not o.finished then
                     -- the words come from what the objective says, not only from its type (the game calls many tasks "monster")
                     objIsItem = (o.type == "item")
+                    if o.type == "item" and type(o.text) == "string" then
+                        local nmI = o.text:gsub("^%s*%d+%s*/%s*%d+%s*", "")
+                        if nmI ~= "" then objItemName = nmI end
+                    end
                     local txt = tostring(o.text or ""):lower()
                     local kill = txt:find("slain", 1, true) or txt:find("killed", 1, true) or txt:find("defeated", 1, true)
                         or txt:find("kill ", 1, true) or txt:find("destroyed", 1, true)
@@ -264,7 +269,20 @@ local function QuestHoverTip(owner, questID, append)
                     for _, n in ipairs(src) do
                         if not (n:find("|c", 1, true) or n:find("Seviath", 1, true)) then clean[#clean + 1] = n end
                     end
-                    local nm = #clean > 0 and (" - " .. table.concat(clean, ", ")) or ""
+                    -- the items picked up here: the ones recorded with the spot, else the item the objective asks for
+                    local itemNames = {}
+                    for _, id in ipairs(type(p.loot) == "table" and p.loot or {}) do
+                        local inm = C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+                        if type(inm) == "string" and inm ~= "" then itemNames[#itemNames + 1] = inm
+                        elseif C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
+                    end
+                    if #itemNames == 0 and objItemName and (p.use or p.kill or p.loot) then itemNames[1] = objItemName end
+                    local nm
+                    if #itemNames > 0 then
+                        nm = " - |cffffd100" .. table.concat(itemNames, ", ") .. "|r" .. (#clean > 0 and ("  |cff808080from " .. table.concat(clean, ", ") .. "|r") or "")
+                    else
+                        nm = #clean > 0 and (" - " .. table.concat(clean, ", ")) or ""
+                    end
                 -- a spot where progress came from a kill says "Kill at", whatever the objective's own words are
                 -- two kinds of monster objective: just kill them ("Monster at") and an item the monsters drop ("Monster item at", e.g. Lumpy Fish Guts)
                 local spotLabel = (p.kill and (objIsItem and "Monster item at" or "Monster at")) or (p.use and "Pick up at") or objLabel
