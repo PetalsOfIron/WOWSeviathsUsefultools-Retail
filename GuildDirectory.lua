@@ -305,6 +305,8 @@ end
 local function build()
     if win then return end
     win = SFP.MakeToolWindow("SeviathsUsefulToolsGuildDir", "Guild Directory", WIN_W, WIN_H)
+    -- closed: what was looked up for the page that was open is forgotten (the rows are made again, for the page that is open, when it opens)
+    win:HookScript("OnHide", function() wipe(rioText) end)
     win.scroll:Hide()
     -- the two big sections at the top: Alliance and Horde swap the realm list below (and the guilds) to that faction
     local function bigButton(f, x, w)
