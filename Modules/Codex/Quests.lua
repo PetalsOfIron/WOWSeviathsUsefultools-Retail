@@ -143,7 +143,12 @@ local function scanOne(qid)
             if not target and #l.o < 5 then target = { m = m, x = x, y = y, a = area }; l.o[#l.o + 1] = target end
             -- the names of what was killed or picked up here are kept with the spot (each name once)
             -- a map-icon spot that real progress happened at becomes a real spot, with the area name of the minimap
-            if target and target.icon then target.icon = nil; if area then target.a = area end end
+            -- (and its coordinates become the place you were really at, not the position of the icon)
+            if target and target.icon then
+                target.icon = nil
+                target.m, target.x, target.y = m, x, y
+                if area then target.a = area end
+            end
             if target and killed then target.kill = true end   -- progress came from a kill here: the tooltip says "Kill at"
             if target and oname and not killed then target.use = true end   -- from an object or node (a pool, a chest): "Pick up at"
             if target and oname then
