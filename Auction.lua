@@ -139,6 +139,7 @@ local function processReplicate()
             if itemID and SFP.db and not seenIDs[itemID] then
                 seenIDs[itemID] = true
                 SFP.db.ahItems = SFP.db.ahItems or {}
+                if SFP.StoreIcon then SFP:StoreIcon(itemID) end
                 if not SFP.db.ahItems[itemID] then
                     local cls = C_Item and C_Item.GetItemInfoInstant and select(6, C_Item.GetItemInfoInstant(itemID))
                     SFP.db.ahItems[itemID] = cls or 0
@@ -559,6 +560,7 @@ nameFrame:SetScript("OnEvent", function(_, _, id, success)
             local nm = C_Item.GetItemNameByID(id)
             if nm and nm ~= "" and not (issecretvalue and issecretvalue(nm)) then SFP.db.ahNames[id] = nm end
         end
+        if SFP.StoreIcon then SFP:StoreIcon(id) end
     end
 end)
 -- keep filling in the background until every item has its name

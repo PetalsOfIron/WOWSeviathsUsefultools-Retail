@@ -199,6 +199,7 @@ local function recordItem(id)
     it.t, it.st, it.e, it.p, it.c, it.s, it.b = itype, subtype, equip, price, classID, subID, bind
     if type(expID) == "number" then it.x = expID end   -- the expansion of the item: the Codex groups items by it
     SFP.db.knownItems[id] = it
+    SFP:StoreIcon(id)
     SFP:ClassifyItem(id)
 end
 SFP.RecordItem = recordItem
