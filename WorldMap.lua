@@ -1939,8 +1939,6 @@ local function spotsOfGroup(zone, group)
 end
 
 SFP.FarmSpotsOf = function(mapID, group) return spotsOfGroup(SFP.zoneByMap[mapID], group) end
-SFP.MonsterLoot = monsterLoot
-SFP.AreaAt = areaAt
 
 function SFP.HasFarmLists(mapID)
     local zone = SFP.zoneByMap[mapID]
@@ -2080,6 +2078,7 @@ local function areaAt(map, x, y)
     end
     return SFP:ZoneName(map)
 end
+SFP.AreaAt = areaAt
 
 -- every item a monster drops, most often first: { { id, qty } }, and its kill count
 local function monsterLoot(s)
@@ -2101,6 +2100,7 @@ local function monsterLoot(s)
     end)
     return order, kills
 end
+SFP.MonsterLoot = monsterLoot
 
 local farmPanel
 local function buildFarmPanel()
