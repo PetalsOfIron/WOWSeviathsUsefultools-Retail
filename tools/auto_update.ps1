@@ -1,6 +1,9 @@
 # Runs tools/update_data.py by itself every time the game writes the addon's saved data: after each /reload, each logout and each exit.
 # It watches the saved-data file, waits until the game has finished writing it, then bakes the data, pushes it to Data-wow and rebuilds the zip.
 # Started at logon by a scheduled task (see tools/README-auto-update.txt); it waits in the background and costs nothing while idle.
+# only one watcher at a time (it is started at Windows startup and by the desktop launcher)
+$others = Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" | Where-Object { $_.CommandLine -like '*auto_update.ps1*' -and $_.ProcessId -ne $PID }
+if ($others) { exit }
 $py = "C:\Python315\python.exe"
 $script = Join-Path $PSScriptRoot "update_data.py"
 $saved = Get-ChildItem "D:\wow\World of Warcraft\_retail_\WTF\Account\*\SavedVariables\SeviathsUsefulTools.lua" | Select-Object -First 1
