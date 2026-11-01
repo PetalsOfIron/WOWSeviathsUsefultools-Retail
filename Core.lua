@@ -679,6 +679,11 @@ function SFP:ShippedPrice(id)
 end
 
 function SFP:GetPrice(itemID)
+    -- a gray item is worth what a vendor pays for it: the auction price is ignored
+    if itemID and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0 then
+        local sell = select(11, C_Item.GetItemInfo(itemID))
+        return (type(sell) == "number" and sell > 0) and sell or nil
+    end
     local best
     local here = self:RealmPrices()
     local everything = self:AllPrices()

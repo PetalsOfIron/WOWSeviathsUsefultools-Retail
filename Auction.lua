@@ -135,6 +135,8 @@ local function processReplicate()
         while i < n and (not debugprofilestop or debugprofilestop() - t0 < 5) do
             local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = C_AuctionHouse.GetReplicateItemInfo(i)
             i = i + 1
+            -- gray items are ignored by the scan: their auction prices mean nothing (the vendor price is their value)
+            if itemID and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0 then itemID = nil end
             -- every item seen at the auction house is kept: its ID (with the item class) and its name
             if itemID and SFP.db and not seenIDs[itemID] then
                 seenIDs[itemID] = true
