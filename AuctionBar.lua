@@ -70,6 +70,9 @@ local function refresh()
         local realm = (GetRealmName and GetRealmName()) or SFP:RealmKey()
         if (not last or last == 0) and #others > 0 then
             text, old = "Prices from another realm (" .. others[1][1] .. ") - scan " .. realm, true
+        elseif (not last or last == 0) and SFP.ShippedPrice and SFP.ShippedRealmName and SFP:ShippedRealmName() then
+            -- no scan of its own yet, but prices shipped with the addon (this realm's or a connected realm's) are in use
+            text = "Prices for " .. realm .. ": shipped prices (" .. SFP:ShippedRealmName() .. ") - scan for current"
         elseif not when or not last or last == 0 then
             text, old = "Prices for " .. realm .. ": old data - scan for current", true
         elseif time() - last > limit then

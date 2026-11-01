@@ -413,8 +413,16 @@ end
 -- Returns copper per unit (cheapest crafting tier for Dragonflight reagents)
 -- connected realms share one auction house: key = all of them, sorted
 local realmKey
+local groupsSaved
 function SFP:RealmKey()
-    if realmKey then return realmKey end
+    if realmKey then
+        if not groupsSaved and self.db then
+            groupsSaved = true
+            self.db.realmGroups = self.db.realmGroups or {}
+            for r in realmKey:gmatch("[^,]+") do self.db.realmGroups[r] = realmKey end
+        end
+        return realmKey
+    end
     local list
     if GetAutoCompleteRealms then
         local ok, r = pcall(GetAutoCompleteRealms)
@@ -427,6 +435,12 @@ function SFP:RealmKey()
     end
     table.sort(list)
     realmKey = table.concat(list, ",")
+    -- every realm of this group is remembered with its group (db.realmGroups): shipped with the addon, so a player who logs into a realm
+    -- someone else played knows which realms share its auction house and which shipped prices are its own
+    if self.db then
+        self.db.realmGroups = self.db.realmGroups or {}
+        for _, r in ipairs(list) do self.db.realmGroups[r] = realmKey end
+    end
     return realmKey
 end
 
@@ -537,6 +551,14 @@ function SFP:ShippedPriceTime(id)
     local _, t = self:ShippedPrice(id)
     return t
 end
+-- the name of the shipped price list in use for this realm (nil when none)
+function SFP:ShippedRealmName()
+    self:ShippedPrice(0)   -- makes the choice
+    local G = _G.SeviathsUsefulToolsGold
+    if not (G and shippedRealm) then return nil end
+    for name, r in pairs(G) do if r == shippedRealm then return name end end
+end
+
 function SFP:ShippedPrice(id)
     local G = _G.SeviathsUsefulToolsGold
     if not G then return nil end
@@ -544,8 +566,20 @@ function SFP:ShippedPrice(id)
         local key = self:RealmKey()
         shippedRealm = G[key] or false
         if not shippedRealm then
+            -- connected realms share one auction house: a shipped group that has any realm of this player's group (or the other way round)
+            -- is the same auction house, whichever of its realms was scanned
+            local mine = {}
             for part in tostring(key):gmatch("[^,]+") do
-                if G[part] then shippedRealm = G[part] break end
+                mine[part] = true
+                -- the realms known to share its auction house (learned by any player of the addon, shipped in realmGroups)
+                local grp = self.db and self.db.realmGroups and self.db.realmGroups[part]
+                for other in tostring(grp or ""):gmatch("[^,]+") do mine[other] = true end
+            end
+            for gkey, r in pairs(G) do
+                for part in tostring(gkey):gmatch("[^,]+") do
+                    if mine[part] then shippedRealm = r break end
+                end
+                if shippedRealm then break end
             end
         end
         if not shippedRealm then
