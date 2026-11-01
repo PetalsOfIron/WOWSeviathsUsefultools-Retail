@@ -805,6 +805,24 @@ local function petSpots(entries)
         end
     end
     for _, e in ipairs(entries) do
+        -- a wild pet with exact places (Data/WildPetSpots.lua, TomTom lines of Wowhead's wild pet guide): the one on the map you are viewing,
+        -- else the first
+        if not e.map and SFP.WildPetSpots then
+            local spots = SFP.WildPetSpots[e.name]
+            if not spots then
+                for nm, sp in pairs(SFP.WildPetSpots) do
+                    if nm:lower() == e.name:lower() then spots = sp break end
+                end
+            end
+            if spots and spots[1] then
+                local here = WorldMapFrame:GetMapID()
+                local pick = spots[1]
+                for _, s in ipairs(spots) do if s[1] == here then pick = s break end end
+                e.map, e.x, e.y = pick[1], pick[2], pick[3]
+                e.zoneName = SFP:ZoneName(pick[1])
+                e.wildCount = #spots
+            end
+        end
         e.who = e.who or e.vendorName and ("Vendor " .. e.vendorName) or (e.dropName and ("Drop " .. e.dropName)) or nil
     end
 end
