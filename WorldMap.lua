@@ -2438,6 +2438,50 @@ function SFP.PingSpot(map, x, y)
     end)
 end
 
+-- A click on the waypoint pin on the map, with either mouse button, removes it (a button laid over the pin, shown while the map is on
+-- the waypoint's zone)
+local wpButton
+local function updateWaypointButton()
+    local show = false
+    local wp = C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+    if WorldMapFrame:IsShown() and spawnLayer and wp and wp.position and wp.uiMapID == WorldMapFrame:GetMapID() then
+        local w, h = spawnLayer:GetWidth(), spawnLayer:GetHeight()
+        if w and w > 0 then
+            if not wpButton then
+                wpButton = CreateFrame("Button", nil, spawnLayer)
+                wpButton:SetFrameStrata("HIGH")
+                wpButton:SetFrameLevel(spawnLayer:GetFrameLevel() + 50)
+                wpButton:SetSize(30, 40)
+                wpButton:RegisterForClicks("AnyUp")
+                wpButton:SetScript("OnClick", function(self)
+                    if C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint() end
+                    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+                    self:Hide()
+                end)
+                wpButton:SetScript("OnEnter", function(self)
+                    SFP.Tip():SetOwner(self, "ANCHOR_RIGHT")
+                    SFP.Tip():AddLine("Waypoint", 1, 0.2, 0.2)
+                    SFP.Tip():AddLine("Click (either button): remove it", 1, 1, 1)
+                    SFP.Tip():Show()
+                end)
+                wpButton:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+            end
+            local x, y = wp.position.x, wp.position.y
+            wpButton:ClearAllPoints()
+            wpButton:SetPoint("BOTTOM", spawnLayer, "TOPLEFT", x * w, -y * h - 4)
+            wpButton:Show()
+            show = true
+        end
+    end
+    if wpButton and not show then wpButton:Hide() end
+end
+SFP.UpdateWaypointButton = updateWaypointButton
+do
+    local wf = CreateFrame("Frame")
+    wf:RegisterEvent("USER_WAYPOINT_UPDATED")
+    wf:SetScript("OnEvent", function() C_Timer.After(0.1, function() pcall(updateWaypointButton) end) end)
+end
+
 ---------------------------------------------------------------------------
 -- Refresh
 ---------------------------------------------------------------------------
@@ -2455,6 +2499,7 @@ refresh = function()
     if WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() and SFP.QuestMarkers then
         SFP:Safe("quest zones", SFP.QuestMarkers.DrawZones, SFP.QuestMarkers, WorldMapFrame:GetMapID())
     end
+    pcall(updateWaypointButton)
     if not SFP.db.mapOverlay or not WorldMapFrame:IsShown() then return end
 
     local mapID = WorldMapFrame:GetMapID()
