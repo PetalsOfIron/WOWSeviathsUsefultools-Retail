@@ -170,6 +170,18 @@ local function QuestHoverTip(owner, questID)
             lines[#lines + 1] = "Done - go and turn it in."
         elseif nextObj then
             lines[#lines + 1] = "Next: " .. nextObj
+            -- every other objective that is not done yet is listed under it (all of them are shown, also when they are in the same place)
+            local okAll, allObjs = pcall(C_QuestLog.GetQuestObjectives, questID)
+            if okAll and type(allObjs) == "table" then
+                local seenText = { [nextObj] = true }
+                for _, o in ipairs(allObjs) do
+                    local t = o.text
+                    if type(t) == "string" and t ~= "" and not o.finished and not seenText[t] then
+                        seenText[t] = true
+                        lines[#lines + 1] = "Also: " .. t
+                    end
+                end
+            end
         end
         if not complete then
             for raw in (ns:QuestHowTo(e, nil, nextObj) or ""):gmatch("[^\n]+") do
