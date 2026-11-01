@@ -1778,7 +1778,7 @@ local function petRows(mapID)
             local x, y = sp.pts:match("([%d%.]+),([%d%.]+)")
             if x then
                 rows[#rows + 1] = { map = mapID, x = tonumber(x) / 100, y = tonumber(y) / 100, label = sp.name,
-                    icon = SFP.HUNTER_ICON, name = sp.name,
+                    icon = "Interface\\Icons\\ClassIcon_Hunter", name = sp.name,
                     right = sp.hunter == "spirit" and "|cffabd473spirit beast|r" or "|cffabd473unique look|r",
                     lines = { SFP.HUNTER_TYPE[sp.hunter] or "Hunter tame", sp.note } }
             end

@@ -479,16 +479,236 @@ local function renderSearch(q)
     finish(list, n)
 end
 
+---------------------------------------------------------------------------
+-- Mount search and Hunter search: the same window with another list. The left side picks an expansion (or all), the right side lists
+-- every mount / hunter pet with a waypoint on where to get it; the search box filters by name.
+---------------------------------------------------------------------------
+local mode = "mat"          -- "mat", "mount" or "hunter"
+local expSel = "all"        -- expansion key shown in the mount / hunter lists
+local entriesCache
+
+local function plain(s) return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+
+local function firstPoint(pts)
+    local x, y = tostring(pts or ""):match("([%d%.]+),([%d%.]+)")
+    if x then return tonumber(x) / 100, tonumber(y) / 100 end
+end
+
+-- every mount: { item, exp, sources = { { text, map, x, y } } }
+local function mountEntries()
+    local byItem, order = {}, {}
+    local function add(id, expKey, src)
+        local e = byItem[id]
+        if not e then e = { item = id, exp = expKey, sources = {} }; byItem[id] = e; order[#order + 1] = e end
+        e.sources[#e.sources + 1] = src
+    end
+    for _, exp in ipairs(SFP.Expansions) do
+        for _, inst in ipairs(exp.instances or {}) do
+            for _, id in ipairs(inst.items or {}) do
+                local info = SFP.Items[id]
+                if info and info.kind == "mount" then
+                    local en = SFP:FindEntrance(inst)
+                    add(id, exp.key, { text = (inst.kind == "raid" and "Raid: " or "Dungeon: ") .. inst.name .. (info.drop and ("  |cffffd100" .. info.drop .. "|r") or ""),
+                        map = en and en.map, x = en and en.x, y = en and en.y })
+                end
+            end
+        end
+    end
+    for map, list in pairs(SFP.Rares or {}) do
+        for _, sp in ipairs(list) do
+            for _, id in ipairs(sp.items or {}) do
+                local info = SFP.Items[id]
+                if info and info.kind == "mount" then
+                    local x, y = firstPoint(sp.pts)
+                    add(id, list.exp, { text = "Rare: " .. tostring(sp.name) .. "  |cff808080" .. SFP:ZoneName(map) .. "|r", map = map, x = x, y = y })
+                end
+            end
+        end
+    end
+    return order
+end
+
+-- every hunter pet: { name, exp, map, x, y, kind }
+local function hunterEntries()
+    local out, seen = {}, {}
+    for map, list in pairs(SFP.Rares or {}) do
+        for _, sp in ipairs(list) do
+            if sp.hunter then
+                local x, y = firstPoint(sp.pts)
+                seen[sp.name .. "@" .. map] = true
+                out[#out + 1] = { name = sp.name, exp = list.exp, map = map, x = x, y = y,
+                    kind = sp.hunter == "spirit" and "spirit beast" or "unique look" }
+            end
+        end
+    end
+    -- tameable beasts seen in the game (recorded and shipped by the Codex)
+    local beasts = _G.SeviathsCodexDB and _G.SeviathsCodexDB.beasts
+    for _, b in (SeviathsAllPairs or pairs)(beasts or {}) do
+        if type(b) == "table" and b.n and b.m and not seen[b.n .. "@" .. b.m] then
+            seen[b.n .. "@" .. b.m] = true
+            local e = SFP:ExpansionForMap(b.m)
+            out[#out + 1] = { name = b.n, exp = e and e.key, map = b.m, x = b.x, y = b.y, kind = (b.f or "beast") .. (b.r and " (rare)" or "") }
+        end
+    end
+    return out
+end
+
+local function expOrder(key)
+    for i, e in ipairs(SFP.Expansions) do if e.key == key then return i end end
+    return 99
+end
+
+local function renderModeTree()
+    local n = 1
+    local function row(i, text, key, indent, header)
+        local r = rowOf(tree, i)
+        place(tree, r, i, indent)
+        r.icon:SetTexture(nil)
+        r.text:SetText((expSel == key and "|cff33e6ff" or "|cffffffff") .. text .. "|r")
+        r.bg:SetColorTexture(0, 0.9, 1, expSel == key and 0.15 or 0.06)
+        r.click = function()
+            expSel = key
+            search:SetText("")
+            renderModeTree()
+            win.refreshList()
+        end
+    end
+    row(1, "All expansions", "all", 0)
+    for _, exp in ipairs(SFP.Expansions) do
+        n = n + 1
+        row(n, exp.name, exp.key, 12)
+    end
+    finish(tree, n)
+end
+
+local function openWaypoint(map, x, y, label)
+    if not map then return end
+    if WorldMapFrame:GetMapID() ~= map then WorldMapFrame:SetMapID(map) end
+    if x and C_Map.CanSetUserWaypointOnMap and C_Map.CanSetUserWaypointOnMap(map) then
+        C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x, y))
+        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+        SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(label), SFP:ZoneName(map), x * 100, y * 100))
+    end
+end
+
+local function headerRow(n, text)
+    n = n + 1
+    local h = rowOf(list, n)
+    place(list, h, n, 0)
+    h.icon:SetTexture(nil)
+    h.text:SetText(text)
+    h.bg:SetColorTexture(1, 1, 1, 0.06)
+    h.hl:Hide()
+    return n
+end
+
+local function renderMounts(q)
+    local ql = q and q:lower() or ""
+    local n = 0
+    win.title:SetText("|cffa335eeMounts|r" .. (#ql > 0 and ("  |cffffd100" .. q .. "|r") or ""))
+    entriesCache = entriesCache or mountEntries()
+    local entries = {}
+    for _, e in ipairs(entriesCache) do
+        local nm = plain(SFP:ItemName(e.item)):lower()
+        if (#ql >= 2 and nm:find(ql, 1, true)) or (#ql < 2 and (expSel == "all" or e.exp == expSel)) then entries[#entries + 1] = e end
+    end
+    table.sort(entries, function(a, c)
+        if expOrder(a.exp) ~= expOrder(c.exp) then return expOrder(a.exp) < expOrder(c.exp) end
+        return plain(SFP:ItemName(a.item)) < plain(SFP:ItemName(c.item))
+    end)
+    local lastExp
+    for _, e in ipairs(entries) do
+        if e.exp ~= lastExp then
+            lastExp = e.exp
+            local en
+            for _, x in ipairs(SFP.Expansions) do if x.key == e.exp then en = x.name end end
+            n = headerRow(n, "|cffffd100" .. (en or "Other") .. "|r")
+        end
+        n = n + 1
+        local r = rowOf(list, n)
+        place(list, r, n, 8)
+        r.icon:SetTexture(SFP:ItemIcon(e.item))
+        r.text:SetText(SFP:ItemName(e.item))
+        local price = SFP:GetPrice(e.item)
+        r.right:SetText(price and SFP:FormatPrice(price) or "")
+        r.item = e.item
+        for _, s in ipairs(e.sources) do
+            n = n + 1
+            local m = rowOf(list, n)
+            place(list, m, n, 30)
+            m.icon:SetTexture(nil)
+            m.text:SetText("|cff00e5ff" .. s.text .. "|r")
+            m.right:SetText(s.map and "|cff808080click: waypoint|r" or "|cff808080no map spot|r")
+            m.hint = s.map and "Click: set a waypoint and open the map there" or nil
+            if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(SFP:ItemName(e.item))) end end
+        end
+    end
+    if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
+    finish(list, n)
+end
+
+local function renderHunters(q)
+    local ql = q and q:lower() or ""
+    local n = 0
+    win.title:SetText("|cffabd473Hunter pets|r" .. (#ql > 0 and ("  |cffffd100" .. q .. "|r") or ""))
+    entriesCache = entriesCache or hunterEntries()
+    local entries = {}
+    for _, e in ipairs(entriesCache) do
+        local nm = tostring(e.name):lower()
+        if (#ql >= 2 and (nm:find(ql, 1, true) or tostring(e.kind):lower():find(ql, 1, true)))
+            or (#ql < 2 and (expSel == "all" or e.exp == expSel)) then
+            entries[#entries + 1] = e
+        end
+    end
+    table.sort(entries, function(a, c)
+        if expOrder(a.exp) ~= expOrder(c.exp) then return expOrder(a.exp) < expOrder(c.exp) end
+        if a.map ~= c.map then return SFP:ZoneName(a.map) < SFP:ZoneName(c.map) end
+        return tostring(a.name) < tostring(c.name)
+    end)
+    local lastExp
+    for _, e in ipairs(entries) do
+        if e.exp ~= lastExp then
+            lastExp = e.exp
+            local en
+            for _, x in ipairs(SFP.Expansions) do if x.key == e.exp then en = x.name end end
+            n = headerRow(n, "|cffffd100" .. (en or "Other") .. "|r")
+        end
+        n = n + 1
+        local r = rowOf(list, n)
+        place(list, r, n, 8)
+        r.icon:SetTexture("Interface\\Icons\\ClassIcon_Hunter")
+        r.text:SetText("|cff00e5ff" .. tostring(e.name) .. "|r  |cff808080" .. SFP:ZoneName(e.map) .. "|r")
+        r.right:SetText("|cffabd473" .. e.kind .. "|r")
+        r.hint = (e.x and "Click: set a waypoint and open the map there") or "Click: open the map"
+        r.click = function() openWaypoint(e.map, e.x, e.y, tostring(e.name)) end
+    end
+    if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
+    finish(list, n)
+end
+
+local function setMode(m)
+    mode = m
+    entriesCache = nil
+    expSel = "all"
+    if win then
+        search:SetText("")
+        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or "Material search") .. "|r")
+    end
+end
+
 local function renderList()
     if not win then return end
     local q = strtrim(search:GetText() or "")
+    if mode == "mount" then return renderMounts(q) end
+    if mode == "hunter" then return renderHunters(q) end
     if #q >= 2 then renderSearch(q) else renderZone() end
 end
 
 ---------------------------------------------------------------------------
 -- the tree of expansions and zones
 ---------------------------------------------------------------------------
-local function renderTree()
+local renderTree
+local function renderTreeMat()
     local n = 1
     do
         local g = rowOf(tree, 1)
@@ -532,6 +752,10 @@ local function renderTree()
         end
     end
     finish(tree, n)
+end
+
+renderTree = function()
+    if mode == "mat" then renderTreeMat() else renderModeTree() end
 end
 
 ---------------------------------------------------------------------------
@@ -593,6 +817,7 @@ local function build()
     win:SetScript("OnSizeChanged", function()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
     end)
+    win.refreshList = renderList
     win:SetScript("OnHide", function()
         guideIndex = nil
         zonesCache = {}
@@ -615,10 +840,15 @@ end
 local row
 local rowBtns = {}
 
-local function openGuide()
+local function openMode(m)
     if not win then build() end
-    win:SetShown(not win:IsShown())
+    if win:IsShown() and mode == m then win:Hide() return end
+    setMode(m)
+    win:Show()
+    renderTree()
+    renderList()
 end
+local function openGuide() openMode("mat") end
 
 -- which list a button opens: its collapsed flag in the saved settings (one open at a time)
 local FLAGS = { spots = "spotsCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
@@ -656,6 +886,8 @@ local function refreshRow()
         makeButton("spots", "Farm spots", "The farm spots of this zone, with a checkbox each", function() openOnly("spots") end)
         makeButton("coll", "Collectables", "Mounts of the dungeons and raids here, and the hunter pets of the zone", function() openOnly("coll") end)
         makeButton("search", "Material search", "Every zone from Classic to Midnight: what you can farm there and which monsters drop it. Click a monster for a waypoint.", openGuide)
+        makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
+        makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
         makeButton("gather", "Mining & Herbalism", "The ores and herbs of this zone and the best zone for each", function() openOnly("gather") end)
     end
     local map = WorldMapFrame:GetMapID()
@@ -664,11 +896,13 @@ local function refreshRow()
         spots = SFP.db.showSpotList and zone and zone.spawns and #zone.spawns > 0,
         coll = map and SFP.HasCollectables and SFP.HasCollectables(map),
         search = true,
+        mount = true,
+        hunter = true,
         gather = SFP.db.showGatherList and map and (zone or SFP.GatherHere) and #SFP.GatherHere(map) > 0,
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "gather", "search", "coll", "spots" }) do
+    for _, key in ipairs({ "gather", "hunter", "mount", "search", "coll", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
