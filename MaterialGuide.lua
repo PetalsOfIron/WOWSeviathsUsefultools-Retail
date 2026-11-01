@@ -95,9 +95,61 @@ end
 ---------------------------------------------------------------------------
 -- the loot of one zone: item -> monsters that drop it
 ---------------------------------------------------------------------------
--- Data/SpawnsWowhead.lua: [map] = { { npc, name, pts, drop = { [item] = percent } } } for every crafting reagent monsters drop
+-- the monsters that drop crafting reagents, by map: what the addon has collected (kills with loot, skinning; the shipped data too) and
+-- Data/SpawnsWowhead.lua when it has anything. Built when the window opens and dropped when it closes.
+local guideIndex
+local function isReagent(id)
+    local a = SFP.AuctionItems and SFP.AuctionItems[id]
+    if a and a[1] == 7 then return true end
+    local info = SFP.Items[id]
+    if info and (info.kind == "cloth" or info.kind == "leather" or info.kind == "meat" or info.kind == "element" or info.kind == "enchant") then return true end
+    local k = SFP.db and SFP.db.knownItems and SFP.db.knownItems[id]
+    return type(k) == "table" and k.c == 7
+end
+
+local function buildGuideIndex()
+    local out = {}
+    local walk = SeviathsAllPairs or pairs
+    for npcID, rec in walk(SFP.db and SFP.db.npcs or {}) do
+        if type(rec) == "table" and type(rec.m) == "table" and (rec.d or rec.s) and rec.n then
+            local kills = rec.k or 0
+            local drop
+            for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
+                for id, q in pairs(src) do
+                    if type(q) == "number" and isReagent(id) then
+                        drop = drop or {}
+                        local pct = kills >= 3 and math.min(100, math.floor(q / kills * 1000) / 10) or 0
+                        drop[id] = math.max(drop[id] or 0, pct)
+                    end
+                end
+            end
+            if drop then
+                for map, pts in pairs(rec.m) do
+                    local p = type(pts) == "table" and pts[1]
+                    if p and p[1] and p[2] then
+                        local l = out[map]
+                        if not l then l = {}; out[map] = l end
+                        l[#l + 1] = { npc = npcID, name = rec.n, pts = string.format("%.1f,%.1f", p[1] * 100, p[2] * 100), drop = drop }
+                    end
+                end
+            end
+        end
+    end
+    for map, list in pairs(SFP.SpawnsWowhead or {}) do
+        local l = out[map]
+        if not l then l = {}; out[map] = l end
+        for _, w in ipairs(list) do l[#l + 1] = w end
+    end
+    return out
+end
+
+local function guideMaps()
+    if not guideIndex then guideIndex = buildGuideIndex() end
+    return guideIndex
+end
+
 local function guideList(map)
-    return SFP.SpawnsWowhead and SFP.SpawnsWowhead[map] or {}
+    return guideMaps()[map] or {}
 end
 
 local function monstersFor(map, id)
@@ -142,7 +194,7 @@ local function zonesOf(exp)
     for _, z in ipairs(exp.zones or {}) do
         if not seen[z.map] then seen[z.map] = true; out[#out + 1] = z.map end
     end
-    for map in pairs(SFP.SpawnsWowhead or {}) do
+    for map in pairs(guideMaps()) do
         if not seen[map] then
             local e = SFP:ExpansionForMap(map)
             if e == exp then seen[map] = true; out[#out + 1] = map end
@@ -197,6 +249,7 @@ local function addItem(n, mapID, id, withZone)
         m.text:SetText("|cff00e5ff" .. tostring(sp.name) .. "|r")
         local drops = sp.counts and sp.counts[id] and sp.kills and sp.kills > 0
         local wpct = sp.drop and sp.drop[id]
+        if wpct == 0 then wpct = nil end
         if drops or wpct then
             local pct = drops and (100 * sp.counts[id] / sp.kills) or wpct
             m.right:SetText(string.format("|cffffd100%s%%|r  |cff808080waypoint|r", pct >= 10 and string.format("%.0f", pct) or string.format("%.1f", pct)))
@@ -540,11 +593,15 @@ local function build()
     win:SetScript("OnSizeChanged", function()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
     end)
+    win:SetScript("OnHide", function()
+        guideIndex = nil
+        zonesCache = {}
+    end)
     win:SetScript("OnShow", function()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
         if not selected then
             local m = WorldMapFrame:GetMapID()
-            if m and (SFP.zoneByMap[m] or SFP.SpawnsWowhead and SFP.SpawnsWowhead[m]) then selected = m end
+            if m and (SFP.zoneByMap[m] or guideMaps()[m]) then selected = m end
         end
         renderTree()
         renderList()
