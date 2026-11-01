@@ -283,6 +283,26 @@ function ns:BestPlace(e, itemID)
         end
     end
 
+    -- 1b) monsters and nodes the collected data saw dropping or giving it (shipped with the addon, so it works for materials you never looted)
+    local S = _G.SeviathsUsefulTools
+    local drops = itemID and S and S.DropIndex and S:DropIndex()[itemID]
+    if drops and S.db then
+        local shown = 0
+        for _, d in ipairs(drops) do
+            if shown >= 4 then break end
+            local rec = (d[3] == "o" and S.db.objects or S.db.npcs)[d[1]]
+            local map, spots = nil, nil
+            if rec and type(rec.m) == "table" then map, spots = next(rec.m) end
+            if rec and rec.n and map then
+                shown = shown + 1
+                local spot = spots and spots[1]
+                lines[#lines + 1] = ("%s |cffffd100%s|r (%s) in %s"):format(d[3] == "o" and "Gathered from" or (d[3] == "s" and "Skinned from" or "Dropped by"),
+                    rec.n, d[3] == "o" and "node or object" or "monster", self:MapName(map))
+                if not target and spot and spot[1] then target = { m = map, x = spot[1], y = spot[2] } end
+            end
+        end
+    end
+
     -- 2) bosses that drop it
     local refs = {}
     for _, k in ipairs(e.refs or {}) do refs[#refs + 1] = k end
