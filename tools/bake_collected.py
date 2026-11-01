@@ -98,8 +98,20 @@ def main():
     files += [a for a in sys.argv[1:] if a.endswith(".lua") and os.path.exists(a)]   # extra saved files (older backups) can be added
     if not files:
         sys.exit("no saved data found under " + RETAIL)
+    # the saved files of the addons this one grew out of (Codex, Farm Pack, Dungeons & Raids): their data is read too
+    old_dir = os.path.dirname(files[0])
+    for old in ("SeviathsCodex.lua", "SeviathsCodex.lua.bak", "SeviathsFarmPack.lua", "SeviathsFarmPack.lua.bak",
+                "SeviathsDungeonsRaids.lua", "SeviathsDungeonsRaids.lua.bak"):
+        p = os.path.join(old_dir, old)
+        if os.path.exists(p) and p not in files:
+            files.append(p)
     for f in files:
         saved = parse_file(f)
+        # the Farm Pack's data is what the Useful Tools database holds now
+        if "SeviathsFarmPackDB" in saved:
+            saved.setdefault("SeviathsUsefulToolsDB", {})
+            for k, v in (saved["SeviathsFarmPackDB"] or {}).items():
+                saved["SeviathsUsefulToolsDB"].setdefault(k, v)
         for db, keys in SHIP.items():
             for key in keys:
                 v = (saved.get(db) or {}).get(key)
