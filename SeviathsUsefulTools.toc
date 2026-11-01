@@ -25,6 +25,7 @@ Data\Rares.lua
 Data\SpawnsWowhead.lua
 Data\WildPets.lua
 Data\WildPetSpots.lua
+Data\WildPetZones.lua
 Data\Gathering.lua
 Data\GatherZones.lua
 Data\Seed.lua

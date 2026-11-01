@@ -748,6 +748,27 @@ local function petSpots(entries)
             e.wildZones = names
             if not e.zoneName and names[1] then e.zoneName = names[1] end
         end
+        -- Wowhead's battle pet database: the zone maps of the species (Data/WildPetZones.lua), for pets and zones the lists above lack
+        if SFP.WildPetZones then
+            local zm = SFP.WildPetZones[e.name]
+            if not zm then
+                for nm, v in pairs(SFP.WildPetZones) do
+                    if nm:lower() == e.name:lower() then zm = v break end
+                end
+            end
+            if zm and zm[1] then
+                local here = WorldMapFrame:GetMapID()
+                local pick = zm[1]
+                for _, m in ipairs(zm) do if m == here then pick = m break end end
+                if not e.zoneMap then e.zoneMap = pick end
+                if not e.wildZones then
+                    local names = {}
+                    for _, m in ipairs(zm) do names[#names + 1] = SFP:ZoneName(m) end
+                    e.wildZones = names
+                end
+                e.zoneName = e.zoneName or SFP:ZoneName(e.zoneMap)
+            end
+        end
     end
     if next(need) == nil then return end
     local found = {}
