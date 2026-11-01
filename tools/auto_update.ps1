@@ -5,10 +5,17 @@ $py = "C:\Python315\python.exe"
 $script = Join-Path $PSScriptRoot "update_data.py"
 $saved = Get-ChildItem "D:\wow\World of Warcraft\_retail_\WTF\Account\*\SavedVariables\SeviathsUsefulTools.lua" | Select-Object -First 1
 $log = Join-Path $env:USERPROFILE "Projects\sut-curse-release\auto_update.log"
+# runs the update at the lowest CPU priority, so it never makes the game stutter while it plays
+function Run-Update {
+    $p = Start-Process -FilePath $py -ArgumentList ('"' + $script + '"') -PassThru -WindowStyle Hidden -RedirectStandardOutput $log + ".out" -RedirectStandardError $log + ".err"
+    try { $p.PriorityClass = "Idle" } catch {}
+    $p.WaitForExit()
+    Get-Content ($log + ".out"), ($log + ".err") -ErrorAction SilentlyContinue | Add-Content $log
+}
 $last = if ($saved) { $saved.LastWriteTimeUtc } else { [datetime]::MinValue }
 # once when it starts (when the game is opened with the launcher): what the last session saved is baked at once
 "[$(Get-Date -Format s)] watcher started: updating" | Add-Content $log
-& $py $script *>> $log
+Run-Update
 "[$(Get-Date -Format s)] done" | Add-Content $log
 while ($true) {
     Start-Sleep -Seconds 20
@@ -19,7 +26,7 @@ while ($true) {
         do { $stamp = $saved.LastWriteTimeUtc; Start-Sleep -Seconds 20; $saved.Refresh() } while ($saved.LastWriteTimeUtc -ne $stamp)
         $last = $saved.LastWriteTimeUtc
         "[$(Get-Date -Format s)] saved data changed: updating" | Add-Content $log
-        & $py $script *>> $log
+        Run-Update
         "[$(Get-Date -Format s)] done" | Add-Content $log
     }
 }

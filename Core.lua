@@ -1240,6 +1240,12 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
     elseif cmd == "alerts" then
         SFP.db.rareAlerts = (SFP.db.rareAlerts == false)
         SFP:Print("Rare alerts " .. (SFP.db.rareAlerts ~= false and "ON" or "OFF"))
+    elseif cmd == "mem" then
+        -- how much memory this addon holds (the shipped data is big): to see whether it is what makes the game stutter
+        collectgarbage("collect")
+        UpdateAddOnMemoryUsage()
+        local kb = GetAddOnMemoryUsage("SeviathsUsefulTools") or 0
+        SFP:Print(("Memory used by this addon: %.0f MB (the whole interface: %.0f MB)."):format(kb / 1024, collectgarbage("count") / 1024))
     elseif cmd == "fastscan" then
         -- for testing: the addon's own 15-minute wait is skipped and a fast scan is asked for at once. The game may still ignore a
         -- request that comes too soon after another one (then the bar waits 2 minutes and the addon says so).
