@@ -190,6 +190,11 @@ local function processReplicate()
             for id, p in pairs(best) do savePrice(id, p); found = found + 1 end
             -- the whole snapshot: every item's price is kept (compact), so any item the scan saw has a price
             SFP.db.ahAll = SFP.db.ahAll or {}
+            -- merged into what the realm had: an item not listed this time keeps its earlier price, an item seen now gets the cheapest price of this scan
+            local before = SFP.db.ahAll[SFP:RealmKey()]
+            if type(before) == "table" then
+                for id, p in pairs(before) do if allBest[id] == nil then allBest[id] = p end end
+            end
             SFP.db.ahAll[SFP:RealmKey()] = allBest
             if next(petBest) then
                 SFP.db.petPrices = SFP.db.petPrices or {}
