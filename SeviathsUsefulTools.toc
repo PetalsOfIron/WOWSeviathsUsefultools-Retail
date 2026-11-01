@@ -70,6 +70,7 @@ collected\tools.inspected.lua
 collected\tools.itemExp.lua
 collected\tools.itemFrom.lua
 collected\tools.itemIcon.lua
+collected\tools.itemSpots.lua
 collected\tools.itemZones.lua
 collected\tools.killPos.lua
 collected\tools.knownItems.1.lua
