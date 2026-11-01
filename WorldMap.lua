@@ -1921,7 +1921,8 @@ local function spotsOfGroup(zone, group)
     local list, seen = {}, {}
     if not SFP._bestDone then markBest() end
     for _, s in ipairs(zone and zone.spawns or {}) do
-        if s.points and s._best ~= false and spotGroup(s) == group then
+        -- every spot of the database, not only the best one of each item (the map markers still show only the best)
+        if s.points and spotGroup(s) == group then
             -- a monster that drops a battle pet is listed under Battle pets (with its waypoint), not under Farm spots
             local petDrop = false
             if group == "farm" then
