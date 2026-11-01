@@ -63,6 +63,44 @@ function ns:LearnQuestAreas(qid)
     end
 end
 
+-- one quest of the log (or a tracked world quest): its objective spots get their area name, and a spot is recorded where its progress went up
+local function scanOne(qid)
+    -- a saved objective spot without an area name gets it when you stand near it (the minimap's zone text, "Zeb'Alar Lumbermill")
+    local ql0 = ns.db.qloc and ns.db.qloc[qid]
+    if ql0 and ql0.o then
+        local m0, x0, y0 = PlayerSpot()
+        if m0 then
+            for _, sp in ipairs(ql0.o) do
+                if not sp.a and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.025 and math.abs(sp.y - y0) < 0.025 then
+                    local okZ, zt = pcall(GetMinimapZoneText)
+                    if okZ and type(zt) == "string" and not secret(zt) and zt ~= "" then sp.a = zt end
+                end
+            end
+        end
+    end
+    -- progress went up here -> remember this spot as an objective area
+    local prog = ObjectiveProgress(qid)
+    if prog and lastProgress[qid] and prog > lastProgress[qid] then
+        local m, x, y = PlayerSpot()
+        if m then
+            local l = Loc(qid)
+            l.o = l.o or {}
+            -- the area name is what the minimap's zone text says here ("Zeb'Alar Lumbermill"), saved with the spot
+            local okA, area = pcall(GetMinimapZoneText)
+            if not okA or type(area) ~= "string" or secret(area) or area == "" then area = nil end
+            -- a spot is added only when it is a different place: not within a short distance of one already saved, and not in the
+            -- same area; a new place (another item or monster of the same quest) is listed under the first
+            local dup = false
+            for _, sp in ipairs(l.o) do
+                if sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dup = true break end
+                if area and sp.a == area and sp.m == m then dup = true break end
+            end
+            if not dup and #l.o < 5 then l.o[#l.o + 1] = { m = m, x = x, y = y, a = area } end
+        end
+    end
+    lastProgress[qid] = prog
+end
+
 local function ScanLog()
     if not ns.db or InCombatLockdown() then return end
     local modern = C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo
@@ -77,40 +115,14 @@ local function ScanLog()
         end
         if info and info.questID and not info.isHeader then
             local qid = info.questID
-            -- a saved objective spot without an area name gets it when you stand near it (the minimap's zone text, "Zeb'Alar Lumbermill")
-            local ql0 = ns.db.qloc and ns.db.qloc[qid]
-            if ql0 and ql0.o then
-                local m0, x0, y0 = PlayerSpot()
-                if m0 then
-                    for _, sp in ipairs(ql0.o) do
-                        if not sp.a and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.025 and math.abs(sp.y - y0) < 0.025 then
-                            local okZ, zt = pcall(GetMinimapZoneText)
-                            if okZ and type(zt) == "string" and not secret(zt) and zt ~= "" then sp.a = zt end
-                        end
-                    end
-                end
-            end
-            -- progress went up here -> remember this spot as an objective area
-            local prog = ObjectiveProgress(qid)
-            if prog and lastProgress[qid] and prog > lastProgress[qid] then
-                local m, x, y = PlayerSpot()
-                if m then
-                    local l = Loc(qid)
-                    l.o = l.o or {}
-                    -- the area name is what the minimap's zone text says here ("Zeb'Alar Lumbermill"), saved with the spot
-                    local okA, area = pcall(GetMinimapZoneText)
-                    if not okA or type(area) ~= "string" or secret(area) or area == "" then area = nil end
-                    -- a spot is added only when it is a different place: not within a short distance of one already saved, and not in the
-                    -- same area; a new place (another item or monster of the same quest) is listed under the first
-                    local dup = false
-                    for _, sp in ipairs(l.o) do
-                        if sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dup = true break end
-                        if area and sp.a == area and sp.m == m then dup = true break end
-                    end
-                    if not dup and #l.o < 5 then l.o[#l.o + 1] = { m = m, x = x, y = y, a = area } end
-                end
-            end
-            lastProgress[qid] = prog
+            scanOne(qid)
+        end
+    end
+    -- world quests you track or are in the area of are not always in the quest log: they are read the same way
+    if C_QuestLog.GetNumWorldQuestWatches and C_QuestLog.GetQuestIDForWorldQuestWatchIndex then
+        for i = 1, (C_QuestLog.GetNumWorldQuestWatches() or 0) do
+            local wq = C_QuestLog.GetQuestIDForWorldQuestWatchIndex(i)
+            if type(wq) == "number" and wq > 0 then scanOne(wq) end
         end
     end
 end
