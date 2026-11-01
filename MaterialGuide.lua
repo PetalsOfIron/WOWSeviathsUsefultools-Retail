@@ -18,6 +18,19 @@ local SECTIONS = {
 local PET_KINDS = { pet = true }
 local OTHER_KINDS = { mount = true, toy = true, recipe = true }
 
+-- an item name that is never "item 12345": the game's own name when it has loaded, else the name the addon has stored for it; the window
+-- redraws when the game delivers more names
+local function iname(id)
+    local n = SFP:ItemName(id)
+    if n:find("item ", 1, true) and n:find("|cff808080", 1, true) == 1 then
+        local k = SFP.db and SFP.db.knownItems and SFP.db.knownItems[id]
+        local nm = (type(k) == "table" and k.n) or (SFP.AuctionItems and SFP.AuctionItems[id] and SFP.AuctionItems[id][2])
+            or (SFP.db and SFP.db.ahNames and SFP.db.ahNames[id])
+        if type(nm) == "string" and nm ~= "" then return nm end
+    end
+    return n
+end
+
 local win, tree, list, search
 local selected          -- map ID of the zone shown
 local collapsed = {}    -- [expansion key] = true
@@ -270,7 +283,7 @@ local function addItem(n, mapID, id, withZone)
     local r = rowOf(list, n)
     place(list, r, n, 8)
     r.icon:SetTexture(SFP:ItemIcon(id))
-    r.text:SetText(SFP:ItemName(id) .. (withZone and ("  |cff808080" .. SFP:ZoneName(mapID) .. "|r") or ""))
+    r.text:SetText(iname(id) .. (withZone and ("  |cff808080" .. SFP:ZoneName(mapID) .. "|r") or ""))
     local price = SFP:GetPrice(id)
     r.right:SetText(price and SFP:FormatPrice(price) or "")
     r.item = id
@@ -375,7 +388,7 @@ local function addGatherItem(n, id, withKind)
     local r = rowOf(list, n)
     place(list, r, n, 8)
     r.icon:SetTexture(SFP:ItemIcon(id))
-    r.text:SetText(SFP:ItemName(id))
+    r.text:SetText(iname(id))
     local price = SFP:GetPrice(id)
     r.right:SetText(price and SFP:FormatPrice(price) or "")
     r.item = id
@@ -395,7 +408,7 @@ local function addGatherItem(n, id, withKind)
                 string.format("%.1f, %.1f", s.x * 100, s.y * 100) .. "|r")
             m.right:SetText("|cff808080exact spot|r")
             m.hint = "A spot where gathering was recorded. Click: set a waypoint there and open the map"
-            m.click = function() openSpot(s.map, s.x, s.y, tostring(s.name or SFP:ItemName(id))) end
+            m.click = function() openSpot(s.map, s.x, s.y, tostring(s.name or iname(id))) end
         end
     end
     -- the zones it spawns in, most nodes first
@@ -420,7 +433,7 @@ local function addGatherItem(n, id, withKind)
                     break
                 end
             end
-            openSpot(z.map, x, y, SFP:ItemName(id))
+            openSpot(z.map, x, y, iname(id))
         end
     end
     if shown == 0 and #zones == 0 then
@@ -442,7 +455,7 @@ local function renderGather()
     for _, sec in ipairs(GATHER_SECTIONS) do
         local mine = {}
         for _, id in ipairs(ids) do if gatherKind(id) == sec.key then mine[#mine + 1] = id end end
-        table.sort(mine, function(a, c) return SFP:ItemName(a):gsub("|c%x%x%x%x%x%x%x%x", "") < SFP:ItemName(c):gsub("|c%x%x%x%x%x%x%x%x", "") end)
+        table.sort(mine, function(a, c) return iname(a):gsub("|c%x%x%x%x%x%x%x%x", "") < iname(c):gsub("|c%x%x%x%x%x%x%x%x", "") end)
         if #mine > 0 then
             n = n + 1
             local h = rowOf(list, n)
@@ -470,7 +483,7 @@ local function renderZone()
     for _, sec in ipairs(SECTIONS) do
         local mine = {}
         for _, id in ipairs(ids) do if sectionOf(id) == sec.key then mine[#mine + 1] = id end end
-        table.sort(mine, function(a, b) return SFP:ItemName(a):gsub("|c%x%x%x%x%x%x%x%x", "") < SFP:ItemName(b):gsub("|c%x%x%x%x%x%x%x%x", "") end)
+        table.sort(mine, function(a, b) return iname(a):gsub("|c%x%x%x%x%x%x%x%x", "") < iname(b):gsub("|c%x%x%x%x%x%x%x%x", "") end)
         if #mine > 0 then
             n = n + 1
             local h = rowOf(list, n)
@@ -500,14 +513,14 @@ local function renderSearch(q)
     for _, exp in ipairs(SFP.Expansions) do
         for _, map in ipairs(zonesOf(exp)) do
             for _, id in ipairs(zoneItems(map)) do
-                local nm = (SFP:ItemName(id) or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
+                local nm = (iname(id) or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
                 if nm:find(ql, 1, true) and n < 600 then n = addItem(n, map, id, true) end
             end
         end
     end
     learnedCache = learnedGatherSpots()
     for _, id in ipairs(gatherItems()) do
-        local nm = (SFP:ItemName(id) or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
+        local nm = (iname(id) or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
         if nm:find(ql, 1, true) and n < 600 then n = addGatherItem(n, id) end
     end
     if n == 0 then
@@ -731,12 +744,12 @@ local function renderMounts(q)
     entriesCache = entriesCache or mountEntries()
     local entries = {}
     for _, e in ipairs(entriesCache) do
-        local nm = plain(SFP:ItemName(e.item)):lower()
+        local nm = plain(iname(e.item)):lower()
         if (#ql >= 2 and nm:find(ql, 1, true)) or (#ql < 2 and (expSel == "all" or e.exp == expSel)) then entries[#entries + 1] = e end
     end
     table.sort(entries, function(a, c)
         if expOrder(a.exp) ~= expOrder(c.exp) then return expOrder(a.exp) < expOrder(c.exp) end
-        return plain(SFP:ItemName(a.item)) < plain(SFP:ItemName(c.item))
+        return plain(iname(a.item)) < plain(iname(c.item))
     end)
     local lastExp
     for _, e in ipairs(entries) do
@@ -750,14 +763,14 @@ local function renderMounts(q)
         local r = rowOf(list, n)
         place(list, r, n, 8)
         r.icon:SetTexture(SFP:ItemIcon(e.item))
-        r.text:SetText(SFP:ItemName(e.item))
+        r.text:SetText(iname(e.item))
         local price = SFP:GetPrice(e.item)
         r.right:SetText(price and SFP:FormatPrice(price) or "")
         r.item = e.item
         -- the name bar is a waypoint too: it goes to the first source that has a spot
         for _, s in ipairs(e.sources) do
             if s.map then
-                r.click = function() openWaypoint(s.map, s.x, s.y, plain(SFP:ItemName(e.item))) end
+                r.click = function() openWaypoint(s.map, s.x, s.y, plain(iname(e.item))) end
                 break
             end
         end
@@ -769,7 +782,7 @@ local function renderMounts(q)
             m.text:SetText("|cff00e5ff" .. s.text .. "|r")
             m.right:SetText(s.zone and ("|A:Waypoint-MapPin-Tracked:16:16|t |cff808080" .. s.zone .. "|r") or (s.map and "|A:Waypoint-MapPin-Tracked:16:16|t |cff33e6ffWaypoint|r" or "|cff808080no map spot|r"))
             m.hint = s.map and "Click: set a waypoint and open the map there" or nil
-            if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(SFP:ItemName(e.item))) end end
+            if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(iname(e.item))) end end
         end
         n = spacer(n)
     end
@@ -1083,6 +1096,18 @@ local function refreshRow()
     row:Show()
     if SFP.DockPanels then SFP.DockPanels() end
 end
+
+local nameWait
+local nameFrame = CreateFrame("Frame")
+nameFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+nameFrame:SetScript("OnEvent", function()
+    if nameWait or not (win and win:IsShown()) then return end
+    nameWait = true
+    C_Timer.After(0.5, function()
+        nameWait = nil
+        if win and win:IsShown() and win.refreshList then pcall(win.refreshList) end
+    end)
+end)
 
 SFP:OnLogin(function()
     if not WorldMapFrame or not WorldMapFrame.ScrollContainer then return end
