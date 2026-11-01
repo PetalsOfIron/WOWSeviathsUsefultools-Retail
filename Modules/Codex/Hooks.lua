@@ -249,7 +249,7 @@ local function QuestHoverTip(owner, questID, append)
                     shown = shown + 1
                     local nm = (type(p.names) == "table" and #p.names > 0) and (" - " .. table.concat(p.names, ", ")) or ""
                 -- a spot where progress came from a kill says "Kill at", whatever the objective's own words are
-                local spotLabel = p.kill and "Kill at" or objLabel
+                local spotLabel = p.kill and "Kill at" or (p.use and "Pick up at") or objLabel
                 lines[#lines + 1] = ((shown == 1 or spotLabel ~= lastLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
                 lastLabel = spotLabel
                     added = true
