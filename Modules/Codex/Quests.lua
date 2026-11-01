@@ -41,7 +41,7 @@ local function ObjectiveName()
     local okD, dead = pcall(UnitIsDead, "target")
     if okD and not secret(dead) and dead then
         local okN, n = pcall(UnitName, "target")
-        if okN and type(n) == "string" and not secret(n) and n ~= "" then return n end
+        if okN and type(n) == "string" and not secret(n) and n ~= "" then return n, true end   -- true = it was killed
     end
     local S = _G.SeviathsUsefulTools
     local n2 = S and S.RecentCastTarget and S:RecentCastTarget()
@@ -130,10 +130,11 @@ local function scanOne(qid)
                 if sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dupSpot = sp break end
                 if area and sp.a == area and sp.m == m then dupSpot = sp break end
             end
-            local oname = ObjectiveName()
+            local oname, killed = ObjectiveName()
             local target = dupSpot
             if not target and #l.o < 5 then target = { m = m, x = x, y = y, a = area }; l.o[#l.o + 1] = target end
             -- the names of what was killed or picked up here are kept with the spot (each name once)
+            if target and killed then target.kill = true end   -- progress came from a kill here: the tooltip says "Kill at"
             if target and oname then
                 target.names = target.names or {}
                 local have = false

@@ -236,6 +236,7 @@ local function QuestHoverTip(owner, questID, append)
             -- one line for a place: spots in the same area are said once
             local seenPlace = {}
             local shown = 0
+            local lastLabel
             for _, p in ipairs(ql.o) do
                 local text = placeText(p)
                 local area = p.a or areaName(p) or text
@@ -243,7 +244,10 @@ local function QuestHoverTip(owner, questID, append)
                     seenPlace[area] = true
                     shown = shown + 1
                     local nm = (type(p.names) == "table" and #p.names > 0) and (" - " .. table.concat(p.names, ", ")) or ""
-                lines[#lines + 1] = (shown == 1 and (objLabel .. ": ") or "also: ") .. text .. nm
+                -- a spot where progress came from a kill says "Kill at", whatever the objective's own words are
+                local spotLabel = p.kill and "Kill at" or objLabel
+                lines[#lines + 1] = ((shown == 1 or spotLabel ~= lastLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
+                lastLabel = spotLabel
                     added = true
                 end
             end
