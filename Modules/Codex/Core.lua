@@ -125,8 +125,30 @@ function ns:Link(a, b)
     b.refs[#b.refs + 1] = a.key
 end
 
+-- the number shown next to a section: the pages made plus, for the lazy sections (items, quests), the pages of the collected data that
+-- are not built yet (counted from the data, once)
+local dataCount = {}
 function ns:Count(cat)
-    return #self.byCat[cat]
+    local n = #self.byCat[cat]
+    if cat == "quest" or cat == "item" then
+        local lz = self.lazy and self.lazy[cat]
+        if lz and lz.state == "ready" then
+            for g, list in pairs(lz.groups) do if not lz.built[g] then n = n + #list end end
+        else
+            if dataCount[cat] == nil then
+                local c = 0
+                local S = _G.SeviathsUsefulTools
+                if cat == "quest" and self.db then
+                    for _ in SeviathsAllPairs(self.db.quests or {}) do c = c + 1 end
+                elseif cat == "item" and S and S.db then
+                    for _ in SeviathsAllPairs(S.db.knownItems or {}) do c = c + 1 end
+                end
+                dataCount[cat] = c
+            end
+            n = n + dataCount[cat]
+        end
+    end
+    return n
 end
 
 ------------------------------------------------------------------------
