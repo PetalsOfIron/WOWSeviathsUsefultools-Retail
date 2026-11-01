@@ -87,6 +87,7 @@ collected\tools.npcs.lua
 collected\tools.objects.lua
 collected\tools.petPrices.lua
 collected\tools.playerIDs.lua
+collected\tools.rareSeen.lua
 collected\tools.realmGroups.lua
 collected\tools.rioCache.lua
 collected\tools.seenBuilds.lua
