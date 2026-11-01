@@ -768,8 +768,24 @@ function SFP:ItemName(itemID)
     return hex .. name .. "|r", quality
 end
 
+-- the icon of an item is kept in the saved data (db.itemIcon, shipped with the collected data), so lists show it before the game has
+-- loaded the item
+function SFP:StoreIcon(itemID)
+    if not (self.db and itemID) then return nil end
+    local icon = C_Item.GetItemIconByID(itemID)
+    if type(icon) == "number" and not (issecretvalue and issecretvalue(icon)) then
+        local t = self.db.itemIcon
+        if not t then t = {}; self.db.itemIcon = t end
+        if t[itemID] ~= icon then t[itemID] = icon end
+        return icon
+    end
+end
+
 function SFP:ItemIcon(itemID)
-    return C_Item.GetItemIconByID(itemID) or 134400
+    local icon = self:StoreIcon(itemID)
+    if icon then return icon end
+    local kept = self.db and self.db.itemIcon and self.db.itemIcon[itemID]
+    return kept or 134400
 end
 
 function SFP:ItemExtra(itemID)

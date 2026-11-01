@@ -15,7 +15,7 @@ local PIECE = 200000   -- characters of text per piece
 local PACK = {
     SeviathsUsefulToolsDB = { "ahAll", "ahNames", "ahItems", "prices", "realmPrices", "priceHist", "ahListings", "knownItems", "npcs",
         "objects", "playerIDs", "seenPlayers", "nameRealms", "nameRealm", "history",
-        "learnedDecor", "itemExp", "guildDir", "guildNotes", "guildAch", "towns", "itemZones", "petPrices", "ejCache", "learned", "hiddenSpots" },
+        "learnedDecor", "itemExp", "itemIcon", "guildDir", "guildNotes", "guildAch", "towns", "itemZones", "petPrices", "ejCache", "learned", "hiddenSpots" },
     SeviathsCodexDB = { "quests", "loot", "matUses", "items", "qloc", "lootZones", "npcs", "vendors", "vendorItems", "beasts", "rares" },
 }
 
