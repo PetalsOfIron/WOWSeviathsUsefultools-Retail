@@ -58,6 +58,7 @@ collected\gold.Bloodfeather_BurningSteppes_Darkspear_Executus_Kor_gall_Saurfang_
 collected\gold.DarkmoonFaire_DefiasBrotherhood_EarthenRing_Ravenholdt_ScarshieldLegion_Sporeggar_TheVentureCo.lua
 collected\gold.Kazzak.lua
 collected\gold.Ravencrest.lua
+collected\gold.Silvermoon.lua
 collected\tools.bestSpots.lua
 collected\tools.guildDir.lua
 collected\tools.hiddenSpots.lua
