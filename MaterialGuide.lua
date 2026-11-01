@@ -31,6 +31,7 @@ local function iname(id)
     return n
 end
 
+local function plain(s) return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 local win, tree, list, search
 local selected          -- map ID of the zone shown
 local collapsed = {}    -- [expansion key] = true
@@ -449,28 +450,51 @@ local function addGatherItem(n, id, withKind)
     return spacer(n)
 end
 
+local gatherExp = "all"   -- expansion key shown in the gathering list
+
 local function renderGather()
     local n = 0
     win.title:SetText("|cff33e6ffGathering reagents|r")
     learnedCache = learnedGatherSpots()
     local ids = gatherItems()
-    for _, sec in ipairs(GATHER_SECTIONS) do
-        local mine = {}
-        for _, id in ipairs(ids) do if gatherKind(id) == sec.key then mine[#mine + 1] = id end end
-        table.sort(mine, function(a, c) return iname(a):gsub("|c%x%x%x%x%x%x%x%x", "") < iname(c):gsub("|c%x%x%x%x%x%x%x%x", "") end)
-        if #mine > 0 then
-            n = n + 1
-            local h = rowOf(list, n)
-            place(list, h, n, 0)
-            h.icon:SetTexture(nil)
-            h.text:SetText(sec.color .. sec.title .. "|r  |cff808080" .. #mine .. "|r")
-            h.bg:SetColorTexture(1, 1, 1, 0.06)
-            h.hl:Hide()
-            for _, id in ipairs(mine) do n = addGatherItem(n, id) end
+    local expOf = {}
+    for _, g in ipairs(SFP.Gather or {}) do expOf[g.item] = expOf[g.item] or g.exp end
+    local groups = {}
+    for _, exp in ipairs(SFP.Expansions) do groups[#groups + 1] = { key = exp.key, name = exp.name } end
+    groups[#groups + 1] = { key = "other", name = "Other" }
+    for _, grp in ipairs(groups) do
+        if gatherExp == "all" or gatherExp == grp.key then
+            for _, sec in ipairs(GATHER_SECTIONS) do
+                local mine = {}
+                for _, id in ipairs(ids) do
+                    local e = expOf[id] or "other"
+                    if e == grp.key and gatherKind(id) == sec.key then mine[#mine + 1] = id end
+                end
+                table.sort(mine, function(a, c) return plain(iname(a)) < plain(iname(c)) end)
+                if #mine > 0 then
+                    n = n + 1
+                    local h = rowOf(list, n)
+                    place(list, h, n, 0)
+                    h.icon:SetTexture(nil)
+                    h.text:SetText(sec.color .. grp.name .. " - " .. sec.title .. "|r  |cff808080" .. #mine .. "|r")
+                    h.bg:SetColorTexture(1, 1, 1, 0.06)
+                    h.hl:Hide()
+                    for _, id in ipairs(mine) do n = addGatherItem(n, id) end
+                end
+            end
         end
+    end
+    if n == 0 then
+        n = 1
+        local h = rowOf(list, 1)
+        place(list, h, 1, 0)
+        h.icon:SetTexture(nil)
+        h.text:SetText("|cff808080No gathering data for this expansion yet|r")
+        h.hl:Hide()
     end
     finish(list, n)
 end
+
 
 local function renderZone()
     local n = 0
@@ -543,8 +567,6 @@ end
 local mode = "mat"          -- "mat", "mount" or "hunter"
 local expSel = "all"        -- expansion key shown in the mount / hunter lists
 local entriesCache
-
-local function plain(s) return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 
 local function firstPoint(pts)
     local x, y = tostring(pts or ""):match("([%d%.]+),([%d%.]+)")
@@ -871,6 +893,19 @@ local function renderTreeMat()
             renderTree()
             renderList()
         end
+    end
+    if selected == "gather" then
+        local function sub(text, key)
+            n = n + 1
+            local r = rowOf(tree, n)
+            place(tree, r, n, 14)
+            r.icon:SetTexture(nil)
+            r.text:SetText((gatherExp == key and "|cff33e6ff" or "|cffcccccc") .. text .. "|r")
+            if gatherExp == key then r.bg:SetColorTexture(0, 0.9, 1, 0.15) end
+            r.click = function() gatherExp = key; renderTree(); renderList() end
+        end
+        sub("All expansions", "all")
+        for _, exp in ipairs(SFP.Expansions) do sub(exp.name, exp.key) end
     end
     for _, exp in ipairs(SFP.Expansions) do
         if #zonesOf(exp) > 0 then
