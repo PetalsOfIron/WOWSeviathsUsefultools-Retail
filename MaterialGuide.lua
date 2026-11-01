@@ -743,7 +743,43 @@ local function petSpots(entries)
     for _, e in ipairs(entries) do
         local s = (e.vendorName and found[e.vendorName]) or (e.dropName and found[e.dropName])
         if s then e.map, e.x, e.y = s.map, s.x, s.y end
-        e.who = e.vendorName and ("Vendor " .. e.vendorName) or (e.dropName and ("Drop " .. e.dropName)) or nil
+    end
+    -- a pet that is a drop: the monsters that drop its item (farm spots, and every monster the addon has seen drop it) give the waypoint
+    local byName = {}
+    for _, e in ipairs(entries) do byName[e.name] = e end
+    local function petOf(itemId)
+        if not (C_PetJournal and C_PetJournal.GetPetInfoByItemID) then return nil end
+        local ok, nm = pcall(C_PetJournal.GetPetInfoByItemID, itemId)
+        return ok and type(nm) == "string" and byName[nm] or nil
+    end
+    local checked = {}
+    for mapID, zone in pairs(SFP.zoneByMap) do
+        for _, sp in ipairs(zone.spawns or {}) do
+            for _, id in ipairs(sp.items or {}) do
+                local info = SFP.Items[id]
+                if info and info.kind == "pet" then
+                    local e = petOf(id)
+                    if e and not e.map and sp.hx then e.map, e.x, e.y, e.who = mapID, sp.hx, sp.hy, "Drop " .. tostring(sp.name) end
+                end
+            end
+        end
+    end
+    for _, rec in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.npcs or {}) do
+        if type(rec) == "table" and rec.n and type(rec.d) == "table" and type(rec.m) == "table" then
+            for id in pairs(rec.d) do
+                if checked[id] == nil then checked[id] = petOf(id) or false end
+                local e = checked[id]
+                if e and not e.map then
+                    for map, pts in pairs(rec.m) do
+                        local p = type(pts) == "table" and pts[1]
+                        if p and p[1] and p[2] then e.map, e.x, e.y, e.who = map, p[1], p[2], "Drop " .. rec.n break end
+                    end
+                end
+            end
+        end
+    end
+    for _, e in ipairs(entries) do
+        e.who = e.who or e.vendorName and ("Vendor " .. e.vendorName) or (e.dropName and ("Drop " .. e.dropName)) or nil
     end
 end
 
