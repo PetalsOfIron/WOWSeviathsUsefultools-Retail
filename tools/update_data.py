@@ -65,6 +65,26 @@ def push_data():
     print(run("git", "push", "origin", "main", cwd=DATA_REPO)[1] or "data repo: pushed")
 
 
+GITDIR = os.path.join(HOME, "Projects", "sut-retail-gitdir")   # the addon's git folder is kept outside the addon folder
+
+
+def push_addon():
+    """Commits and pushes the addon itself (with the fresh collected folder) to its GitHub repo."""
+    if not os.path.isdir(GITDIR):
+        print("addon repo: git folder not found, not pushed")
+        return
+    base = ["git", "--git-dir=" + GITDIR, "--work-tree=" + ADDON]
+    run(*base, "add", "-A")
+    code, _ = run(*base, "diff", "--cached", "--quiet")
+    if code == 0:
+        print("addon repo: nothing new")
+        return
+    msg = "Auto update: collected data and addon files" + chr(10) + chr(10) + "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
+    print(run(*base, "-c", "user.name=santamadaraneilande-ctrl", "-c", "user.email=santamadaraneilande@gmail.com",
+              "commit", "-q", "-m", msg)[1])
+    print(run(*base, "push", "origin", "main")[1] or "addon repo: pushed")
+
+
 def build_zip():
     target = os.path.join(CURSE, "SeviathsUsefulTools")
     shutil.rmtree(target, ignore_errors=True)
@@ -105,5 +125,6 @@ if __name__ == "__main__":
     print(run(sys.executable, os.path.join(HERE, "bake_gold.py"))[1])
     sync_toc()
     push_data()
+    push_addon()
     if "--no-zip" not in sys.argv:
         build_zip()
