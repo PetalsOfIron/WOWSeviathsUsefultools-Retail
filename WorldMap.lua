@@ -2061,7 +2061,7 @@ function SFP.DockPanels()
     if spotPanel and rb and rb:IsShown() then
         if spotPanel:GetParent() ~= WorldMapFrame then spotPanel:SetParent(WorldMapFrame) end   -- outside the map: not clipped by it
         spotPanel:ClearAllPoints()
-        spotPanel:SetPoint("BOTTOMLEFT", rb, "TOPLEFT", 0, 2)
+        spotPanel:SetPoint("BOTTOMLEFT", rb, "TOPLEFT", 16, 2)
     end
     dock(collPanel, "coll")
 end
