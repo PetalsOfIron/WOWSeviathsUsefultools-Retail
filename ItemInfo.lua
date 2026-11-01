@@ -105,7 +105,7 @@ local function zoneTexts(id, classID, subID, expID)
     local CX = _G.SeviathsCodexDB
     local vkeys = CX and CX.vendorItems and CX.vendorItems[id]
     if vkeys and CX.vendors then
-        for i = 1, math.min(12, #vkeys) do   -- every vendor that sells it
+        for i = 1, #vkeys do   -- every vendor that sells it
             local v = CX.vendors[vkeys[i]]
             if v and v.n then
                 local cdx = _G.SeviathsCodex
