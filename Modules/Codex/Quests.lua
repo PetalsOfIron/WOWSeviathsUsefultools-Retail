@@ -35,6 +35,22 @@ local function AddPerson(list, p)
     if #list < 8 then list[#list + 1] = p end
 end
 
+-- the name of what the progress came from: the monster you just killed (your target, dead), else the object or node you just used
+-- (its tooltip name or the name on the gathering cast), else what the mouse is over
+local function ObjectiveName()
+    local okD, dead = pcall(UnitIsDead, "target")
+    if okD and not secret(dead) and dead then
+        local okN, n = pcall(UnitName, "target")
+        if okN and type(n) == "string" and not secret(n) and n ~= "" then return n end
+    end
+    local S = _G.SeviathsUsefulTools
+    local n2 = S and S.RecentCastTarget and S:RecentCastTarget()
+    if type(n2) == "string" and not secret(n2) and n2 ~= "" then return n2 end
+    local okM, n3 = pcall(UnitName, "mouseover")
+    if okM and type(n3) == "string" and not secret(n3) and n3 ~= "" and not (UnitIsPlayer and UnitIsPlayer("mouseover")) then return n3 end
+    return nil
+end
+
 local function Loc(qid)
     ns.db.qloc = ns.db.qloc or {}
     local l = ns.db.qloc[qid]
@@ -109,12 +125,21 @@ local function scanOne(qid)
             if not okA or type(area) ~= "string" or secret(area) or area == "" then area = nil end
             -- a spot is added only when it is a different place: not within a short distance of one already saved, and not in the
             -- same area; a new place (another item or monster of the same quest) is listed under the first
-            local dup = false
+            local dupSpot
             for _, sp in ipairs(l.o) do
-                if sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dup = true break end
-                if area and sp.a == area and sp.m == m then dup = true break end
+                if sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dupSpot = sp break end
+                if area and sp.a == area and sp.m == m then dupSpot = sp break end
             end
-            if not dup and #l.o < 5 then l.o[#l.o + 1] = { m = m, x = x, y = y, a = area } end
+            local oname = ObjectiveName()
+            local target = dupSpot
+            if not target and #l.o < 5 then target = { m = m, x = x, y = y, a = area }; l.o[#l.o + 1] = target end
+            -- the names of what was killed or picked up here are kept with the spot (each name once)
+            if target and oname then
+                target.names = target.names or {}
+                local have = false
+                for _, nm in ipairs(target.names) do if nm == oname then have = true break end end
+                if not have and #target.names < 8 then target.names[#target.names + 1] = oname end
+            end
         end
     end
     lastProgress[qid] = prog
