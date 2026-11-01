@@ -337,7 +337,9 @@ local function catFinish()
     if okN and type(left) == "number" then namesLeft = left end
     local saved = 0
     for _ in pairs(SFP.db.ahNames or {}) do saved = saved + 1 end
-    SFP:Print(("Auction scan done: prices for %d items, %d new item IDs%s, %d item names saved%s."):format(found, catNewIDs,
+    local allSeen = 0
+    for _ in pairs(catAll) do allSeen = allSeen + 1 end
+    SFP:Print(("Auction scan done: %d items priced (%d of them farm and crafting items), %d new item IDs%s, %d item names saved%s."):format(allSeen, found, catNewIDs,
         catLearned > 0 and (", " .. catLearned .. " new materials") or "", saved, namesLeft > 0 and (" (" .. namesLeft .. " more loading in the background)") or ""))
     SFP:RefreshAll()
     if SFP.db.longScan then
