@@ -117,8 +117,15 @@ local function goToMonster(mapID, sp)
     local x, y = sp.hx, sp.hy
     if not x then local p = sp.points and sp.points[1]; if p then x, y = p[1], p[2] end end
     if not x then return end
-    SFP:SetWaypoint(mapID, x, y, sp.name)
+    -- the map shows that zone and the waypoint sits on the monster (set again, never removed by a second click)
     if WorldMapFrame:GetMapID() ~= mapID then WorldMapFrame:SetMapID(mapID) end
+    if C_Map.CanSetUserWaypointOnMap and C_Map.CanSetUserWaypointOnMap(mapID) then
+        C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
+        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+    end
+    SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(sp.name), SFP:ZoneName(mapID), x * 100, y * 100))
+    -- the window closes so the map with the waypoint is in view
+    if win then win:Hide() end
 end
 
 -- add the rows of one item (its line and one line per monster); returns the new row count
