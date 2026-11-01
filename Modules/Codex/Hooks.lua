@@ -242,7 +242,11 @@ local function QuestHoverTip(owner, questID, append)
             local lastLabel
             -- places where you really did something come first; the spot of a world quest's map icon is shown only when there is none
             local real = {}
-            for _, p in ipairs(ql.o) do if not p.icon then real[#real + 1] = p end end
+            -- (a spot at the very edge of the map is the position of a map icon that was taken for a place: left out)
+            for _, p in ipairs(ql.o) do
+                local edge = p.x and p.y and (p.x < 0.03 or p.x > 0.97 or p.y < 0.03 or p.y > 0.97)
+                if not p.icon and not edge then real[#real + 1] = p end
+            end
             local spotsToShow = #real > 0 and real or ql.o
             for _, p in ipairs(spotsToShow) do
                 local text = placeText(p)
