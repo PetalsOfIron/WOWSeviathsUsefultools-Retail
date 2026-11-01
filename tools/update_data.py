@@ -9,6 +9,7 @@
    backup files) and zipped next to it: that zip is the one file to upload to CurseForge.
 Run it after a play session, after the game is closed or after /reload (the game writes the saved data then).
 """
+import glob
 import os
 import shutil
 import subprocess
@@ -47,6 +48,24 @@ def sync_toc():
     keep[at:at] = ["collected" + chr(92) + n for n in names]
     open(toc, "wb").write(nl.join(keep).encode("utf-8"))
     print("toc: %d collected files" % len(names))
+
+
+def load_check():
+    """Loads the shipped data and the player's saved data the way the game does (offline, with a Lua interpreter) before anything is pushed:
+    a data file that would not load in the game stops the push. Needs node with the fengari package (see tools/load_test.js)."""
+    saved = glob.glob(os.path.join(os.path.abspath(os.path.join(HERE, "..", "..", "..", "..")), "WTF", "Account", "*", "SavedVariables", "SeviathsUsefulTools.lua"))
+    modules = os.path.join(os.environ.get("TEMP", ""), "lchk", "node_modules")
+    if not (saved and os.path.isdir(modules)):
+        print("load check: skipped (no saved data or no fengari)")
+        return True
+    env = dict(os.environ, NODE_PATH=modules)
+    r = subprocess.run(["node", "--max-old-space-size=8192", os.path.join(HERE, "load_test.js"), ADDON, saved[0]],
+                       capture_output=True, text=True, env=env)
+    ok = r.returncode == 0 and "done, total" in r.stdout
+    print("load check:", "passed" if ok else "FAILED")
+    if not ok:
+        print((r.stdout + r.stderr)[-1500:])
+    return ok
 
 
 def push_data():
@@ -124,6 +143,8 @@ if __name__ == "__main__":
     print(run(sys.executable, os.path.join(HERE, "bake_collected.py"))[1].splitlines()[-1])
     print(run(sys.executable, os.path.join(HERE, "bake_gold.py"))[1])
     sync_toc()
+    if not load_check():
+        sys.exit("the data did not load in the check: nothing was pushed")
     push_data()
     push_addon()
     if "--no-zip" not in sys.argv:
