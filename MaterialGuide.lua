@@ -788,7 +788,11 @@ local function petSpots(entries)
         end
     end
     for _, e in ipairs(entries) do
-        local s = (e.vendorName and found[e.vendorName]) or (e.dropName and found[e.dropName])
+        local cs = SFP.db and SFP.db.petSpots and SFP.db.petSpots[e.name]
+        if type(cs) == "table" and cs.m and cs.x then
+            e.map, e.x, e.y, e.who, e.collected = cs.m, cs.x, cs.y, "Collected here", true
+        end
+        local s = (not e.collected) and ((e.vendorName and found[e.vendorName]) or (e.dropName and found[e.dropName]))
         if s then e.map, e.x, e.y = s.map, s.x, s.y end
     end
     -- a pet that is a drop: the monsters that drop its item (farm spots, and every monster the addon has seen drop it) give the waypoint
@@ -798,6 +802,23 @@ local function petSpots(entries)
         if not (C_PetJournal and C_PetJournal.GetPetInfoByItemID) then return nil end
         local ok, nm = pcall(C_PetJournal.GetPetInfoByItemID, itemId)
         return ok and type(nm) == "string" and byName[nm] or nil
+    end
+    local codex = _G.SeviathsCodexDB
+    local vendorItems, vendors = codex and codex.vendorItems, codex and codex.vendors
+    if vendorItems and vendors then
+        for id, keys in (SeviathsAllPairs or pairs)(vendorItems) do
+            local e = petOf(id)
+            if e and not e.map and type(keys) == "table" then
+                for _, key in ipairs(keys) do
+                    local v = vendors[key]
+                    if type(v) == "table" and v.m and v.x then
+                        e.map, e.x, e.y = v.m, v.x, v.y
+                        e.who = "Vendor " .. tostring(v.n or tostring(key):match("^(.-)@") or "?")
+                        break
+                    end
+                end
+            end
+        end
     end
     local checked = {}
     for mapID, zone in pairs(SFP.zoneByMap) do
@@ -1653,6 +1674,35 @@ local function refreshRow()
     row:SetWidth(math.max(x, 10))
     row:Show()
     if SFP.DockPanels then SFP.DockPanels() end
+end
+
+-- a pet added to your collection (caught, bought, looted): where you were is kept as its place; the Battle pets list uses it first
+do
+    local pf = CreateFrame("Frame")
+    pf:RegisterEvent("NEW_PET_ADDED")
+    pf:SetScript("OnEvent", function(_, _, petGUID)
+        pcall(function()
+            if not (SFP.db and petGUID and C_PetJournal and C_PetJournal.GetPetInfoByPetID) then return end
+            local species = C_PetJournal.GetPetInfoByPetID(petGUID)
+            local name = species and C_PetJournal.GetPetInfoBySpeciesID(species)
+            if type(name) ~= "string" or name == "" then return end
+            if IsInInstance and IsInInstance() then return end
+            -- not where it was found: bought at the auction house, taken from the mail, or traded
+            for _, fname in ipairs({ "AuctionHouseFrame", "AuctionFrame", "MailFrame", "TradeFrame" }) do
+                local fr = _G[fname]
+                if fr and fr.IsShown and fr:IsShown() then return end
+            end
+            local m = C_Map.GetBestMapForUnit("player")
+            local pos = m and C_Map.GetPlayerMapPosition(m, "player")
+            if not (m and pos) then return end
+            local x, y = pos:GetXY()
+            if issecretvalue and (issecretvalue(x) or issecretvalue(y)) then return end
+            SFP.db.petSpots = SFP.db.petSpots or {}
+            SFP.db.petSpots[name] = { m = m, x = math.floor(x * 10000) / 10000, y = math.floor(y * 10000) / 10000 }
+            entriesCache = nil   -- the list is made again with the new place
+            if win and win:IsShown() and mode == "pet" and win.refreshList then win.refreshList() end
+        end)
+    end)
 end
 
 local nameWait
