@@ -155,8 +155,11 @@ end)
 -- Hover a quest (quest log or objective tracker): what to do next and how
 ------------------------------------------------------------------------
 local hoverOwner
+-- our block is written once per tooltip: the flag is cleared when the tooltip is cleared for the next one
+pcall(function() GameTooltip:HookScript("OnTooltipCleared", function(tt) tt.SeviathsQuestBlock = nil end) end)
 local function QuestHoverTip(owner, questID)
     if not owner or type(questID) ~= "number" or questID <= 0 then return end
+    if GameTooltip.SeviathsQuestBlock and GameTooltip:IsShown() and GameTooltip:GetOwner() == owner then return end
     if ns.db and ns.db.hideHint then return end
     pcall(function()
         local e = { id = questID, worldQuest = C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID) or nil }
@@ -256,6 +259,7 @@ local function QuestHoverTip(owner, questID)
         for _, l in ipairs(lines) do GameTooltip:AddLine(l, 1, 1, 1, true) end
         GameTooltip:AddLine("|cff33e6ffAlt+click: open in Codex|r")
         GameTooltip:Show()
+        GameTooltip.SeviathsQuestBlock = true
         hoverOwner = owner
     end)
 end
@@ -278,7 +282,7 @@ refreshFrame:SetScript("OnEvent", function()
         if onEnter then
             GameTooltip:Hide()
             pcall(onEnter, owner)   -- the owner builds its tooltip again
-            QuestHoverTip(owner, owner.id or owner.questID)   -- and our lines are added again with the new numbers
+            -- (the hook on the owner's OnEnter adds our lines; they are not added a second time here)
         end
     end)
 end)
