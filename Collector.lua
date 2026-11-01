@@ -253,9 +253,34 @@ local function recordUnit(unit)
 end
 
 local seenGuid = {}
+-- gold: the money that comes in right after a loot window of monsters is split between them and kept per monster (rec.g = copper in all,
+-- rec.gk = looted kills it was counted for), so a monster's gold per kill is known
+local lootMoney
+local function lootMoneyBegin()
+    lootMoney = { t = GetTime(), money = GetMoney(), npcs = {} }
+end
+local moneyFrame = CreateFrame("Frame")
+moneyFrame:RegisterEvent("PLAYER_MONEY")
+moneyFrame:SetScript("OnEvent", function()
+    local lm = lootMoney
+    if not (lm and SFP.db and GetTime() - lm.t < 4) then lootMoney = nil return end
+    local delta = GetMoney() - lm.money
+    local ids = {}
+    for id in pairs(lm.npcs) do ids[#ids + 1] = id end
+    if delta > 0 and #ids > 0 then
+        local per = delta / #ids
+        for _, id in ipairs(ids) do
+            local rec = SFP.db.npcs[id]
+            if rec then rec.g = floor((rec.g or 0) + per); rec.gk = (rec.gk or 0) + 1 end
+        end
+    end
+    lootMoney = nil
+end)
+
 local function onLoot()
     if not SFP.db then return end
     if SFP.SessionLootOpened then SFP:SessionLootOpened() end
+    lootMoneyBegin()
     local map, px, py = playerPos()
     local skin = lastCast.name and skinNames[lastCast.name] and GetTime() - lastCast.t < 8
     for slot = 1, GetNumLootItems() do
@@ -287,6 +312,7 @@ local function onLoot()
                     if type(lt) == "string" and not (issecretvalue and issecretvalue(lt)) and lt ~= "" then name = lt end
                 end
                 local rec = ensureNpc(id, name)
+                if not skin and lootMoney then lootMoney.npcs[id] = true end
                 SFP.lastLoot = { kind = skin and "s" or "n", name = rec.n, t = GetTime() }   -- what the last loot came from (a monster)
                 if safeGUID("target") == guid then
                     local cls = UnitClassification("target")

@@ -264,8 +264,13 @@ local function showSpotTip(h)
     -- what this mob / rare drops
     local shown = {}
     if #s.items > 0 then
-        tip:AddLine(s.rare and "Drops" or "Farmed here", 0.6, 0.6, 0.6)
+        tip:AddLine(s.rare and "Collectibles it can drop (not all of its loot)" or "Farmed here", 0.6, 0.6, 0.6)
         for _, id in ipairs(sortedItems(s.items)) do line(id); shown[id] = true end
+    end
+    -- everything the addon has recorded from its kills (gold too), greys included
+    if SFP.AddSpotDrops and not s.gather then
+        tip:AddLine(" ")
+        SFP.AddSpotDrops(tip, s)
     end
 
     -- everything else worth farming in this zone (other mobs, zone-wide drops, etc.)
@@ -1891,20 +1896,40 @@ local function addSpotDrops(t, s)
         end
     end
     for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
-    for _, id in ipairs(s.items or {}) do if not drops[id] then drops[id] = 0 end end
+    -- what the guides list for it (collectibles and farm items): known, but not its whole loot
+    local guide = {}
+    for _, id in ipairs(s.items or {}) do if not drops[id] or drops[id] == 0 then guide[#guide + 1] = id; drops[id] = nil end end
     local order = {}
-    for id in pairs(drops) do order[#order + 1] = id end
+    for id, q in pairs(drops) do order[#order + 1] = id end
     table.sort(order, function(a, c)
         if drops[a] ~= drops[c] then return drops[a] > drops[c] end
         return a < c
     end)
-    if #order > 0 then t:AddLine("Drops" .. (kills > 0 and ("  |cff808080" .. kills .. " kills|r") or ""), 0.8, 0.8, 0.8) end
+    local function itemLine(id, q)
+        local price = SFP:GetPrice(id)
+        local per = (q and q > 0 and kills >= 1) and ("  |cff808080x" .. q .. " from " .. kills .. (kills == 1 and " kill" or " kills") .. "|r") or ""
+        t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. per, price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+    end
+    if #order > 0 then t:AddLine("Recorded drops" .. (kills > 0 and ("  |cff808080" .. kills .. " kills|r") or ""), 0.8, 0.8, 0.8) end
+    local gold = SFP.MonsterGold and SFP.MonsterGold(s)
+    if gold then t:AddDoubleLine("|TInterface\\Icons\\INV_Misc_Coin_01:12|t Gold", SFP:FormatPrice(math.floor(gold)) .. " per kill", 1, 1, 1, 1, 1, 1) end
     for n, id in ipairs(order) do
         if n > 40 then t:AddLine("+" .. (#order - 40) .. " more", 0.6, 0.6, 0.6) break end
-        local pct = (kills >= 3 and drops[id] > 0) and (" |cffffd100" .. math.min(100, math.floor(drops[id] / kills * 1000) / 10) .. "%|r") or ""
-        local price = SFP:GetPrice(id)
-        t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. pct, price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+        itemLine(id, drops[id])
     end
+    if #guide > 0 then
+        t:AddLine((#order > 0 and "Also known from the guides" or "Known from the guides (not all of its loot)"), 0.8, 0.8, 0.8)
+        for _, id in ipairs(guide) do itemLine(id) end
+    end
+    if #order == 0 and #guide == 0 and not gold then t:AddLine("No loot recorded yet - kill it and everything it drops is kept", 0.6, 0.6, 0.6, true) end
+end
+
+SFP.AddSpotDrops = addSpotDrops
+
+-- gold per kill of a monster (copper), and over how many looted kills it was measured
+function SFP.MonsterGold(s)
+    local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+    if type(rec) == "table" and rec.g and (rec.gk or 0) > 0 then return rec.g / rec.gk, rec.gk end
 end
 
 local function waypointAt(map, x, y, label)
