@@ -176,6 +176,7 @@ local function QuestHoverTip(owner, questID)
         end
         -- where to go, by how far the quest is: the places of the objectives (items, kills) and then the NPC to speak with, each with its
         -- coordinates; a finished quest shows the NPC to hand it in to. Only a quest with none of that known shows the first place line.
+        if ns.LearnQuestAreas then ns:LearnQuestAreas(questID) end
         local ql = ns.db and ns.db.qloc and ns.db.qloc[questID] or {}
         -- the name of the area at a spot (the sub-area the map shows, e.g. "Temple of Halazzi"), else the zone
         local function areaName(p)

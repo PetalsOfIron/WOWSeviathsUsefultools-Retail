@@ -49,6 +49,20 @@ local function ObjectiveProgress(qid)
     return sum
 end
 
+-- a saved objective spot without an area name gets the text of the minimap's zone line ("Zeb'Alar Lumbermill") when you are near it
+function ns:LearnQuestAreas(qid)
+    local ql0 = ns.db and ns.db.qloc and ns.db.qloc[qid]
+    if not (ql0 and ql0.o) then return end
+    local m0, x0, y0 = PlayerSpot()
+    if not m0 then return end
+    for _, sp in ipairs(ql0.o) do
+        if not sp.a and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.06 and math.abs(sp.y - y0) < 0.06 then
+            local okZ, zt = pcall(GetMinimapZoneText)
+            if okZ and type(zt) == "string" and not secret(zt) and zt ~= "" then sp.a = zt end
+        end
+    end
+end
+
 local function ScanLog()
     if not ns.db or InCombatLockdown() then return end
     local modern = C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo
