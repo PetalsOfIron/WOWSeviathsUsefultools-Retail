@@ -177,12 +177,26 @@ local function QuestHoverTip(owner, questID)
         -- where to go, by how far the quest is: the places of the objectives (items, kills) and then the NPC to speak with, each with its
         -- coordinates; a finished quest shows the NPC to hand it in to. Only a quest with none of that known shows the first place line.
         local ql = ns.db and ns.db.qloc and ns.db.qloc[questID] or {}
-        local function spotText(p) return (p.n and (p.n .. " - ") or "") .. ns:Coords(p) end
+        -- the name of the area at a spot (the sub-area the map shows, e.g. "Temple of Halazzi"), else the zone
+        local function areaName(p)
+            if not (p and p.m) then return nil end
+            if C_Map and C_Map.GetMapInfoAtPosition and p.x and p.y then
+                local okA, info = pcall(C_Map.GetMapInfoAtPosition, p.m, p.x, p.y)
+                if okA and type(info) == "table" and type(info.name) == "string" and info.name ~= "" then return info.name end
+            end
+            local okM, mi = pcall(C_Map.GetMapInfo, p.m)
+            return okM and mi and mi.name or nil
+        end
+        local function placeText(p)
+            local a = areaName(p)
+            return (a and (a .. " ") or "") .. "(" .. ns:Coords(p) .. ")"
+        end
+        local function spotText(p) return (p.n and (p.n .. " - ") or "") .. placeText(p) end
         local added = false
         if not complete and ql.o then
             for n, p in ipairs(ql.o) do
                 if n > 3 then break end
-                lines[#lines + 1] = (n == 1 and "Objectives here: " or "also: ") .. ns:Coords(p)
+                lines[#lines + 1] = (n == 1 and "Objectives here: " or "also: ") .. placeText(p)
                 added = true
             end
         end
@@ -191,8 +205,7 @@ local function QuestHoverTip(owner, questID)
             added = true
         end
         if not added then
-            local where = (ns:QuestWhere(e) or ""):match("[^
-]+")
+            local where = (ns:QuestWhere(e) or ""):match("[^\n]+")
             if where and not where:find("Not known yet") then lines[#lines + 1] = where end
         end
         if #lines == 0 then return end
