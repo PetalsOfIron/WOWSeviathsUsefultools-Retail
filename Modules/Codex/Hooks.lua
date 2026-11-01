@@ -320,7 +320,19 @@ end
 local function HookTrackerBlock(block)
     if type(block) ~= "table" or block.SeviathsQuestTip or not block.HookScript then return end
     block.SeviathsQuestTip = true
-    block:HookScript("OnEnter", function(self) QuestHoverTip(self, self.id or self.questID) end)
+    block:HookScript("OnEnter", function(self)
+        local qid = self.id or self.questID
+        QuestHoverTip(self, qid)
+        -- a world quest's tooltip (the rewards) is built a moment later, when the reward data has arrived, and that clears what was added:
+        -- our lines are added again once it has settled (once per tooltip: the flag is cleared with the tooltip)
+        if type(qid) == "number" and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(qid) then
+            for _, delay in ipairs({ 0.4, 1.2 }) do
+                C_Timer.After(delay, function()
+                    if self:IsMouseOver() and GameTooltip:IsShown() and GameTooltip:GetOwner() == self then QuestHoverTip(self, qid) end
+                end)
+            end
+        end
+    end)
     block:HookScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
