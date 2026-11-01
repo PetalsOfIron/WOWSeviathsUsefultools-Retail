@@ -123,6 +123,17 @@ local function finish(side, n)
     end
 end
 
+-- an empty row: the space after each item
+local function spacer(n)
+    n = n + 1
+    local r = rowOf(list, n)
+    place(list, r, n, 0)
+    r.icon:SetTexture(nil)
+    r.text:SetText("")
+    r.hl:Hide()
+    return n
+end
+
 ---------------------------------------------------------------------------
 -- the loot of one zone: item -> monsters that drop it
 ---------------------------------------------------------------------------
@@ -290,7 +301,7 @@ local function addItem(n, mapID, id, withZone)
         m.hint = "Click: set a waypoint on " .. tostring(sp.name) .. " and open the map there"
         m.click = function() goToMonster(mapID, sp) end
     end
-    return n
+    return spacer(n)
 end
 
 ---------------------------------------------------------------------------
@@ -420,7 +431,7 @@ local function addGatherItem(n, id, withKind)
         m.text:SetText("|cff808080no gathering spot recorded yet|r")
         m.hl:Hide()
     end
-    return n
+    return spacer(n)
 end
 
 local function renderGather()
@@ -760,6 +771,7 @@ local function renderMounts(q)
             m.hint = s.map and "Click: set a waypoint and open the map there" or nil
             if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(SFP:ItemName(e.item))) end end
         end
+        n = spacer(n)
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
     finish(list, n)
