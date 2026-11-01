@@ -812,11 +812,10 @@ local function renderPets(q)
         local where = (e.who and (e.who .. (e.zoneName and " - " or "")) or "") .. (e.zoneName or "")
         r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r" ..
             (where ~= "" and ("  |cffffd100" .. where .. "|r") or ""))
-        r.right:SetText((e.map and "|cffff3030WAYPOINT|r   " or (e.zoneMap and "|cffff3030WAYPOINT|r   " or "")) ..
+        r.right:SetText((e.map and "|cffff3030WAYPOINT|r   " or "") ..
             (e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r"))
         r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cff33e6ffClick: waypoint at the place and open the map there|r" or "")
-        if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end
-        elseif e.zoneMap then r.click = function() WorldMapFrame:SetMapID(e.zoneMap) end end
+        if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end end
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
     finish(list, n)
