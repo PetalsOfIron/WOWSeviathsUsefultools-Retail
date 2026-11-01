@@ -7,7 +7,7 @@
 
 local _, SFP = ...
 
-local ROW_H = 20
+local ROW_H = 30
 local TREE_W = 190
 local SECTIONS = {
     { key = "mat",   title = "Materials",   color = "|cff40ff40" },
@@ -48,6 +48,8 @@ local function rowOf(side, i)
     r.right:SetJustifyH("RIGHT")
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     r.text:SetJustifyH("LEFT")
+    r.text:SetWordWrap(false)   -- one line per row: a long name is cut instead of running into the next row
+    r.text:SetMaxLines(1)
     r.hl = r:CreateTexture(nil, "HIGHLIGHT")
     r.hl:SetAllPoints()
     r.hl:SetTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
@@ -87,9 +89,38 @@ local function place(side, r, n, indent)
     r:Show()
 end
 
+-- the list is cut into pages that fit the window (Previous / Next below it); the tree on the left just scrolls
+local listPage, listSig = 1, nil
 local function finish(side, n)
     for i = n + 1, #side.rows do side.rows[i]:Hide() end
-    side.content:SetHeight(math.max(n * ROW_H, 1))
+    if side ~= list then
+        side.content:SetHeight(math.max(n * ROW_H, 1))
+        return
+    end
+    local per = math.max(6, math.floor((list.scroll:GetHeight() or 300) / ROW_H))
+    local sig = tostring(mode) .. "|" .. tostring(selected) .. "|" .. tostring(expSel) .. "|" .. (search and search:GetText() or "")
+    if sig ~= listSig then listSig, listPage = sig, 1 end
+    local pages = math.max(1, math.ceil(n / per))
+    listPage = math.min(math.max(listPage, 1), pages)
+    local first = (listPage - 1) * per
+    for i = 1, n do
+        local r = side.rows[i]
+        if i > first and i <= first + per then
+            r:ClearAllPoints()
+            r:SetPoint("TOPLEFT", side.content, "TOPLEFT", 0, -(i - first - 1) * ROW_H)
+            r:SetPoint("TOPRIGHT", side.content, "TOPRIGHT", 0, -(i - first - 1) * ROW_H)
+            r:Show()
+        else
+            r:Hide()
+        end
+    end
+    side.content:SetHeight(math.max(math.min(n - first, per) * ROW_H, 1))
+    if win and win.pager then
+        win.pager.text:SetText("Page " .. listPage .. " / " .. pages .. "   |cff808080" .. n .. " rows|r")
+        win.pager.prev:SetEnabled(listPage > 1)
+        win.pager.next:SetEnabled(listPage < pages)
+        win.pager:SetShown(pages > 1)
+    end
 end
 
 ---------------------------------------------------------------------------
@@ -520,7 +551,7 @@ local function mountEntries()
                 local info = SFP.Items[id]
                 if info and info.kind == "mount" then
                     local x, y = firstPoint(sp.pts)
-                    add(id, list.exp, { text = "Rare: " .. tostring(sp.name) .. "  |cff808080" .. SFP:ZoneName(map) .. "|r", map = map, x = x, y = y })
+                    add(id, list.exp, { text = "Rare: " .. tostring(sp.name), zone = SFP:ZoneName(map), map = map, x = x, y = y })
                 end
             end
         end
@@ -712,13 +743,20 @@ local function renderMounts(q)
         local price = SFP:GetPrice(e.item)
         r.right:SetText(price and SFP:FormatPrice(price) or "")
         r.item = e.item
+        -- the name bar is a waypoint too: it goes to the first source that has a spot
+        for _, s in ipairs(e.sources) do
+            if s.map then
+                r.click = function() openWaypoint(s.map, s.x, s.y, plain(SFP:ItemName(e.item))) end
+                break
+            end
+        end
         for _, s in ipairs(e.sources) do
             n = n + 1
             local m = rowOf(list, n)
             place(list, m, n, 30)
             m.icon:SetTexture(nil)
             m.text:SetText("|cff00e5ff" .. s.text .. "|r")
-            m.right:SetText(s.map and "|cff808080click: waypoint|r" or "|cff808080no map spot|r")
+            m.right:SetText(s.zone and ("|cff808080" .. s.zone .. "|r") or (s.map and "|cff808080click: waypoint|r" or "|cff808080no map spot|r"))
             m.hint = s.map and "Click: set a waypoint and open the map there" or nil
             if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(SFP:ItemName(e.item))) end end
         end
@@ -757,8 +795,8 @@ local function renderHunters(q)
         local r = rowOf(list, n)
         place(list, r, n, 8)
         r.icon:SetTexture("Interface\\Icons\\ClassIcon_Hunter")
-        r.text:SetText("|cff00e5ff" .. tostring(e.name) .. "|r  |cff808080" .. SFP:ZoneName(e.map) .. "|r")
-        r.right:SetText("|cffabd473" .. e.kind .. "|r")
+        r.text:SetText("|cff00e5ff" .. tostring(e.name) .. "|r")
+        r.right:SetText("|cff808080" .. SFP:ZoneName(e.map) .. "|r   |cffabd473" .. e.kind .. "|r")
         r.hint = (e.x and "Click: set a waypoint and open the map there") or "Click: open the map"
         r.click = function() openWaypoint(e.map, e.x, e.y, tostring(e.name)) end
     end
@@ -905,7 +943,27 @@ local function build()
 
     tree = scrollSide(win, 10, -64, TREE_W)
     list = scrollSide(win, TREE_W + 34, -64, 10)
-    list.scroll:SetPoint("BOTTOMRIGHT", -30, 8)
+    list.scroll:ClearAllPoints()
+    list.scroll:SetPoint("TOPLEFT", win, "TOPLEFT", TREE_W + 34, -64)
+    list.scroll:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -30, 40)
+    -- the pages: Previous / Next under the list
+    local pg = CreateFrame("Frame", nil, win)
+    pg:SetHeight(26)
+    pg:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", TREE_W + 34, 8)
+    pg:SetPoint("BOTTOMRIGHT", win, "BOTTOMRIGHT", -30, 8)
+    pg.prev = CreateFrame("Button", nil, pg, "UIPanelButtonTemplate")
+    pg.prev:SetSize(90, 24)
+    pg.prev:SetPoint("LEFT", 0, 0)
+    pg.prev:SetText("Previous")
+    pg.next = CreateFrame("Button", nil, pg, "UIPanelButtonTemplate")
+    pg.next:SetSize(90, 24)
+    pg.next:SetPoint("RIGHT", 0, 0)
+    pg.next:SetText("Next")
+    pg.text = pg:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    pg.text:SetPoint("CENTER")
+    pg.prev:SetScript("OnClick", function() listPage = listPage - 1; win.refreshList() end)
+    pg.next:SetScript("OnClick", function() listPage = listPage + 1; win.refreshList() end)
+    win.pager = pg
     list.content:SetWidth(list.scroll:GetWidth())
     win:SetScript("OnSizeChanged", function()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
