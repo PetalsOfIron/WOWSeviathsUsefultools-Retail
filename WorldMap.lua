@@ -1530,7 +1530,7 @@ local function spotRow(i)
         -- everything the monster drops: what the addon collected from its kills (the shipped data too), each with how often and its price;
         -- the items this spot is listed for come first when nothing is known about the monster yet
         local drops, kills = {}, s.kills or 0
-        local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+        local rec = s.npc and SFP.Npc and SFP:Npc(s.npc)
         if type(rec) == "table" then
             kills = math.max(kills, rec.k or 0)
             for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
@@ -1897,7 +1897,7 @@ local SIMPLE_H = 22
 -- all the drops of a monster (collected data), with how often and the price
 local function addSpotDrops(t, s)
     local drops, kills = {}, s.kills or 0
-    local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+    local rec = s.npc and SFP.Npc and SFP:Npc(s.npc)
     if type(rec) == "table" then
         kills = math.max(kills, rec.k or 0)
         for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
@@ -1937,7 +1937,7 @@ SFP.AddSpotDrops = addSpotDrops
 
 -- gold per kill of a monster (copper), and over how many looted kills it was measured
 function SFP.MonsterGold(s)
-    local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+    local rec = s.npc and SFP.Npc and SFP:Npc(s.npc)
     if type(rec) == "table" and rec.g and (rec.gk or 0) > 0 then return rec.g / rec.gk, rec.gk end
 end
 
@@ -2112,7 +2112,7 @@ SFP.AreaAt = areaAt
 -- every item a monster drops, most often first: { { id, qty } }, and its kill count
 local function monsterLoot(s)
     local drops, kills = {}, s.kills or 0
-    local rec = s.npc and SFP.db and SFP.db.npcs and SFP.db.npcs[s.npc]
+    local rec = s.npc and SFP.Npc and SFP:Npc(s.npc)
     if type(rec) == "table" then
         kills = math.max(kills, rec.k or 0)
         for _, src in ipairs({ rec.d or {}, rec.s or {} }) do

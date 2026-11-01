@@ -1000,6 +1000,13 @@ end
 -- Item tooltip line
 ---------------------------------------------------------------------------
 local function OnItemTooltip(tooltip, data)
+    -- a gray item (and the monsters that drop it) is in the load-on-demand data: it is read now, for the first one shown
+    do
+        local id0 = data and data.id
+        if type(id0) == "number" and not (issecretvalue and issecretvalue(id0)) and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(id0) == 0 and SFP.LoadMonsterData then
+            pcall(SFP.LoadMonsterData, SFP)
+        end
+    end
     if not SFP.db or not SFP.db.tooltip then return end
     local itemID = data and data.id
     if not itemID or not SFP.trackedIDs or not SFP.trackedIDs[itemID] then return end

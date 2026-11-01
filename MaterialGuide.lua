@@ -204,55 +204,94 @@ end
 ---------------------------------------------------------------------------
 -- the monsters that drop crafting reagents, by map: what the addon has collected (kills with loot, skinning; the shipped data too) and
 -- Data/SpawnsWowhead.lua when it has anything. Built when the window opens and dropped when it closes.
-local guideIndex
+local guideIndex = {}    -- [map] = the monsters of that map with their drops (made when that map is asked for)
+local ownByMap             -- [map] = ids of the player's own monsters on it
+local mapRecs = {}         -- [map] = { { id, rec } }: the records of that map, own and shipped
+local guideMapSet
 local function isReagent(id)
     -- anything a monster drops: materials, gear, bags, battle pets, grays, everything (the sections sort it)
     return id ~= nil
 end
 
-local function buildGuideIndex()
-    local out = {}
-    local walk = SeviathsAllPairs or pairs
-    for npcID, rec in walk(SFP.db and SFP.db.npcs or {}) do
-        if type(rec) == "table" and type(rec.m) == "table" and (rec.d or rec.s) and rec.n then
-            local kills = rec.k or 0
-            local drop
-            for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
-                for id, q in pairs(src) do
-                    if type(q) == "number" and isReagent(id) then
-                        drop = drop or {}
-                        local pct = kills >= 3 and math.min(100, math.floor(q / kills * 1000) / 10) or 0
-                        drop[id] = math.max(drop[id] or 0, pct)
-                    end
-                end
-            end
-            if drop then
-                for map, pts in pairs(rec.m) do
-                    local p = type(pts) == "table" and pts[1]
-                    if p and p[1] and p[2] then
-                        local l = out[map]
-                        if not l then l = {}; out[map] = l end
-                        l[#l + 1] = { npc = npcID, name = rec.n, pts = string.format("%.1f,%.1f", p[1] * 100, p[2] * 100), drop = drop }
-                    end
+local function ownMaps()
+    if not ownByMap then
+        ownByMap = {}
+        for id, rec in pairs(SFP.db and SFP.db.npcs or {}) do
+            if type(rec) == "table" and type(rec.m) == "table" then
+                for m in pairs(rec.m) do
+                    local l = ownByMap[m]
+                    if not l then l = {}; ownByMap[m] = l end
+                    l[#l + 1] = id
                 end
             end
         end
     end
-    for map, list in pairs(SFP.SpawnsWowhead or {}) do
-        local l = out[map]
-        if not l then l = {}; out[map] = l end
-        for _, w in ipairs(list) do l[#l + 1] = w end
-    end
-    return out
+    return ownByMap
 end
 
+-- the monsters of one map: the player's own, and the shipped ones of that map (the load-on-demand data is read now, and only the
+-- records of this map are turned into tables)
+local function recsOfMap(map)
+    local c = mapRecs[map]
+    if c then return c end
+    c = {}
+    local seen = {}
+    for _, id in ipairs(ownMaps()[map] or {}) do
+        local rec = SFP.db.npcs[id]
+        if type(rec) == "table" then seen[id] = true; c[#c + 1] = { id = id, rec = rec } end
+    end
+    for _, id in ipairs(SFP:ShippedNpcIDs(map)) do
+        if not seen[id] then
+            local rec = SFP:Npc(id)
+            if type(rec) == "table" then c[#c + 1] = { id = id, rec = rec } end
+        end
+    end
+    mapRecs[map] = c
+    return c
+end
+
+-- the maps that have monsters (no record is decoded for this)
 local function guideMaps()
-    if not guideIndex then guideIndex = buildGuideIndex() end
-    return guideIndex
+    if guideMapSet then return guideMapSet end
+    local set = {}
+    for m in pairs(ownMaps()) do set[m] = true end
+    for m in pairs(SFP:ShippedNpcMaps()) do set[m] = true end
+    for m in pairs(SFP.SpawnsWowhead or {}) do set[m] = true end
+    for _, r in pairs(SFP.db and SFP.db.rareSeen or {}) do if type(r) == "table" and r.m then set[r.m] = true end end
+    guideMapSet = set
+    return set
 end
 
 local function guideList(map)
-    return guideMaps()[map] or {}
+    local c = guideIndex[map]
+    if c then return c end
+    local out = {}
+    for _, e in ipairs(recsOfMap(map)) do
+        local rec, npcID = e.rec, e.id
+        if type(rec.m) == "table" and (rec.d or rec.s) and rec.n then
+            local pts = rec.m[map]
+            local p = type(pts) == "table" and pts[1]
+            if p and p[1] and p[2] then
+                local kills = rec.k or 0
+                local drop
+                for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
+                    for id, q in pairs(src) do
+                        if type(q) == "number" and isReagent(id) then
+                            drop = drop or {}
+                            local pct = kills >= 3 and math.min(100, math.floor(q / kills * 1000) / 10) or 0
+                            drop[id] = math.max(drop[id] or 0, pct)
+                        end
+                    end
+                end
+                if drop then
+                    out[#out + 1] = { npc = npcID, name = rec.n, pts = string.format("%.1f,%.1f", p[1] * 100, p[2] * 100), drop = drop }
+                end
+            end
+        end
+    end
+    for _, w in ipairs(SFP.SpawnsWowhead and SFP.SpawnsWowhead[map] or {}) do out[#out + 1] = w end
+    guideIndex[map] = out
+    return out
 end
 
 local function monstersFor(map, id)
@@ -1245,62 +1284,53 @@ end
 
 -- the monsters the addon has collected (kills and loot, with positions), by map: normal monsters (elites too) for Farm spots, rares for
 -- Rares; no bosses, no monster that drops a battle pet (those are under Battle pets). Built when first needed, dropped with the window.
-local monsterIndex
+local monsterIndex = {}   -- [map] = { farm = {}, rare = {} }, made when that map is asked for
+local rareMapSet
 local function collectedMonsters(map, group)
-    if not monsterIndex then
-        monsterIndex = {}
+    local byMap = monsterIndex[map]
+    if not byMap then
+        byMap = { farm = {}, rare = {} }
+        monsterIndex[map] = byMap
         local npcByName = {}
-        for npcID, rec in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.npcs or {}) do
+        for _, e in ipairs(recsOfMap(map)) do
+            local npcID, rec = e.id, e.rec
             -- a monster recorded before its name was known ("NPC 246330"): the game is asked for it, and it is left out while it has none
-            if type(rec) == "table" and type(rec.n) == "string" and rec.n:find("^NPC %d+$") and type(npcID) == "number" and SFP.NpcNameFor then
+            if type(rec.n) == "string" and rec.n:find("^NPC %d+$") and type(npcID) == "number" and SFP.NpcNameFor then
                 local real = SFP:NpcNameFor(npcID)
                 if type(real) == "string" and real ~= "" and not real:find("^NPC %d+$") then rec.n = real end
             end
-            if type(rec) == "table" and rec.n and not npcByName[rec.n] then npcByName[rec.n] = npcID end
+            if rec.n and not npcByName[rec.n] then npcByName[rec.n] = npcID end
             -- a rare is listed as soon as it was seen or killed, with or without loot (the farm data does not have to know it yet)
-            local isRare = type(rec) == "table" and (rec.c == "rare" or rec.c == "rareelite")
-            local hasDrops = type(rec) == "table" and ((type(rec.d) == "table" and next(rec.d) ~= nil) or (type(rec.s) == "table" and next(rec.s) ~= nil))
-            if type(rec) == "table" and rec.n and not tostring(rec.n):find("^NPC %d+$") and type(rec.m) == "table" and (hasDrops or isRare) and not rec.boss then
+            local isRare = rec.c == "rare" or rec.c == "rareelite"
+            local hasDrops = (type(rec.d) == "table" and next(rec.d) ~= nil) or (type(rec.s) == "table" and next(rec.s) ~= nil)
+            if rec.n and not tostring(rec.n):find("^NPC %d+$") and type(rec.m) == "table" and (hasDrops or isRare) and not rec.boss then
                 local cls = rec.c
                 local g = (cls == "rare" or cls == "rareelite") and "rare" or ((cls == nil or cls == "normal" or cls == "elite") and "farm" or nil)
-                if g then
-                    local pet = false   -- a normal monster that drops a battle pet or a BoE stays in the list: its loot is shown with the rest
-                    if not pet then
-                        for m, pts in pairs(rec.m) do
-                            local p = type(pts) == "table" and pts[1]
-                            if p and p[1] and p[2] then
-                                local byMap = monsterIndex[m]
-                                if not byMap then byMap = { farm = {}, rare = {} }; monsterIndex[m] = byMap end
-                                local list = byMap[g]
-                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0, map = m, rare = (g == "rare") or nil,
-                                    level = rec.lmax or rec.lmin, ctype = rec.t, family = rec.f }
-                            end
-                        end
-                    end
+                local pts = rec.m[map]
+                local p = type(pts) == "table" and pts[1]
+                if g and p and p[1] and p[2] then
+                    local list = byMap[g]
+                    list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0, map = map, rare = (g == "rare") or nil,
+                        level = rec.lmax or rec.lmin, ctype = rec.t, family = rec.f }
                 end
             end
         end
         -- the rares seen on the map: the place, and the loot of the monster of that name when the addon has one
         for _, r in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.rareSeen or {}) do
-            if type(r) == "table" and r.n and r.m and r.x then
-                local byMap = monsterIndex[r.m]
-                if not byMap then byMap = { farm = {}, rare = {} }; monsterIndex[r.m] = byMap end
+            if type(r) == "table" and r.n and r.m == map and r.x then
                 local dup = false
                 for _, s in ipairs(byMap.rare) do if s.name == r.n then dup = true break end end
                 if not dup then
                     local npc = npcByName[r.n]
-                    local rec = npc and SFP.db.npcs[npc]
+                    local rec = npc and SFP:Npc(npc)
                     byMap.rare[#byMap.rare + 1] = { name = r.n, npc = npc, hx = r.x, hy = r.y, items = {}, kills = rec and rec.k or 0, map = r.m, rare = true,
                         level = rec and (rec.lmax or rec.lmin), ctype = rec and rec.t }
                 end
             end
         end
-        for _, byMap in pairs(monsterIndex) do
-            for _, list in pairs(byMap) do table.sort(list, function(a, c) return a.name < c.name end) end
-        end
+        for _, list in pairs(byMap) do table.sort(list, function(a, c) return a.name < c.name end) end
     end
-    local byMap = monsterIndex[map]
-    return byMap and byMap[group] or {}
+    return byMap[group] or {}
 end
 
 -- Farm spots and Rares: the same window - the zones on the left, and for the zone picked a block per monster: its name and a red
@@ -1456,7 +1486,9 @@ end
 
 -- does a zone have monsters for the list (for the zone tree on the left)
 local function zoneHasMonsters(map, group)
-    return #farmSpotsFor(map, group == "rare" and "rare" or "farm") > 0
+    if #(SFP.FarmSpotsOf and SFP.FarmSpotsOf(map, group == "rare" and "rare" or "farm") or {}) > 0 then return true end
+    -- monsters of the player's own or the shipped data on that map (the records themselves are read only when the zone is picked)
+    return guideMaps()[map] and true or false
 end
 
 -- the 15 best farm spots of the whole database: the value of what a monster drops per kill (the chance of each item times its auction
@@ -1464,7 +1496,6 @@ end
 local function renderTop()
     local n = 0
     win.title:SetText("|c" .. SFP.CYAN_HEX .. "Best 15 farm spots|r  |cffaaaaaathis week|r")
-    collectedMonsters(0, "farm")
     local function valueOf(s)
         local loot, kills = SFP.MonsterLoot(s)
         if kills < 3 then return 0 end
@@ -1485,7 +1516,7 @@ local function renderTop()
     if not (saved and weekKey and saved.week == weekKey and saved.list and #saved.list > 0) then
         local maps, seenMap = {}, {}
         for map in pairs(SFP.zoneByMap) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
-        for map in pairs(monsterIndex or {}) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+        for map in pairs(guideMaps()) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
         local ranked = {}
         for _, map in ipairs(maps) do
             for _, s in ipairs(farmSpotsFor(map, "farm")) do
@@ -1522,10 +1553,9 @@ local function renderFarmList(group)
         -- a search: the monsters of that name in every zone
         win.title:SetText(label .. "  |cffffd100" .. q .. "|r")
         local ql, found = q:lower(), 0
-        collectedMonsters(0, group)   -- builds the index of collected monsters
         local maps, seenMap = {}, {}
         for map in pairs(SFP.zoneByMap) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
-        for map in pairs(monsterIndex or {}) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+        for map in pairs(guideMaps()) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
         table.sort(maps, function(a, c) return SFP:ZoneName(a) < SFP:ZoneName(c) end)
         for _, map in ipairs(maps) do
             local mine = {}
@@ -1796,8 +1826,8 @@ local function build()
     win.tabs.gather:SetEnabled(matTab ~= "gather")
     win:SetScript("OnHide", function()
         -- everything built for the section that was open is let go
-        guideIndex = nil
-        monsterIndex = nil
+        guideIndex, monsterIndex, mapRecs, ownByMap, guideMapSet = {}, {}, {}, nil, nil
+        if SFP.FreeMonsterCache then SFP:FreeMonsterCache() end
         entriesCache = nil
         zonesCache = {}
     end)

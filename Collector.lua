@@ -217,7 +217,14 @@ end
 local function ensureNpc(id, name)
     local rec = SFP.db.npcs[id]
     if not rec then
-        rec = { n = name or ("NPC " .. id), k = 0 }
+        -- the shipped record of this monster (its kills, drops and places so far) is the start; what the player collects is added to it
+        local shipped = SFP.ShippedNpcRecord and type(id) == "number" and SFP:ShippedNpcRecord(id)
+        if type(shipped) == "table" then
+            rec = shipped
+            if name and rec.n ~= name and (rec.n or ""):find("^NPC %d+$") then rec.n = name end
+        else
+            rec = { n = name or ("NPC " .. id), k = 0 }
+        end
         SFP.db.npcs[id] = rec
     elseif name and rec.n ~= name and not (rec.n or ""):find("^NPC %d+$") then
         -- a stored name is never overwritten: other spellings are kept as aliases
