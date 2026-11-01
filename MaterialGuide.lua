@@ -1068,7 +1068,7 @@ end
 local function openGuide() openMode("mat") end
 
 -- which list a button opens: its collapsed flag in the saved settings (one open at a time)
-local FLAGS = { spots = "spotsCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
+local FLAGS = { spots = "spotsCollapsed", rares = "raresCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
 local function openOnly(key)
     local wasOpen = SFP.db[FLAGS[key]] == false
     for k, flag in pairs(FLAGS) do SFP.db[flag] = true end
@@ -1102,6 +1102,7 @@ local function refreshRow()
         row:SetPoint("TOPRIGHT", WorldMapFrame, "BOTTOMRIGHT", -2, 2)
         makeButton("spots", "Farm spots", "The farm spots of this zone, with a checkbox each", function() openOnly("spots") end)
         makeButton("coll", "Collectables", "Mounts of the dungeons and raids here, and the hunter pets of the zone", function() openOnly("coll") end)
+        makeButton("rares", "Rares", "The rare monsters of this zone with a waypoint each", function() openOnly("rares") end)
         makeButton("search", "Material search", "Every zone from Classic to Midnight: what you can farm there and which monsters drop it. Click a monster for a waypoint.", openGuide)
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
@@ -1110,8 +1111,11 @@ local function refreshRow()
     end
     local map = WorldMapFrame:GetMapID()
     local zone = map and SFP.zoneByMap[map]
+    local hasFarm, hasRares = false, false
+    if map and SFP.HasFarmLists then hasFarm, hasRares = SFP.HasFarmLists(map) end
     local show = {
-        spots = SFP.db.showSpotList and zone and zone.spawns and #zone.spawns > 0,
+        spots = hasFarm,
+        rares = hasRares,
         coll = map and SFP.HasCollectables and SFP.HasCollectables(map),
         search = true,
         mount = true,
@@ -1133,6 +1137,15 @@ local function refreshRow()
         end
     end
     row:SetWidth(math.max(x, 10))
+    -- the Rares button stands at the right edge of the map, outside it, and goes up from there (its list opens above it)
+    local rb = rowBtns.rares
+    rb:ClearAllPoints()
+    if show.rares then
+        rb:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 6, 2)
+        rb:Show()
+    else
+        rb:Hide()
+    end
     row:Show()
     if SFP.DockPanels then SFP.DockPanels() end
 end
@@ -1153,7 +1166,7 @@ SFP:OnLogin(function()
     -- once: the side lists start closed (they are opened with the buttons below the map); older saved settings had the Farm spots list open
     if SFP.db and not SFP.db.panelsClosedV2 then
         SFP.db.panelsClosedV2 = true
-        SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed = true, true, true
+        SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
     end
     if not WorldMapFrame or not WorldMapFrame.ScrollContainer then return end
     WorldMapFrame:HookScript("OnHide", function()
