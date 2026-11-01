@@ -1263,17 +1263,12 @@ local function collectedMonsters(map, group)
             if type(rec) == "table" and rec.n and not npcByName[rec.n] then npcByName[rec.n] = npcID end
             -- a rare is listed as soon as it was seen or killed, with or without loot (the farm data does not have to know it yet)
             local isRare = type(rec) == "table" and (rec.c == "rare" or rec.c == "rareelite")
-            if type(rec) == "table" and rec.n and not tostring(rec.n):find("^NPC %d+$") and type(rec.m) == "table" and (rec.d or rec.s or isRare) and not rec.boss then
+            local hasDrops = type(rec) == "table" and ((type(rec.d) == "table" and next(rec.d) ~= nil) or (type(rec.s) == "table" and next(rec.s) ~= nil))
+            if type(rec) == "table" and rec.n and not tostring(rec.n):find("^NPC %d+$") and type(rec.m) == "table" and (hasDrops or isRare) and not rec.boss then
                 local cls = rec.c
                 local g = (cls == "rare" or cls == "rareelite") and "rare" or ((cls == nil or cls == "normal" or cls == "elite") and "farm" or nil)
                 if g then
-                    local pet = false
-                    for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
-                        for id in pairs(src) do
-                            local info = SFP.Items[id]
-                            if info and info.kind == "pet" then pet = true break end
-                        end
-                    end
+                    local pet = false   -- a normal monster that drops a battle pet or a BoE stays in the list: its loot is shown with the rest
                     if not pet then
                         for m, pts in pairs(rec.m) do
                             local p = type(pts) == "table" and pts[1]
