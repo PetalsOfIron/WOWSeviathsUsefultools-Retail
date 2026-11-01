@@ -97,6 +97,7 @@ local function place(side, r, n, indent)
     r.text:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
     r.text:SetPoint("RIGHT", r.right, "LEFT", -4, 0)
     r.item, r.click, r.hint = nil, nil, nil
+    r:EnableMouse(true)
     r.right:SetText("")
     r.bg:SetColorTexture(0, 0, 0, 0)
     r.hl:Show()
@@ -1084,7 +1085,9 @@ local function renderBlocks(n, map, spots)
             local price = SFP:GetPrice(d.id)
             local pct = (kills >= 3 and d.q > 0) and ("|cffffd100" .. math.min(100, math.floor(d.q / kills * 1000) / 10) .. "%|r  ") or ""
             l.right:SetText(pct .. (price and SFP:FormatPrice(price) or ""))
-            l.item = d.id
+            -- the materials are plain text here: no highlight, no tooltip, nothing under the mouse
+            l:EnableMouse(false)
+            l.hl:Hide()
         end
         if #loot == 0 then
             n = n + 1
