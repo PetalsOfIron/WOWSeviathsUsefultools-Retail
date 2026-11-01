@@ -70,7 +70,10 @@ local function ScanLog()
                 if m then
                     local l = Loc(qid)
                     l.o = l.o or {}
-                    if #l.o < 3 then l.o[#l.o + 1] = { m = m, x = x, y = y } end
+                    -- the area name is what the minimap's zone text says here ("Zeb'Alar Lumbermill"), saved with the spot
+                    local okA, area = pcall(GetMinimapZoneText)
+                    if not okA or type(area) ~= "string" or secret(area) or area == "" then area = nil end
+                    if #l.o < 3 then l.o[#l.o + 1] = { m = m, x = x, y = y, a = area } end
                 end
             end
             lastProgress[qid] = prog

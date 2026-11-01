@@ -188,16 +188,27 @@ local function QuestHoverTip(owner, questID)
             return okM and mi and mi.name or nil
         end
         local function placeText(p)
-            local a = areaName(p)
+            local a = p.a or areaName(p)   -- the minimap's zone text saved with the spot, else the area the map shows there
             local xy = (p.x and p.y) and (" (" .. ("%.1f, %.1f"):format(p.x * 100, p.y * 100) .. ")") or ""
             return (a or "") .. xy
         end
         local function spotText(p) return (p.n and (p.n .. " - ") or "") .. placeText(p) end
+        -- what the next objective asks for decides the words: an item is picked up, a monster is killed
+        local objLabel = "Objective at"
+        local okO, objs = pcall(C_QuestLog.GetQuestObjectives, questID)
+        if okO and type(objs) == "table" then
+            for _, o in ipairs(objs) do
+                if not o.finished then
+                    objLabel = (o.type == "item" and "Pick up at") or (o.type == "monster" and "Kill at") or (o.type == "object" and "Use at") or "Objective at"
+                    break
+                end
+            end
+        end
         local added = false
         if not complete and ql.o then
             for n, p in ipairs(ql.o) do
                 if n > 3 then break end
-                lines[#lines + 1] = (n == 1 and "Objectives here: " or "also: ") .. placeText(p)
+                lines[#lines + 1] = (n == 1 and (objLabel .. ": ") or "also: ") .. placeText(p)
                 added = true
             end
         end
