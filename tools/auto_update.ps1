@@ -7,7 +7,7 @@ $saved = Get-ChildItem "D:\wow\World of Warcraft\_retail_\WTF\Account\*\SavedVar
 $log = Join-Path $env:USERPROFILE "Projects\sut-curse-release\auto_update.log"
 # runs the update at the lowest CPU priority, so it never makes the game stutter while it plays
 function Run-Update {
-    $p = Start-Process -FilePath $py -ArgumentList ('"' + $script + '"') -PassThru -WindowStyle Hidden -RedirectStandardOutput $log + ".out" -RedirectStandardError $log + ".err"
+    $p = Start-Process -FilePath $py -ArgumentList ('"' + $script + '"') -PassThru -WindowStyle Hidden -RedirectStandardOutput ($log + ".out") -RedirectStandardError ($log + ".err")
     try { $p.PriorityClass = "Idle" } catch {}
     $p.WaitForExit()
     Get-Content ($log + ".out"), ($log + ".err") -ErrorAction SilentlyContinue | Add-Content $log
