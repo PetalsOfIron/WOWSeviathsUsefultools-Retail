@@ -174,8 +174,27 @@ local function QuestHoverTip(owner, questID)
                 if not tip:find("^Next step:") then lines[#lines + 1] = tip end
             end
         end
-        local where = (ns:QuestWhere(e) or ""):match("[^\n]+")
-        if where and not where:find("Not known yet") then lines[#lines + 1] = where end
+        -- where to go, by how far the quest is: the places of the objectives (items, kills) and then the NPC to speak with, each with its
+        -- coordinates; a finished quest shows the NPC to hand it in to. Only a quest with none of that known shows the first place line.
+        local ql = ns.db and ns.db.qloc and ns.db.qloc[questID] or {}
+        local function spotText(p) return (p.n and (p.n .. " - ") or "") .. ns:Coords(p) end
+        local added = false
+        if not complete and ql.o then
+            for n, p in ipairs(ql.o) do
+                if n > 3 then break end
+                lines[#lines + 1] = (n == 1 and "Objectives here: " or "also: ") .. ns:Coords(p)
+                added = true
+            end
+        end
+        if ql.t then
+            lines[#lines + 1] = (complete and "Hand in to: " or "Then speak with: ") .. spotText(ql.t)
+            added = true
+        end
+        if not added then
+            local where = (ns:QuestWhere(e) or ""):match("[^
+]+")
+            if where and not where:find("Not known yet") then lines[#lines + 1] = where end
+        end
         if #lines == 0 then return end
         if GameTooltip:IsShown() and GameTooltip:GetOwner() == owner then
             GameTooltip:AddLine(" ")
