@@ -163,10 +163,30 @@ makers.tmog = function(id)
     local sub = {}
     if r.type or r.slot then sub[#sub + 1] = (r.type or "") .. ((r.type and r.slot) and " " or "") .. (r.slot or "") end
     sub[#sub + 1] = r.source .. (r.sourceName and (": " .. r.sourceName) or "")
-    ns:Add({ cat = "tmog", id = id, name = r.name, itemID = id, wh = "item=" .. id, lazy = true, icon = C_Item.GetItemIconByID(id),
+    local have
+    if C_TransmogCollection and C_TransmogCollection.PlayerHasTransmog then
+        local ok, h = pcall(C_TransmogCollection.PlayerHasTransmog, id)
+        if ok and type(h) == "boolean" then have = h end
+    end
+    ns:Add({ cat = "tmog", id = id, name = r.name, itemID = id, wh = "item=" .. id, lazy = true, icon = C_Item.GetItemIconByID(id), collected = have,
         group = (r.source or "Other") .. " > " .. (r.type or "Other") .. " > " .. (r.slot or "Other") .. " > " .. (QUALITY[r.quality] or "Other"),
         sub = table.concat(sub, "  ") })
 end
+
+-- a transmog collected now: its page (when it is built) is marked collected and shows where it came from; the loot record (monster, place, weapon
+-- or armor) is the one the addon already keeps when you loot, so the page reads it at once
+local tmogFrame = CreateFrame("Frame")
+pcall(tmogFrame.RegisterEvent, tmogFrame, "TRANSMOG_COLLECTION_SOURCE_ADDED")
+tmogFrame:SetScript("OnEvent", function(_, _, sourceID)
+    local ok, info = pcall(function() return C_TransmogCollection.GetSourceInfo(sourceID) end)
+    local itemID = ok and type(info) == "table" and info.itemID
+    if not itemID then return end
+    for _, key in ipairs({ "tmog:" .. itemID, "item:" .. itemID }) do
+        local e = ns:Get(key)
+        if e then e.collected = true end
+    end
+    if ns.IsOpen and ns:IsOpen() and ns.RefreshList then pcall(ns.RefreshList, ns, true) end
+end)
 
 function ns:BuildLazyGroup(cat, group, done)
     local lz = self.lazy[cat]

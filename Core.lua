@@ -1013,6 +1013,33 @@ local function OnItemTooltip(tooltip, data)
     end
     if not SFP.db or not SFP.db.tooltip then return end
     local itemID = data and data.id
+    -- weapons and armor: the transmog line (where the look comes from, for which classes, and where you looted it yourself)
+    if type(itemID) == "number" and not (issecretvalue and issecretvalue(itemID)) and SFP.TransmogItem then
+        local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, itemID)
+        if ok and (classID == 2 or classID == 4) then
+            local tm = SFP:TransmogItem(itemID)
+            if tm and tm.source then
+                tooltip:AddLine(" ")
+                tooltip:AddLine("|cffa335eeTransmog|r  " .. tm.source .. (tm.sourceName and (": " .. tm.sourceName) or ""), 0.8, 0.8, 0.8, true)
+                if tm.classes then tooltip:AddLine("For: " .. table.concat(tm.classes, ", "), 0.8, 0.8, 0.8, true) end
+                local from = SFP.db.itemFrom and SFP.db.itemFrom[itemID]
+                if from and from.src then
+                    local n = 0
+                    for key, src in pairs(from.src) do
+                        n = n + 1
+                        if n > 3 then break end
+                        local kind, id = key:match("^(%a+):(%d+)$")
+                        local nm
+                        if kind == "npc" then
+                            id = tonumber(id)
+                            nm = (SFP.db.killPos and SFP.db.killPos[id] and SFP.db.killPos[id].n) or (SFP.db.npcPos and SFP.db.npcPos[id] and SFP.db.npcPos[id].n)
+                        end
+                        tooltip:AddLine("Looted from " .. (nm or key) .. " x" .. (src.c or 1) .. ((src.m and C_Map.GetMapInfo(src.m)) and (", " .. C_Map.GetMapInfo(src.m).name) or ""), 0.7, 0.9, 0.7, true)
+                    end
+                end
+            end
+        end
+    end
     if not itemID or not SFP.trackedIDs or not SFP.trackedIDs[itemID] then return end
     local base = itemID
     if not SFP.itemSources[itemID] then

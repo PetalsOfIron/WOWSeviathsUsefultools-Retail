@@ -426,7 +426,7 @@ local function DetailText(e)
         t = t .. section("Pieces", ns:SetItems(e))
     end
     -- items: where your own loot of it came from (collected by the addon when you loot), with the spot
-    if c == "item" then
+    if c == "item" or c == "tmog" then
         local S = _G.SeviathsUsefulTools
         local rec = S and S.db and S.db.itemFrom and S.db.itemFrom[e.itemID or tonumber(e.id) or 0]
         if rec and rec.src then
