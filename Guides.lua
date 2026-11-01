@@ -113,7 +113,7 @@ local function materialBody(e)
         local out = {}
         for i = 1, math.min(3, #drops) do
             local x = drops[i]
-            local rec = (x[3] == "o") and SFP.db.objects[x[1]] or SFP.db.npcs[x[1]]
+            local rec = (x[3] == "o") and SFP.db.objects[x[1]] or SFP:Npc(x[1])
             out[#out + 1] = ((rec and rec.n) or "?") .. " (x" .. x[2] .. ")"
         end
         get[#get + 1] = "You got it from: " .. table.concat(out, ", ")

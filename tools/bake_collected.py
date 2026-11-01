@@ -22,6 +22,9 @@ from luadata import P, parse_file   # noqa: E402
 
 OUT = os.path.join(HERE, "..", "collected")   # one file per saved table
 RETAIL = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
+# the monsters and the gray items are shipped in their own load-on-demand addon folder (next to this one in Interface/AddOns): the game reads
+# it only when a monster tooltip or a gray item tooltip is shown, or the farm menu opens
+LOD = os.path.join(RETAIL, "Interface", "AddOns", "SeviathsUsefulTools_Monsters")
 
 # which saved tables are shipped: { saved global: [keys] }
 SHIP = {
@@ -34,7 +37,7 @@ SHIP = {
 SKIP_FIELDS = {"noGuildT"}
 # the big tables are shipped as one short Lua string per record, decoded only when an entry is read (a table per record costs 5 to 10 times
 # more memory in the game than its text)
-PACK = {("SeviathsCodexDB", k) for k in ("quests", "loot", "matUses", "items")} | {("SeviathsUsefulToolsDB", k) for k in ("knownItems", "learnedDecor")}
+PACK = {("SeviathsCodexDB", k) for k in ("quests", "loot", "matUses", "items")} | {("SeviathsUsefulToolsDB", k) for k in ("knownItems", "learnedDecor", "npcs")}
 BATCH = 40000   # constants per generated function (Lua allows 262143 per function)
 
 
@@ -79,7 +82,7 @@ def read_old():
     """The tables of the files written last time: { db: { key: value } }."""
     out = {}
     import re
-    for path in sorted(glob.glob(os.path.join(OUT, "*.lua"))):
+    for path in sorted(glob.glob(os.path.join(OUT, "*.lua"))) + sorted(glob.glob(os.path.join(LOD, "*.lua"))):
         text = open(path, encoding="utf-8").read()
         p = P(text)
         for m in re.finditer(r'^;?\(function\(\) (Dp|D)\("(\w+)","(\w+)",', text, re.M):
@@ -119,76 +122,104 @@ def main():
                     cur = data.setdefault(db, {}).get(key)
                     data[db][key] = merge(cur, v) if cur is not None else v
     # gray items (quality 0) are worth only their vendor price: a short record (name, quality, sell price, class, subclass) instead of the whole
-    # item record, and they come last, so they sit in files of their own
-    ki = (data.get("SeviathsUsefulToolsDB") or {}).get("knownItems")
+    # item record. They and the monsters go to the load-on-demand folder; everything else stays in collected/
+    lod = {}
+    tools = data.get("SeviathsUsefulToolsDB") or {}
+    if "npcs" in tools:
+        npcs = tools.pop("npcs")
+        lod.setdefault("SeviathsUsefulToolsDB", {})["npcs"] = npcs
+        # which monsters are on which map: the game reads only the records of the map that is shown (and only when it is shown)
+        by_map = {}
+        for nid, rec in npcs.items():
+            if isinstance(rec, dict) and isinstance(rec.get("m"), dict):
+                for m in rec["m"]:
+                    by_map.setdefault(m, []).append(nid)
+        lod["SeviathsUsefulToolsDB"]["npcMaps"] = by_map
+    ki = tools.get("knownItems")
     if isinstance(ki, dict):
         keep = ("n", "q", "p", "c", "s")
         normal = {k: v for k, v in ki.items() if not (isinstance(v, dict) and v.get("q") == 0)}
         gray = {k: {f: v[f] for f in keep if f in v} for k, v in ki.items() if isinstance(v, dict) and v.get("q") == 0}
-        data["SeviathsUsefulToolsDB"]["knownItems"] = {**normal, **gray}
+        tools["knownItems"] = normal
+        if gray:
+            lod.setdefault("SeviathsUsefulToolsDB", {})["knownItems"] = gray
         print("gray items:", len(gray), "of", len(ki))
     stamp = int(time.time())
-    lines = []
-    for db, keys in data.items():
-        for key, v in keys.items():
-            if not isinstance(v, dict):
-                lines.append((db, key, ';(function() D(%s,%s,%s) end)()' % (esc(db), esc(key), lua(v))))
-                continue
-            batch, w = {}, 0
-            packed = (db, key) in PACK
-            fn = "Dp" if packed else "D"
-            for k, x in v.items():
-                s = lua(x)
-                if packed:
-                    s = esc(s)   # one string per record
-                batch[k] = s
-                w += (2 if packed else weight(s)) + 1
-                if w >= BATCH:
-                    lines.append((db, key, ';(function() %s(%s,%s,{%s}) end)()' % (fn, esc(db), esc(key), ",".join(
-                        "[%s]=%s" % (esc(a) if isinstance(a, str) else a, b) for a, b in batch.items()))))
-                    batch, w = {}, 0
-            if batch:
-                lines.append((db, key, ';(function() %s(%s,%s,{%s}) end)()' % (fn, esc(db), esc(key), ",".join(
-                    "[%s]=%s" % (esc(a) if isinstance(a, str) else a, b) for a, b in batch.items()))))
-    os.makedirs(OUT, exist_ok=True)
-    for old in glob.glob(os.path.join(OUT, "*.lua")):
-        if not os.path.basename(old).startswith("gold."):   # the prices are kept by bake_gold.py
-            os.remove(old)
     short = {"SeviathsUsefulToolsDB": "tools", "SeviathsCodexDB": "codex", "SeviathsDungeonsRaidsDB": "dungeonsraids"}
-    total = 0
-    by_file = {}
-    for db, key, text in lines:
-        by_file.setdefault((db, key), []).append(text)
-    # a table is split into parts of about MAX_FILE bytes (name.key.1.lua, name.key.2.lua ...), so no single file gets huge as the data grows;
-    # update_data.py lists whatever files exist in the .toc
-    MAX_FILE = 2_500_000
-    n_files = 0
-    for (db, key), group in by_file.items():
-        parts, cur, size = [], [], 0
-        for text in group:
-            if cur and size + len(text) > MAX_FILE:
+
+    def emit(data_set, out_dir, keep_gold):
+        lines = []
+        for db, keys in data_set.items():
+            for key, v in keys.items():
+                if not isinstance(v, dict):
+                    lines.append((db, key, ';(function() D(%s,%s,%s) end)()' % (esc(db), esc(key), lua(v))))
+                    continue
+                batch, w = {}, 0
+                packed = (db, key) in PACK
+                fn = "Dp" if packed else "D"
+                for k, x in v.items():
+                    s = lua(x)
+                    if packed:
+                        s = esc(s)   # one string per record
+                    batch[k] = s
+                    w += (2 if packed else weight(s)) + 1
+                    if w >= BATCH:
+                        lines.append((db, key, ';(function() %s(%s,%s,{%s}) end)()' % (fn, esc(db), esc(key), ",".join(
+                            "[%s]=%s" % (esc(a) if isinstance(a, str) else a, b2) for a, b2 in batch.items()))))
+                        batch, w = {}, 0
+                if batch:
+                    lines.append((db, key, ';(function() %s(%s,%s,{%s}) end)()' % (fn, esc(db), esc(key), ",".join(
+                        "[%s]=%s" % (esc(a) if isinstance(a, str) else a, b2) for a, b2 in batch.items()))))
+        os.makedirs(out_dir, exist_ok=True)
+        for old in glob.glob(os.path.join(out_dir, "*.lua")):
+            if not (keep_gold and os.path.basename(old).startswith("gold.")):   # the prices are kept by bake_gold.py
+                os.remove(old)
+        total = 0
+        by_file = {}
+        for db, key, text in lines:
+            by_file.setdefault((db, key), []).append(text)
+        # a table is split into parts of about MAX_FILE bytes (name.key.1.lua, name.key.2.lua ...), so no single file gets huge as the data grows;
+        # update_data.py lists whatever files exist in the .toc
+        MAX_FILE = 2_500_000
+        n_files = 0
+        for (db, key), group in by_file.items():
+            parts, cur, size = [], [], 0
+            for text in group:
+                if cur and size + len(text) > MAX_FILE:
+                    parts.append(cur)
+                    cur, size = [], 0
+                cur.append(text)
+                size += len(text)
+            if cur:
                 parts.append(cur)
-                cur, size = [], 0
-            cur.append(text)
-            size += len(text)
-        if cur:
-            parts.append(cur)
-        for i, part in enumerate(parts, 1):
-            name = "%s.%s%s.lua" % (short.get(db, db), key, ("." + str(i)) if len(parts) > 1 else "")
-            path = os.path.join(OUT, name)
-            with open(path, "w", encoding="utf-8", newline="\n") as fh:
-                fh.write("-- generated by tools/bake_collected.py: what was collected in the game (%s / %s, part %d of %d)\n" % (db, key, i, len(parts)))
-                fh.write("local C = SeviathsUsefulToolsCollected or { data = {} }\nSeviathsUsefulToolsCollected = C\nC.date = %d\nC.packed = C.packed or {}\n" % stamp)
-                fh.write("local function Dp(db, key, t)\n  local d = C.packed[db]\n  if not d then d = {}; C.packed[db] = d end\n")
-                fh.write("  local cur = d[key]\n  if not cur then d[key] = t return end\n  for k, v in pairs(t) do cur[k] = v end\nend\n")
-                fh.write("local function D(db, key, t)\n  local d = C.data[db]\n  if not d then d = {}; C.data[db] = d end\n")
-                fh.write("  local cur = d[key]\n  if not cur then d[key] = t return end\n  for k, v in pairs(t) do cur[k] = v end\nend\n")
-                for text in part:
-                    fh.write(text + "\n")
-            total += os.path.getsize(path)
-            n_files += 1
-    print({db: {k: (len(v) if hasattr(v, "__len__") else 1) for k, v in keys.items()} for db, keys in data.items()})
-    print("%s: %d tables in %d files, %.1f MB" % (os.path.abspath(OUT), len(by_file), n_files, total / 1e6))
+            for i2, part in enumerate(parts, 1):
+                name = "%s.%s%s.lua" % (short.get(db, db), key, ("." + str(i2)) if len(parts) > 1 else "")
+                path = os.path.join(out_dir, name)
+                with open(path, "w", encoding="utf-8", newline="\n") as fh:
+                    fh.write("-- generated by tools/bake_collected.py: what was collected in the game (%s / %s, part %d of %d)\n" % (db, key, i2, len(parts)))
+                    fh.write("local C = SeviathsUsefulToolsCollected or { data = {} }\nSeviathsUsefulToolsCollected = C\nC.date = %d\nC.packed = C.packed or {}\nC.data = C.data or {}\n" % stamp)
+                    fh.write("local function Dp(db, key, t)\n  local d = C.packed[db]\n  if not d then d = {}; C.packed[db] = d end\n")
+                    fh.write("  local cur = d[key]\n  if not cur then d[key] = t return end\n  for k, v in pairs(t) do cur[k] = v end\nend\n")
+                    fh.write("local function D(db, key, t)\n  local d = C.data[db]\n  if not d then d = {}; C.data[db] = d end\n")
+                    fh.write("  local cur = d[key]\n  if not cur then d[key] = t return end\n  for k, v in pairs(t) do cur[k] = v end\nend\n")
+                    for text in part:
+                        fh.write(text + "\n")
+                total += os.path.getsize(path)
+                n_files += 1
+        return len(by_file), n_files, total
+
+    t1 = emit(data, OUT, True)
+    t2 = emit(lod, LOD, False)
+    # the toc of the load-on-demand folder: loaded by the main addon with C_AddOns.LoadAddOn when a monster or a gray item is looked at
+    main_toc = open(os.path.join(HERE, "..", "SeviathsUsefulTools.toc"), encoding="utf-8").read().splitlines()
+    interface = next((l for l in main_toc if l.startswith("## Interface")), "## Interface: 120100")
+    files = sorted(os.path.basename(p) for p in glob.glob(os.path.join(LOD, "*.lua")))
+    with open(os.path.join(LOD, "SeviathsUsefulTools_Monsters.toc"), "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(interface + "\n## Title: SeviathsUsefulTools - monster and gray item data\n## Notes: Shipped monster drops and gray items, read only when needed.\n")
+        fh.write("## Dependencies: SeviathsUsefulTools\n## LoadOnDemand: 1\n## Author: Seviath\n\n")
+        fh.write("\n".join(files) + "\n")
+    print("%s: %d tables in %d files, %.1f MB" % (os.path.abspath(OUT), t1[0], t1[1], t1[2] / 1e6))
+    print("%s: %d tables in %d files, %.1f MB (loaded on demand)" % (os.path.abspath(LOD), t2[0], t2[1], t2[2] / 1e6))
 
 
 if __name__ == "__main__":

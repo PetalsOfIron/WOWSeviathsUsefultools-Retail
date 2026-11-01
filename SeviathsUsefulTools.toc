@@ -84,7 +84,6 @@ collected\tools.nameRealm.lua
 collected\tools.nameRealms.lua
 collected\tools.nameplateText.lua
 collected\tools.npcPos.lua
-collected\tools.npcs.lua
 collected\tools.objects.lua
 collected\tools.petPrices.lua
 collected\tools.playerIDs.lua
@@ -97,6 +96,7 @@ collected\tools.seenPlayers.lua
 collected\tools.towns.lua
 collected\tools.vendorLearned.lua
 CollectedImport.lua
+LazyData.lua
 Data\DecorData.lua
 Data\DecorNPCs.lua
 Data\CuriosLearned.lua

@@ -42,7 +42,7 @@ local function Candidates()
                     basis = "per node"
                     if id then items[1] = { id = id, p = p } end
                 else
-                    local rec = sp.npc and sp.npc > 0 and S.db.npcs and S.db.npcs[sp.npc]
+                    local rec = sp.npc and sp.npc > 0 and S.Npc and S:Npc(sp.npc)
                     if sp.learned and sp.counts and (sp.kills or 0) >= 3 then
                         -- a spot the addon learned from your own kills (account-wide): measured drop rates
                         for id, n in pairs(sp.counts) do

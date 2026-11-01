@@ -290,7 +290,7 @@ function ns:BestPlace(e, itemID)
         local shown = 0
         for _, d in ipairs(drops) do
             if shown >= 4 then break end
-            local rec = (d[3] == "o" and S.db.objects or S.db.npcs)[d[1]]
+            local rec = (d[3] == "o") and S.db.objects[d[1]] or S:Npc(d[1])
             local map, spots = nil, nil
             if rec and type(rec.m) == "table" then map, spots = next(rec.m) end
             if rec and rec.n and map then

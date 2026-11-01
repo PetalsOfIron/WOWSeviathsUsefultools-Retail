@@ -119,7 +119,7 @@ local function zoneTexts(id, classID, subID, expID)
     local order, bySrc = {}, {}
     for i = 1, math.min(400, #(drops0 or {})) do
         local d = drops0[i]
-        local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP.db.npcs[d[1]]
+        local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP:Npc(d[1])
         if rec and rec.n then
             local label = d[3] == "o" and "Picked up from" or (d[3] == "s" and "Skinned from" or "Dropped by")
             local key = label .. "" .. rec.n
@@ -150,7 +150,7 @@ local function zoneTexts(id, classID, subID, expID)
     -- zones where you saw monsters / nodes drop it
     local drops = SFP.db and SFP.DropIndex and SFP:DropIndex()[id]
     for _, d in ipairs(drops or {}) do
-        local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP.db.npcs[d[1]]
+        local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP:Npc(d[1])
         for map in pairs(rec and rec.m or {}) do
             local f = found[map]
             if f then f[2] = f[2] + d[2] else found[map] = { "learned", d[2] } end
@@ -256,7 +256,7 @@ local function whereLines(id, lines, seenFromShown, zones)
         local parts = {}
         for i = 1, math.min(3, #drops) do
             local d = drops[i]
-            local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP.db.npcs[d[1]]
+            local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP:Npc(d[1])
             parts[#parts + 1] = ((rec and rec.n) or "?") .. (d[3] == "s" and " (skinning)" or "")
         end
         out[#out + 1] = "Dropped by: " .. table.concat(parts, ", ")
