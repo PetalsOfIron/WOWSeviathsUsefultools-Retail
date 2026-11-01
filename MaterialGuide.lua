@@ -987,6 +987,7 @@ local function setMode(m)
     if win and win.tabs then
         win.tabs.monsters:SetShown(m == "mat")
         win.tabs.gather:SetShown(m == "mat")
+        if win.curBtn then win.curBtn:SetShown(m == "farm" or m == "rare") end
     end
     entriesCache = nil
     expSel = "all"
@@ -1109,16 +1110,19 @@ local function renderFarmList(group)
         -- a search: the monsters of that name in every zone
         win.title:SetText(label .. "  |cffffd100" .. q .. "|r")
         local ql, found = q:lower(), 0
-        for _, exp in ipairs(SFP.Expansions) do
-            for _, map in ipairs(zonesOf(exp)) do
-                local mine = {}
-                for _, s in ipairs(farmSpotsFor(map, group)) do
-                    if tostring(s.name):lower():find(ql, 1, true) then mine[#mine + 1] = s end
-                end
-                if #mine > 0 and found < 60 then
-                    found = found + #mine
-                    n = renderBlocks(n, map, mine)
-                end
+        collectedMonsters(0, group)   -- builds the index of collected monsters
+        local maps, seenMap = {}, {}
+        for map in pairs(SFP.zoneByMap) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+        for map in pairs(monsterIndex or {}) do if not seenMap[map] then seenMap[map] = true; maps[#maps + 1] = map end end
+        table.sort(maps, function(a, c) return SFP:ZoneName(a) < SFP:ZoneName(c) end)
+        for _, map in ipairs(maps) do
+            local mine = {}
+            for _, s in ipairs(farmSpotsFor(map, group)) do
+                if tostring(s.name):lower():find(ql, 1, true) then mine[#mine + 1] = s end
+            end
+            if #mine > 0 and found < 80 then
+                found = found + #mine
+                n = renderBlocks(n, map, mine)
             end
         end
     else
@@ -1330,6 +1334,17 @@ local function build()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
     end)
     win.refreshList = renderList
+    win.curBtn = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+    win.curBtn:SetSize(170, 24)
+    win.curBtn:SetPoint("TOPLEFT", win, "TOPLEFT", 200, -8)
+    win.curBtn:SetText("Show current zone")
+    win.curBtn:SetScript("OnClick", function()
+        selected = WorldMapFrame:GetMapID()
+        search:SetText("")
+        renderTree()
+        renderList()
+    end)
+    win.curBtn:Hide()
     win.tabs = {}
     for k, def in ipairs({ { "monsters", "Monsters" }, { "gather", "Mining & Herbalism" } }) do
         local key, text = def[1], def[2]
