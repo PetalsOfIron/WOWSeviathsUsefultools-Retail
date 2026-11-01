@@ -988,6 +988,7 @@ local function setMode(m)
         win.tabs.monsters:SetShown(m == "mat")
         win.tabs.gather:SetShown(m == "mat")
         if win.curBtn then win.curBtn:SetShown(m == "farm" or m == "rare") end
+        if win.topBtn then win.topBtn:SetShown(m == "farm" or m == "rare") end
     end
     entriesCache = nil
     expSel = "all"
@@ -1307,6 +1308,17 @@ local function build()
     win.title:SetPoint("TOPLEFT", TREE_W + 34, -40)
 
     tree = scrollSide(win, 10, -64, TREE_W)
+    tree.scroll:ClearAllPoints()
+    tree.scroll:SetPoint("TOPLEFT", win, "TOPLEFT", 10, -64)
+    tree.scroll:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 10, 40)
+    tree.scroll:SetWidth(TREE_W)
+    -- Top 10 best spots: always at the bottom of the Farm spots / Rares window
+    win.topBtn = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+    win.topBtn:SetSize(TREE_W, 26)
+    win.topBtn:SetPoint("BOTTOMLEFT", win, "BOTTOMLEFT", 10, 8)
+    win.topBtn:SetText("Top 10 best spots")
+    win.topBtn:SetScript("OnClick", function() if SFP.ShowTopSpots then SFP:ShowTopSpots() end end)
+    win.topBtn:Hide()
     list = scrollSide(win, TREE_W + 34, -64, 10)
     list.scroll:ClearAllPoints()
     list.scroll:SetPoint("TOPLEFT", win, "TOPLEFT", TREE_W + 34, -64)
