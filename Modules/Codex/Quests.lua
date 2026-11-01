@@ -26,6 +26,14 @@ local function AreaText()
     return nil
 end
 
+-- adds a person (quest giver or hand-in NPC) to the list of the quest unless the same one is there (same name, or the same place)
+local function AddPerson(list, p)
+    for _, q in ipairs(list) do
+        if (q.n and p.n and q.n == p.n and q.m == p.m) or (q.m == p.m and q.x and p.x and math.abs(q.x - p.x) < 0.01 and math.abs(q.y - p.y) < 0.01) then return end
+    end
+    if #list < 8 then list[#list + 1] = p end
+end
+
 local function Loc(qid)
     ns.db.qloc = ns.db.qloc or {}
     local l = ns.db.qloc[qid]
@@ -153,13 +161,25 @@ ev:SetScript("OnEvent", function(_, event, arg1)
     elseif event == "QUEST_ACCEPTED" then
         local qid = arg1
         local g = qid and pendingGiver[qid]
-        if g then Loc(qid).g = g; pendingGiver[qid] = nil end
+        if g then
+            local l = Loc(qid)
+            l.g = l.g or g   -- the first giver stays (older code reads it); every giver is in the list
+            l.gs = l.gs or {}
+            if l.g and #l.gs == 0 and l.g ~= g then l.gs[1] = l.g end
+            AddPerson(l.gs, g)
+            pendingGiver[qid] = nil
+        end
         if qid then lastProgress[qid] = ObjectiveProgress(qid) end
     elseif event == "QUEST_COMPLETE" then
         local qid = GetQuestID and GetQuestID()
         local m, x, y = PlayerSpot()
         if qid and qid > 0 and m then
-            Loc(qid).t = { n = NpcName(), m = m, x = x, y = y, a = AreaText() }
+            local l = Loc(qid)
+            local person = { n = NpcName(), m = m, x = x, y = y, a = AreaText() }
+            if l.t and not l.ts then l.ts = { l.t } end   -- the one saved by older versions joins the list
+            l.ts = l.ts or {}
+            l.t = l.t or person
+            AddPerson(l.ts, person)
         end
     elseif event == "QUEST_LOG_UPDATE" then
         if logPending then return end
