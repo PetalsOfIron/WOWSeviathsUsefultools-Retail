@@ -106,7 +106,7 @@ end
 -- the list is cut into pages that fit the window (Previous / Next below it); the tree on the left just scrolls
 local mode = "mat"          -- "mat", "mount", "hunter" or "pet"
 local matTab = "monsters"   -- the Material search has two tabs: "monsters" and "gather"
-local gatherExp = "all"    -- expansion shown in the gathering tab
+local gatherExp = "zone"   -- what the gathering tab shows: "zone" (the zone on the map), "all" or an expansion key
 local expSel = "all"        -- expansion key / family shown in the mount, hunter and pet lists
 local listPage, listSig = 1, nil
 local function finish(side, n)
@@ -461,13 +461,25 @@ local function renderGather(q)
     win.title:SetText("|cff33e6ffGathering|r" .. (ql and ("  |cffffd100" .. q .. "|r") or ""))
     learnedCache = learnedGatherSpots()
     local ids = gatherItems()
+    local zoneMap = (gatherExp == "zone" and not ql) and WorldMapFrame:GetMapID() or nil
+    if zoneMap then
+        local here, keep = {}, {}
+        for _, g in ipairs(SFP.Gather or {}) do if g.map == zoneMap then here[g.item] = true end end
+        for id, zones in pairs(SFP.GatherZones or {}) do if zones[zoneMap] then here[id] = true end end
+        for id, spots in pairs(learnedCache) do
+            for _, s in ipairs(spots) do if s.map == zoneMap then here[id] = true break end end
+        end
+        for _, id in ipairs(ids) do if here[id] then keep[#keep + 1] = id end end
+        ids = keep
+        win.title:SetText("|cff33e6ff" .. SFP:ZoneName(zoneMap) .. "|r  |cffaaaaaaMining & Herbalism|r")
+    end
     local expOf = {}
     for _, g in ipairs(SFP.Gather or {}) do expOf[g.item] = expOf[g.item] or g.exp end
     local groups = {}
     for _, exp in ipairs(SFP.Expansions) do groups[#groups + 1] = { key = exp.key, name = exp.name } end
     groups[#groups + 1] = { key = "other", name = "Other" }
     for _, grp in ipairs(groups) do
-        if ql or gatherExp == "all" or gatherExp == grp.key then
+        if ql or zoneMap or gatherExp == "all" or gatherExp == grp.key then
             for _, sec in ipairs(GATHER_SECTIONS) do
                 local mine = {}
                 for _, id in ipairs(ids) do
@@ -494,7 +506,7 @@ local function renderGather(q)
         local h = rowOf(list, 1)
         place(list, h, 1, 0)
         h.icon:SetTexture(nil)
-        h.text:SetText("|cff808080No gathering data for this expansion yet|r")
+        h.text:SetText("|cff808080" .. (zoneMap and "No ore or herb recorded for this zone yet" or "No gathering data for this expansion yet") .. "|r")
         h.hl:Hide()
     end
     finish(list, n)
@@ -893,6 +905,8 @@ local function renderTreeMat()
             r.bg:SetColorTexture(0, 0.9, 1, gatherExp == key and 0.15 or 0.06)
             r.click = function() gatherExp = key; search:SetText(""); renderTree(); renderList() end
         end
+        local cur = WorldMapFrame:GetMapID()
+        sub("Current zone" .. (cur and (": " .. SFP:ZoneName(cur)) or ""), "zone", 0)
         sub("All expansions", "all", 0)
         for _, exp in ipairs(SFP.Expansions) do sub(exp.name, exp.key, 12) end
         finish(tree, n)
@@ -1037,11 +1051,11 @@ local function build()
     end)
     win.refreshList = renderList
     win.tabs = {}
-    for k, def in ipairs({ { "monsters", "Monsters" }, { "gather", "Gathering" } }) do
+    for k, def in ipairs({ { "monsters", "Monsters" }, { "gather", "Mining & Herbalism" } }) do
         local key, text = def[1], def[2]
         local tb = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
-        tb:SetSize(110, 24)
-        tb:SetPoint("TOPLEFT", win, "TOPLEFT", 200 + (k - 1) * 114, -8)
+        tb:SetSize(k == 1 and 90 or 150, 24)
+        tb:SetPoint("TOPLEFT", win, "TOPLEFT", 200 + (k - 1) * 94, -8)
         tb:SetText(text)
         tb:SetScript("OnClick", function() setTab(key) end)
         win.tabs[key] = tb
