@@ -54,7 +54,7 @@ local function ObjectiveName()
     if type(n2) == "string" and not secret(n2) and n2 ~= "" then return n2 end
     local okM, n3 = pcall(UnitName, "mouseover")
     if okM and type(n3) == "string" and not secret(n3) and n3 ~= "" and n3 ~= UNKNOWNOBJECT and n3 ~= "Retrieving data"
-        and not (UnitIsPlayer and UnitIsPlayer("mouseover")) then return n3 end
+        and not (UnitIsPlayer and UnitIsPlayer("mouseover")) then return n3, true end   -- a unit under the mouse is a monster: a kill
     return nil
 end
 
@@ -149,7 +149,7 @@ local function scanOne(qid)
                 target.m, target.x, target.y = m, x, y
                 if area then target.a = area end
             end
-            if target and killed then target.kill = true end   -- progress came from a kill here: the tooltip says "Kill at"
+            if target and killed then target.kill = true; target.use = nil end   -- progress came from a kill here
             if target and oname and not killed then target.use = true end   -- from an object or node (a pool, a chest): "Pick up at"
             if target and oname then
                 target.names = target.names or {}
