@@ -1210,11 +1210,19 @@ local function mountEntries()
                     local gsrc = SFP._mountGuideLower[name:lower()]
                     if not gsrc and e.item then gsrc = SFP._mountGuideLower[plain(iname(e.item)):lower()] end
                     if gsrc then
-                        local cost = gsrc:match("for ([%d,]+%s*x?%s*[^,;/]+)$") or gsrc:match("^(%d+%s*x%s+.+)$")
+                        local cost = gsrc:match("Costs? ?:? ?([%d,]+ [^|]-)%s*$") or gsrc:match("Costs? ?:? ?([%d,]+ [^|]-)%s*|")
+                            or gsrc:match("for ([%d,]+%s*x?%s*[^,;/]+)$") or gsrc:match("^(%d+%s*x%s+.+)$")
+                        if cost and costIcons then cost = costIcons(cost) end
                         local gzone = gsrc:match(" %- ([^,]+),") or gsrc:match(" %- ([^,]+)$") or gsrc:match(" in ([%u][^,/]-)$")
                         if gzone then gzone = gzone:gsub("^the ", ""):gsub("%s+$", "") end
                         local gm = gzone and mapOfZone(gzone)
                         local gs = { text = "Guide: " .. gsrc:sub(1, 110), zone = gzone, zoneMap = gm }
+                        -- the exact place the guide names (a cache, a skull, a cauldron): a waypoint
+                        if SFP.MountGuideSpots then
+                            for sname, sp in pairs(SFP.MountGuideSpots) do
+                                if gsrc:find(sname, 1, true) and sp[1] then gs.map, gs.x, gs.y = sp[1][1], sp[1][2], sp[1][3]; break end
+                            end
+                        end
                         e.sources[#e.sources + 1] = gs
                         if cost then e.cost = e.cost or cost end
                     end
