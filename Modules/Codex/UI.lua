@@ -896,6 +896,8 @@ local function CreateWindow()
             ns:UnloadAllLazy("quest")
             state.selected = nil
             state.history = {}
+            state.flat = {}   -- the rows still pointed at the removed pages
+            for _, r in ipairs(listRows or {}) do r.item = nil; r.entry = nil end
             collectgarbage("collect")
         end)
     end)
