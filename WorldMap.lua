@@ -329,6 +329,9 @@ local function getPin()
     end
     if p.icon then p.icon:Hide() end
     if p.icon2 then p.icon2:Hide() end
+    if p.pinTex then p.pinTex:Hide() end
+    if p.ring then p.ring:Hide(); p.ringAg:Stop() end
+    p.outer:Show(); p.inner:Show()
     p:Show()
     return p
 end
@@ -455,7 +458,51 @@ end
 
 SFP.ShowSpot, SFP.SpotColor = showSpot, spotColor
 
+-- a farm spot is a normal map pin at its place (no cyan circle); when the map opens on a zone the pins ping for a few seconds, then stay still
+local function placeFarmPin(p, x, y, h)
+    local w, hh = spawnLayer:GetWidth(), spawnLayer:GetHeight()
+    local size = math.max(18 / canvasScale(), 10)
+    p:SetSize(size, size)
+    p.outer:Hide(); p.inner:Hide()
+    if not p.pinTex then
+        p.pinTex = p:CreateTexture(nil, "OVERLAY")
+        p.pinTex:SetAtlas("Waypoint-MapPin-Untracked")
+        p.pinTex:SetVertexColor(0.3, 0.95, 1, 1)
+        p.ring = p:CreateTexture(nil, "ARTWORK")
+        p.ring:SetTexture("Interface\\Cooldown\\ping4")
+        p.ring:SetBlendMode("ADD")
+        p.ring:SetVertexColor(0.3, 0.95, 1, 1)
+        p.ring:SetPoint("CENTER", p, "CENTER", 0, 0)
+        p.ringAg = p.ring:CreateAnimationGroup()
+        local sc = p.ringAg:CreateAnimation("Scale")
+        sc:SetScaleFrom(0.4, 0.4); sc:SetScaleTo(3, 3); sc:SetDuration(1.1)
+        local al = p.ringAg:CreateAnimation("Alpha")
+        al:SetFromAlpha(1); al:SetToAlpha(0); al:SetDuration(1.1)
+        p.ringAg:SetScript("OnFinished", function()
+            if GetTime() < (p.pingUntil or 0) then p.ringAg:Play() else p.ring:Hide() end
+        end)
+    end
+    p.pinTex:ClearAllPoints()
+    p.pinTex:SetSize(size, size)
+    p.pinTex:SetPoint("BOTTOM", p, "CENTER", 0, 0)
+    p.pinTex:Show()
+    p.ring:SetSize(size * 1.6, size * 1.6)
+    if GetTime() < (SFP._pingUntil or 0) then
+        p.pingUntil = SFP._pingUntil
+        p.ring:Show()
+        if not p.ringAg:IsPlaying() then p.ringAg:Play() end
+    else
+        p.ring:Hide()
+    end
+    p:ClearAllPoints()
+    p:SetPoint("CENTER", spawnLayer, "TOPLEFT", x * w, -y * hh)
+    h.mx, h.my = x, y
+    hoverList[#hoverList + 1] = h
+end
+
 local function placePin(p, x, y, outer, outerAlpha, inner, h)
+    local s0 = h.spawn
+    if s0 and not (s0.rare or s0.hunter or s0.gather) then   -- farm spots and special materials return placeFarmPin(p, x, y, h) end
     local c = spotColor(h.spawn)
     local w, hh = spawnLayer:GetWidth(), spawnLayer:GetHeight()
     local minPx = 7 / canvasScale() -- never smaller than ~7 screen pixels
@@ -1978,6 +2025,7 @@ refresh = function()
 
     local mapID = WorldMapFrame:GetMapID()
     if not mapID then return end
+    if SFP._pingMap ~= mapID then SFP._pingMap = mapID; SFP._pingUntil = GetTime() + 3.5 end
     if SFP.db.showDungeons or SFP.db.showRaids then drawInstances(mapID) end
     if SFP.db.showGatherList then
         local info = C_Map.GetMapInfo(mapID)
