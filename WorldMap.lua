@@ -1137,7 +1137,7 @@ end
 -- the best zone for each. Click a row to open that zone.
 ---------------------------------------------------------------------------
 local gatherPanel
-local GROW_H = 18
+local GROW_H = 28   -- room after each material
 
 -- (the side lists used to be draggable; they are fixed now)
 local function makeMovable(f, key, sc)
@@ -1210,6 +1210,8 @@ local function gatherRow(i)
     r.name = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
     r.name:SetJustifyH("LEFT")
+    r.name:SetWordWrap(false)   -- one line: a long name is cut instead of running into the next row
+    r.name:SetMaxLines(1)
     r.best = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     r.best:SetPoint("RIGHT", -2, 0)
     r.best:SetJustifyH("RIGHT")
