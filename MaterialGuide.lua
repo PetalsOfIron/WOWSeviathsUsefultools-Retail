@@ -623,7 +623,7 @@ local function firstPoint(pts)
 end
 
 -- every mount: { item, exp, sources = { { text, map, x, y } } }
-local function mountEntries()
+local function mountEntriesBase()
     local byItem, order = {}, {}
     local function add(id, expKey, src)
         local e = byItem[id]
@@ -1028,40 +1028,113 @@ headerRow = function(n, text)
     return n
 end
 
+-- Every mount of the game (the mount journal), with where to get it: the instances and rares the addon knows (with the drop chance - your own
+-- count of tries and drops when there is one - and the place), vendors and places named in the journal's own source text, and the places
+-- you were when a mount was added. Rarest first.
+local function mountEntries()
+    local base = mountEntriesBase()
+    local MJ = C_MountJournal
+    local entries, byMount = {}, {}
+    for _, e in ipairs(base) do
+        local mid = MJ and MJ.GetMountFromItem and MJ.GetMountFromItem(e.item)
+        e.mountID = mid
+        if mid then byMount[mid] = e end
+        -- the chance of the item: the data's "~1%" or your own tries and drops
+        local pct
+        local info = SFP.Items[e.item]
+        if info and info.drop then pct = tonumber(tostring(info.drop):match("([%d%.]+)")) end
+        local stats = SFP.db and SFP.db.mountStats and SFP.db.mountStats[e.item]
+        local n, d = 0, 0
+        for _, st in pairs(stats or {}) do n, d = n + (st.n or 0), d + (st.d or 0) end
+        if n > 0 then pct = 100 * d / n end
+        e.rarity = pct
+        entries[#entries + 1] = e
+    end
+    if MJ and MJ.GetMountIDs then
+        -- vendor places by name (the Codex records every vendor visited)
+        local vend = {}
+        local vendors = _G.SeviathsCodexDB and _G.SeviathsCodexDB.vendors
+        for key, v in (SeviathsAllPairs or pairs)(vendors or {}) do
+            if type(v) == "table" and v.m and v.x then
+                local nm = v.n or tostring(key):match("^(.-)@")
+                if nm and not vend[nm] then vend[nm] = { map = v.m, x = v.x, y = v.y } end
+            end
+        end
+        for _, mid in ipairs(MJ.GetMountIDs()) do
+            local name, _, icon, _, _, _, _, _, _, hide, collected = MJ.GetMountInfoByID(mid)
+            if name then
+                local e = byMount[mid]
+                if not e then
+                    e = { mountID = mid, sources = {} }
+                    byMount[mid] = e
+                    entries[#entries + 1] = e
+                end
+                e.mountName, e.icon, e.collected = name, icon, collected
+                local _, _, src = MJ.GetMountInfoExtraByID(mid)
+                src = plain(src or "")
+                e.sourceText = src
+                -- a place from the journal's text, when the addon's own sources have none
+                local hasSpot = false
+                for _, s in ipairs(e.sources) do if s.map then hasSpot = true end end
+                if not hasSpot and src ~= "" then
+                    local vname = src:match("Vendor:%s*([^\n]+)")
+                    local zname = src:match("Zone:%s*([^\n]+)")
+                    local spot = vname and vend[vname]
+                    local zm = zname and mapOfZone(zname)
+                    local first = src:gsub("\n+", "  "):sub(1, 90)
+                    local s = { text = first }
+                    if spot then s.map, s.x, s.y = spot.map, spot.x, spot.y
+                    elseif zm then s.zoneMap = zm end
+                    s.zone = zname
+                    e.sources[#e.sources + 1] = s
+                elseif src ~= "" and #e.sources == 0 then
+                    e.sources[1] = { text = src:gsub("\n+", "  "):sub(1, 90) }
+                end
+                -- a place where you added it: the most exact one
+                local here = SFP.db and SFP.db.mountSpots and SFP.db.mountSpots[name]
+                if type(here) == "table" and here.m then
+                    table.insert(e.sources, 1, { text = "Collected here", map = here.m, x = here.x, y = here.y })
+                end
+            end
+        end
+    end
+    for _, e in ipairs(entries) do e.rarity = e.rarity or 100 end
+    return entries
+end
+
 local function renderMounts(q)
     local ql = q and q:lower() or ""
     local n = 0
-    win.title:SetText("|cffa335eeMounts|r" .. (#ql > 0 and ("  |cffffd100" .. q .. "|r") or ""))
+    win.title:SetText("|cffa335eeMounts|r  |cffaaaaaararest first|r" .. (#ql > 0 and ("  |cffffd100" .. q .. "|r") or ""))
     entriesCache = entriesCache or mountEntries()
+    local function nameOf(e) return e.mountName or plain(iname(e.item)) end
     local entries = {}
     for _, e in ipairs(entriesCache) do
-        local nm = plain(iname(e.item)):lower()
+        local nm = (nameOf(e) .. " " .. (e.item and plain(iname(e.item)) or "")):lower()
         if (#ql >= 2 and nm:find(ql, 1, true)) or (#ql < 2 and (expSel == "all" or e.exp == expSel)) then entries[#entries + 1] = e end
     end
     table.sort(entries, function(a, c)
-        if expOrder(a.exp) ~= expOrder(c.exp) then return expOrder(a.exp) < expOrder(c.exp) end
-        return plain(iname(a.item)) < plain(iname(c.item))
+        if a.rarity ~= c.rarity then return a.rarity < c.rarity end
+        return nameOf(a) < nameOf(c)
     end)
-    local lastExp
-    for _, e in ipairs(entries) do
-        if e.exp ~= lastExp then
-            lastExp = e.exp
-            local en
-            for _, x in ipairs(SFP.Expansions) do if x.key == e.exp then en = x.name end end
-            n = headerRow(n, "|cffffd100" .. (en or "Other") .. "|r")
-        end
+    for k, e in ipairs(entries) do
+        if k > 900 then break end
         n = n + 1
         local r = rowOf(list, n)
         place(list, r, n, 8)
-        r.icon:SetTexture(SFP:ItemIcon(e.item))
-        r.text:SetText(iname(e.item))
-        local price = SFP:GetPrice(e.item)
+        r.icon:SetTexture(e.item and SFP:ItemIcon(e.item) or e.icon or 134400)
+        local chance = e.rarity < 100 and ("  |cff40ff40" .. (e.rarity >= 10 and string.format("%d", math.floor(e.rarity + 0.5)) or string.format("%.1f", e.rarity)) .. "%|r") or ""
+        r.text:SetText((e.collected and "|cff40ff40" or "|cffffffff") .. nameOf(e) .. "|r" .. chance)
+        local price = e.item and SFP:GetPrice(e.item)
         r.right:SetText(price and SFP:FormatPrice(price) or "")
         r.item = e.item
-        -- the name bar is a waypoint too: it goes to the first source that has a spot
+        -- the name bar is a waypoint too: the first source with a place
         for _, s in ipairs(e.sources) do
             if s.map then
-                r.click = function() openWaypoint(s.map, s.x, s.y, plain(iname(e.item))) end
+                r.click = function() openWaypoint(s.map, s.x, s.y, nameOf(e)) end
+                break
+            elseif s.zoneMap then
+                r.click = function() WorldMapFrame:SetMapID(s.zoneMap) end
                 break
             end
         end
@@ -1071,9 +1144,15 @@ local function renderMounts(q)
             place(list, m, n, 30)
             m.icon:SetTexture(nil)
             m.text:SetText("|cff00e5ff" .. s.text .. "|r")
-            m.right:SetText(s.zone and ("|cffff3030WAYPOINT|r   |cff808080" .. s.zone .. "|r") or (s.map and "|cffff3030WAYPOINT|r" or "|cff808080no map spot|r"))
-            m.hint = s.map and "Click: set a waypoint and open the map there" or nil
-            if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(iname(e.item))) end end
+            local located = s.map or s.zoneMap
+            m.right:SetText(located and ("|cffff3030WAYPOINT|r" .. (s.zone and ("   |cff808080" .. s.zone .. "|r") or "")) or (s.zone and ("|cff808080" .. s.zone .. "|r") or "|cff808080no place known|r"))
+            if s.map then
+                m.hint = "Click: set a waypoint and open the map there"
+                m.click = function() openWaypoint(s.map, s.x, s.y, nameOf(e)) end
+            elseif s.zoneMap then
+                m.hint = "Click: open the map of the zone (no exact spot known)"
+                m.click = function() WorldMapFrame:SetMapID(s.zoneMap) end
+            end
         end
         n = spacer(n)
     end
@@ -1766,6 +1845,33 @@ local function refreshRow()
     row:SetWidth(math.max(x, 10))
     row:Show()
     if SFP.DockPanels then SFP.DockPanels() end
+end
+
+-- a mount added to your collection: where you were is kept as its place (not when bought at the auction house, taken from the mail or traded)
+do
+    local mf = CreateFrame("Frame")
+    mf:RegisterEvent("NEW_MOUNT_ADDED")
+    mf:SetScript("OnEvent", function(_, _, mountID)
+        pcall(function()
+            if not (SFP.db and mountID and C_MountJournal and C_MountJournal.GetMountInfoByID) then return end
+            local name = C_MountJournal.GetMountInfoByID(mountID)
+            if type(name) ~= "string" or name == "" then return end
+            if IsInInstance and IsInInstance() then return end
+            for _, fname in ipairs({ "AuctionHouseFrame", "AuctionFrame", "MailFrame", "TradeFrame" }) do
+                local fr = _G[fname]
+                if fr and fr.IsShown and fr:IsShown() then return end
+            end
+            local m = C_Map.GetBestMapForUnit("player")
+            local pos = m and C_Map.GetPlayerMapPosition(m, "player")
+            if not (m and pos) then return end
+            local x, y = pos:GetXY()
+            if issecretvalue and (issecretvalue(x) or issecretvalue(y)) then return end
+            SFP.db.mountSpots = SFP.db.mountSpots or {}
+            SFP.db.mountSpots[name] = { m = m, x = math.floor(x * 10000) / 10000, y = math.floor(y * 10000) / 10000 }
+            entriesCache = nil
+            if win and win:IsShown() and mode == "mount" and win.refreshList then win.refreshList() end
+        end)
+    end)
 end
 
 -- a pet added to your collection (caught, bought, looted, any way): everything about it is kept in db.petInfo - species, name, icon,
