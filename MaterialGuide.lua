@@ -116,7 +116,10 @@ local function finish(side, n)
         side.content:SetHeight(math.max(n * ROW_H, 1))
         return
     end
-    local per = math.max(6, math.floor((list.scroll:GetHeight() or 300) / ROW_H))
+    -- rows that fit: the window's height less the header (64) and the page buttons (40); the scroll frame has no size yet on the first draw
+    local winH = (win and win:GetHeight()) or 0
+    if winH < 100 then winH = (WorldMapFrame:GetHeight() or 400) end
+    local per = math.max(6, math.floor((winH - 104) / ROW_H))
     local sig = tostring(mode) .. "|" .. tostring(matTab) .. "|" .. tostring(gatherExp) .. "|" .. tostring(selected) .. "|" .. tostring(expSel) .. "|" .. (search and search:GetText() or "")
     if sig ~= listSig then listSig, listPage = sig, 1 end
     local pages = math.max(1, math.ceil(n / per))
@@ -1025,7 +1028,7 @@ local function collectedMonsters(map, group)
                                 local byMap = monsterIndex[m]
                                 if not byMap then byMap = { farm = {}, rare = {} }; monsterIndex[m] = byMap end
                                 local list = byMap[g]
-                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0 }
+                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0, map = m }
                             end
                         end
                     end
@@ -1043,7 +1046,7 @@ end
 -- Farm spots and Rares: the same window - the zones on the left, and for the zone picked a block per monster: its name and a red
 -- WAYPOINT, its place, everything it drops (grey items too) with how often and the price, and a space before the next one
 -- the monsters of a zone for Farm spots / Rares: the addon's farm data and the collected monsters, each name once
-local function farmSpotsFor(map, group)
+local function farmSpotsOwn(map, group)
     local spots = (map and SFP.FarmSpotsOf) and SFP.FarmSpotsOf(map, group) or {}
     if not map then return spots end
     local have, merged = {}, {}
@@ -1054,9 +1057,26 @@ local function farmSpotsFor(map, group)
     return merged
 end
 
+-- a map with no monsters of its own (a continent or a region: "Quel'Thalas") shows those of the zones inside it, each with its own map
+local function farmSpotsFor(map, group)
+    local own = farmSpotsOwn(map, group)
+    if #own > 0 or not map or not (C_Map and C_Map.GetMapChildrenInfo) then return own end
+    local out = {}
+    for _, child in ipairs(C_Map.GetMapChildrenInfo(map, nil, true) or {}) do
+        for _, s in ipairs(farmSpotsOwn(child.mapID, group)) do
+            if s.map then out[#out + 1] = s
+            else out[#out + 1] = setmetatable({ map = child.mapID }, { __index = s }) end
+        end
+    end
+    table.sort(out, function(a, c) return tostring(a.name) < tostring(c.name) end)
+    return out
+end
+
 -- the blocks of some monsters of one map: name and red WAYPOINT, place, all the loot (grey items too), a space after each
 local function renderBlocks(n, map, spots)
+    local parentMap = map
     for _, s in ipairs(spots) do
+        local map = s.map or parentMap
         local loot, kills = SFP.MonsterLoot(s)
         local x0, y0 = s.hx, s.hy
         local top = loot[1] and loot[1].id or (s.items and s.items[1])
@@ -1405,6 +1425,12 @@ local function build()
     pg.prev:SetScript("OnClick", function() listPage = listPage - 1; win.refreshList() end)
     pg.next:SetScript("OnClick", function() listPage = listPage + 1; win.refreshList() end)
     win.pager = pg
+    -- the mouse wheel turns the pages of the list
+    list.scroll:EnableMouseWheel(true)
+    list.scroll:SetScript("OnMouseWheel", function(_, delta)
+        listPage = listPage - (delta > 0 and 1 or -1)
+        win.refreshList()
+    end)
     list.content:SetWidth(list.scroll:GetWidth())
     win:SetScript("OnSizeChanged", function()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
