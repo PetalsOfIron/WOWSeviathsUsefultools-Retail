@@ -861,6 +861,8 @@ local function CreateWindow()
     statusText:SetPoint("BOTTOMLEFT", 14, 10)
 
     frame:SetScript("OnShow", function()
+        -- the item pages are made when the Codex opens (a few thousand per frame in the background), not at login
+        if ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
         RefreshCategories()
         ns:RefreshList()
         if not state.selected then ns:ShowEntry("guide:codex", true) end
