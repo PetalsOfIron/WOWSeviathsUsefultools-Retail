@@ -292,24 +292,37 @@ local function QuestHoverTip(owner, questID, append)
         local function samePerson(a, c)
             return a.n and c.n and a.n == c.n and a.m == c.m and a.x and c.x and math.abs(a.x - c.x) < 0.01 and math.abs(a.y - c.y) < 0.01
         end
-        -- the people the quest sends you to on the way (every one, with its place)
-        for _, v in ipairs(ql.vs or {}) do
-            lines[#lines + 1] = "Speak to: " .. spotText(v)
-            added = true
-        end
-        local doneKey = {}
-        for _, g in ipairs(givers) do
-            local both = false
-            for _, t in ipairs(takers) do if samePerson(g, t) then both = true doneKey[t] = true break end end
-            lines[#lines + 1] = (both and "Quest giver and hand-in at: " or "Quest giver at: ") .. spotText(g)
-            added = true
-        end
-        for _, t in ipairs(takers) do
-            if not doneKey[t] then
-                lines[#lines + 1] = (complete and "Hand in at: " or "Then hand in at: ") .. spotText(t)
+        -- one line per place: everyone at the same place is listed by name on it
+        local function peopleLines(label, list)
+            local order, byPlace = {}, {}
+            for _, p in ipairs(list) do
+                local key = placeText(p)
+                local g = byPlace[key]
+                if not g then g = { text = key, names = {} }; byPlace[key] = g; order[#order + 1] = g end
+                local have = false
+                for _, n in ipairs(g.names) do if n == p.n then have = true break end end
+                if p.n and not have then g.names[#g.names + 1] = p.n end
+            end
+            for _, g in ipairs(order) do
+                lines[#lines + 1] = label .. ": " .. g.text .. (#g.names > 0 and (" - " .. table.concat(g.names, ", ")) or "")
                 added = true
             end
         end
+        local givers = ql.gs or (ql.g and { ql.g }) or {}
+        local takers = ql.ts or (ql.t and { ql.t }) or {}
+        local function samePerson(a, c)
+            return a.n and c.n and a.n == c.n and a.m == c.m and a.x and c.x and math.abs(a.x - c.x) < 0.01 and math.abs(a.y - c.y) < 0.01
+        end
+        -- a person who gives and takes the quest is said once, as giver
+        local onlyTakers = {}
+        for _, t in ipairs(takers) do
+            local both = false
+            for _, g in ipairs(givers) do if samePerson(g, t) then both = true break end end
+            if not both then onlyTakers[#onlyTakers + 1] = t end
+        end
+        peopleLines("Quest giver at", givers)
+        peopleLines("Speak to at", ql.vs or {})
+        peopleLines(complete and "Hand in at" or "Then hand in at", onlyTakers)
         if not added then
             local where = (ns:QuestWhere(e) or ""):match("[^\n]+")
             if where and not where:find("Not known yet") then lines[#lines + 1] = where end
