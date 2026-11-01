@@ -119,6 +119,7 @@ end
 -- holds a lot of memory for them, and most players never open that section. Made a few thousand per frame, then the list is refreshed.
 local itemsState   -- nil = not started, "running", "done"
 function ns:ForgetCollectedItems() itemsState = nil end
+function ns:ItemsLoaded() return itemsState ~= nil end
 
 function ns:EnsureCollectedItems()
     if itemsState then return end
