@@ -1103,8 +1103,13 @@ local function renderBlocks(n, map, spots)
             l.icon:SetTexture(SFP:ItemIcon(d.id))
             l.text:SetText(iname(d.id))
             local price = SFP:GetPrice(d.id)
-            local pct = (kills >= 3 and d.q > 0) and ("|cffffd100" .. math.min(100, math.floor(d.q / kills * 1000) / 10) .. "%|r  ") or ""
-            l.right:SetText(pct .. (price and SFP:FormatPrice(price) or ""))
+            -- the amount: what was looted in all, and per kill
+            local per = (kills >= 1 and d.q > 0) and (d.q / kills) or nil
+            local perText = per and (per >= 10 and string.format("%d", math.floor(per + 0.5)) or string.format("%.1f", per)) or nil
+            if d.q > 0 then
+                l.text:SetText(iname(d.id) .. "  |cff808080x" .. d.q .. " from " .. kills .. (kills == 1 and " kill" or " kills") .. "|r")
+            end
+            l.right:SetText((perText and ("|cffffd100" .. perText .. " per kill|r   ") or "") .. (price and SFP:FormatPrice(price) or ""))
             -- the materials are plain text here: no highlight, no tooltip, nothing under the mouse
             l:EnableMouse(false)
             l.hl:Hide()
