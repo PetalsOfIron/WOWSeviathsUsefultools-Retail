@@ -790,7 +790,11 @@ function SFP:ItemIcon(itemID)
     local icon = self:StoreIcon(itemID)
     if icon then return icon end
     local kept = self.db and self.db.itemIcon and self.db.itemIcon[itemID]
-    return kept or 134400
+    if kept then return kept end
+    -- a shipped gray item (Wowhead's list) carries its icon name
+    local rec = self.db and self.db.knownItems and self.db.knownItems[itemID]
+    if type(rec) == "table" and rec.ic then return "Interface\\Icons\\" .. rec.ic end
+    return 134400
 end
 
 function SFP:ItemExtra(itemID)

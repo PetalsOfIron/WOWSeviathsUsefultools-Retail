@@ -137,10 +137,20 @@ def main():
         lod["SeviathsUsefulToolsDB"]["npcMaps"] = by_map
     ki = tools.get("knownItems")
     if isinstance(ki, dict):
-        keep = ("n", "q", "p", "c", "s")
+        keep = ("n", "q", "p", "c", "s", "ic")
         normal = {k: v for k, v in ki.items() if not (isinstance(v, dict) and v.get("q") == 0)}
         gray = {k: {f: v[f] for f in keep if f in v} for k, v in ki.items() if isinstance(v, dict) and v.get("q") == 0}
         tools["knownItems"] = normal
+        # the gray items of Wowhead's junk list (tools/junk_items.txt: id|name|icon|level): name and icon of every gray item, also those not picked up yet
+        jp = os.path.join(HERE, "junk_items.txt")
+        if os.path.exists(jp):
+            for line in open(jp, encoding="utf8").read().splitlines():
+                parts = line.split("|")
+                if len(parts) >= 3 and parts[0].isdigit():
+                    jid = int(parts[0])
+                    cur = gray.setdefault(jid, {"n": parts[1], "q": 0, "c": 15, "s": 0})
+                    if parts[2]:
+                        cur.setdefault("ic", parts[2])
         if gray:
             lod.setdefault("SeviathsUsefulToolsDB", {})["knownItems"] = gray
         print("gray items:", len(gray), "of", len(ki))
