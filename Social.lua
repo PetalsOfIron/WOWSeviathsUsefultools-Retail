@@ -877,7 +877,7 @@ local function finishInspect(guid, unit, rec)
         local okT, _, tu = pcall(GameTooltip.GetUnit, GameTooltip)
         if okT and tu then
             local okU, g2 = pcall(UnitGUID, tu)
-            if okU and g2 == guid then pcall(GameTooltip.SetUnit, GameTooltip, tu) end
+            if okU and g2 == guid then pcall(securecallfunction or function(fn, ...) return fn(...) end, GameTooltip.SetUnit, GameTooltip, tu) end
         end
     end
 end
@@ -1178,7 +1178,8 @@ local function captureNameplateText(unit)
     if not rioScanTip then rioScanTip = CreateFrame("GameTooltip", "SeviathsUsefulToolsRioScan", UIParent, "GameTooltipTemplate") end
     rioScanTip:SetOwner(UIParent, "ANCHOR_NONE")
     rioScanTip:ClearLines()
-    local okU = pcall(rioScanTip.SetUnit, rioScanTip, unit)
+    -- through securecallfunction: our code must not taint the game's own tooltip code (its health bar compares secret values)
+    local okU = pcall(securecallfunction or function(fn, ...) return fn(...) end, rioScanTip.SetUnit, rioScanTip, unit)
     if not okU then rioScanTip:Hide() return nil end
     local RIO = _G.RaiderIO
     if RIO and RIO.ShowProfile then pcall(RIO.ShowProfile, rioScanTip, unit) end
