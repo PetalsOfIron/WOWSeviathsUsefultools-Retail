@@ -111,7 +111,12 @@ local function ObjectiveProgress(qid)
     if not objs then return nil end
     local sum = 0
     for _, o in ipairs(objs) do
-        if o.numFulfilled and not secret(o.numFulfilled) then sum = sum + o.numFulfilled end
+        if o.type == "progressbar" and GetQuestProgressBarPercent then
+            local okP, pct = pcall(GetQuestProgressBarPercent, qid)
+            if okP and type(pct) == "number" and not secret(pct) then sum = sum + pct end
+        elseif o.numFulfilled and not secret(o.numFulfilled) then
+            sum = sum + o.numFulfilled
+        end
     end
     return sum
 end
@@ -165,7 +170,7 @@ local function scanOne(qid)
             local dupSpot
             for _, sp in ipairs(l.o) do
                 if sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dupSpot = sp break end
-                if area and sp.a == area and sp.m == m then dupSpot = sp break end
+                if area and sp.a == area and sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.06 and math.abs(sp.y - y) < 0.06 then dupSpot = sp break end
             end
             local oname, killed = ObjectiveName()
             -- progress that came right after talking to an NPC: that NPC is a person to speak to for this quest
