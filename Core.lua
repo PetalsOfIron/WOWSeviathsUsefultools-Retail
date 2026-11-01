@@ -1246,6 +1246,28 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         UpdateAddOnMemoryUsage()
         local kb = GetAddOnMemoryUsage("SeviathsUsefulTools") or 0
         SFP:Print(("Memory used by this addon: %.0f MB (the whole interface: %.0f MB)."):format(kb / 1024, collectgarbage("count") / 1024))
+        if rest == "detail" then
+            -- which tables are big: the number of tables inside each (a table costs about 100-200 bytes), counted once; it can take a few seconds
+            local function nodes(t, depth)
+                local n = 1
+                if depth < 6 then
+                    for _, v in pairs(t) do if type(v) == "table" then n = n + nodes(v, depth + 1) end end
+                end
+                return n
+            end
+            local rows = {}
+            local function add(label, t) if type(t) == "table" then rows[#rows + 1] = { label, nodes(t, 0) } end end
+            for _, dbName in ipairs({ "SeviathsUsefulToolsDB", "SeviathsCodexDB", "SeviathsDungeonsRaidsDB" }) do
+                local db = _G[dbName]
+                if type(db) == "table" then for k, v in pairs(db) do add(dbName:gsub("Seviaths", ""):gsub("DB", "") .. "." .. tostring(k), v) end end
+            end
+            add("shipped prices", _G.SeviathsUsefulToolsGold)
+            add("shipped data (left)", _G.SeviathsUsefulToolsCollected)
+            local cx = _G.SeviathsCodex
+            if cx then add("codex entries", cx.entries) end
+            table.sort(rows, function(x, y) return x[2] > y[2] end)
+            for i = 1, math.min(14, #rows) do SFP:Print(("%s: %d tables"):format(rows[i][1], rows[i][2])) end
+        end
     elseif cmd == "fastscan" then
         -- for testing: the addon's own 15-minute wait is skipped and a fast scan is asked for at once. The game may still ignore a
         -- request that comes too soon after another one (then the bar waits 2 minutes and the addon says so).
