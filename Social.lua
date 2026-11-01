@@ -1239,10 +1239,14 @@ end
 local function playerTooltip(tt, unit)
     local c = S.Config()
     if not c.tip then return end
-    if not (UnitIsPlayer and UnitIsPlayer(unit)) then return end
-    local isSelf = UnitIsUnit(unit, "player")
-    local guid = UnitGUID(unit)
-    if type(guid) ~= "string" or secret(guid) then return end
+    -- the unit can be a "secret" value (the world cursor tooltip): every call is guarded, a secret answer ends the tooltip quietly
+    if secret(unit) then return end
+    local okP, isPlayer = pcall(UnitIsPlayer, unit)
+    if not okP or secret(isPlayer) or not isPlayer then return end
+    local okS, isSelf = pcall(UnitIsUnit, unit, "player")
+    if not okS or secret(isSelf) then return end
+    local okG, guid = pcall(UnitGUID, unit)
+    if not okG or type(guid) ~= "string" or secret(guid) then return end
     -- the ID of this player is saved with the name (found again by name or by ID)
     if not isSelf and SFP.db then
         local key = S.NormKey and S.NormKey(unit)

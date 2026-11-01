@@ -174,7 +174,7 @@ def build_zip():
                 out.append(n)
         return out
 
-    shutil.copytree(ADDON, target, ignore=ignore)
+    shutil.copytree(ADDON, target, ignore=ignore, dirs_exist_ok=True)   # a folder that could not be removed is overwritten
     zpath = os.path.join(CURSE, "SeviathsUsefulTools-%s.zip" % version())
     if os.path.exists(zpath):
         os.remove(zpath)
