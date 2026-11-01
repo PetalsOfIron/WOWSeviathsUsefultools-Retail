@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0
+### World map
+- One line of buttons below the map: Farm spots, Rares, Material search, Mount search, Hunter search, Battle pets, Mining & Herbalism. Each opens in a big window next to the map; only one is open at a time.
+- Material search: Monsters tab (zones from Classic to Midnight, the loot of the zone you pick, the monsters that drop each item, a waypoint on each) and a Mining & Herbalism tab (ores and herbs of the current zone, exact gathering spots you recorded, zones with node counts).
+- Farm spots and Rares: every zone with its monsters; hover a name for the same tooltip the map shows (everything it drops, gold, the zone's loot). Best 15 farm spots by value per kill, made once a week at the weekly reset.
+- Mount search: every mount of the game, rarest first, with its waypoint and its drop chance (your own tries and drops when you have them).
+- Hunter search: every hunter pet with a waypoint.
+- Battle pets: every pet with its price (vendor price when it cannot be traded), grouped by where it comes from, wild pet zones from Wowhead, waypoints where the exact place is known.
+- Waypoints open the map at the place and ping it with a pulsing blue circle; click the pin with either mouse button to remove it.
+### Recording
+- Gold per kill of every monster, the amount of each material per kill, item icons and names, where an item was collected.
+- Rares seen on the map are added to the Rares list; pets and mounts you collect keep their info and the place you found them.
+- Boss and rare kills count as tries for the mounts they can drop, a looted mount counts as a drop; the chance updates by itself.
+- The place you stood before entering a dungeon or raid is kept as its entrance.
+- Vendor costs are saved with the icon and name of the currency or item needed.
+### Fixes
+- Several Lua errors fixed (nameplate copy, quest tooltip).
+- Lists are cut into pages of at most 30 rows; only the open section is built.
+
 ## 2.0.0-retail
 - New retail edition of SeviathsUsefulTools: Farm Pack + Codex (with Delves) + Dungeons & Raids + Guild Helper in one addon,
   plus the newer features of the classic edition (auction sold / mailbox / vendor messages, crafting and farming profit,
