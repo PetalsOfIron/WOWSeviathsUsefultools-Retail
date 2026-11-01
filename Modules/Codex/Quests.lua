@@ -155,7 +155,7 @@ local function scanOne(qid)
             end
             local oname, killed = ObjectiveName()
             -- progress that came right after talking to an NPC: that NPC is a person to speak to for this quest
-            if lastNpc and GetTime() - lastNpc.t < 20 then
+            if lastNpc and not oname and GetTime() - lastNpc.t < 20 then
                 l.vs = l.vs or {}
                 AddPerson(l.vs, { n = lastNpc.n, m = lastNpc.m, x = lastNpc.x, y = lastNpc.y, a = lastNpc.a })
             end
