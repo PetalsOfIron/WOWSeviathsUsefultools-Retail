@@ -671,7 +671,7 @@ local function renderModeTree()
     finish(tree, n)
 end
 
-local headerRow   -- defined below
+local headerRow, openWaypoint   -- defined below
 -- Battle pets: every pet species of the game with its auction price (own realm's last scan); the families on the left filter the list
 local function petPrices()
     local all = SFP.db and SFP.db.petPrices
@@ -684,6 +684,24 @@ end
 
 -- where a pet's source is: the vendor ("Vendor: Name") or the monster ("Drop: Name") that its source text names, found in the collected
 -- vendors and monsters: { map, x, y }
+local zoneIndex
+local function mapOfZone(name)
+    if not zoneIndex then
+        zoneIndex = {}
+        local list = C_Map.GetMapChildrenInfo and C_Map.GetMapChildrenInfo(946, nil, true) or {}
+        for _, m in ipairs(list) do
+            if m.name and not zoneIndex[m.name] then zoneIndex[m.name] = m.mapID end
+        end
+        for _, exp in ipairs(SFP.Expansions) do
+            for _, z in ipairs(exp.zones or {}) do
+                local nm = SFP:ZoneName(z.map)
+                if nm and not zoneIndex[nm] then zoneIndex[nm] = z.map end
+            end
+        end
+    end
+    return zoneIndex[name]
+end
+
 local function petSpots(entries)
     local need = {}
     for _, e in ipairs(entries) do
@@ -692,6 +710,13 @@ local function petSpots(entries)
         e.dropName = src:match("Drop:%s*([^\n]+)")
         if e.vendorName then need[e.vendorName] = true end
         if e.dropName then need[e.dropName] = true end
+    end
+    for _, e in ipairs(entries) do
+        local zn = plain(e.source or ""):match("Zone:%s*([^\n]+)")
+        if zn then
+            e.zoneName = zn
+            e.zoneMap = mapOfZone(zn)
+        end
     end
     if next(need) == nil then return end
     local found = {}
@@ -713,6 +738,7 @@ local function petSpots(entries)
     for _, e in ipairs(entries) do
         local s = (e.vendorName and found[e.vendorName]) or (e.dropName and found[e.dropName])
         if s then e.map, e.x, e.y = s.map, s.x, s.y end
+        e.who = e.vendorName and ("Vendor " .. e.vendorName) or (e.dropName and ("Drop " .. e.dropName)) or nil
     end
 end
 
@@ -778,16 +804,20 @@ local function renderPets(q)
         local r = rowOf(list, n)
         place(list, r, n, 8)
         r.icon:SetTexture(e.icon)
-        r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r")
-        r.right:SetText((e.map and ("|cffff3030WAYPOINT|r   ") or "") .. (e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r"))
+        local where = (e.who and (e.who .. (e.zoneName and " - " or "")) or "") .. (e.zoneName or "")
+        r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r" ..
+            (where ~= "" and ("  |cffffd100" .. where .. "|r") or ""))
+        r.right:SetText((e.map and "|cffff3030WAYPOINT|r   " or (e.zoneMap and "|cffff3030OPEN MAP|r   " or "")) ..
+            (e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r"))
         r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cff33e6ffClick: waypoint at the place and open the map there|r" or "")
-        if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end end
+        if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end
+        elseif e.zoneMap then r.click = function() WorldMapFrame:SetMapID(e.zoneMap) end end
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
     finish(list, n)
 end
 
-local function openWaypoint(map, x, y, label)
+openWaypoint = function(map, x, y, label)
     if not map then return end
     if WorldMapFrame:GetMapID() ~= map then WorldMapFrame:SetMapID(map) end
     if x and C_Map.CanSetUserWaypointOnMap and C_Map.CanSetUserWaypointOnMap(map) then
