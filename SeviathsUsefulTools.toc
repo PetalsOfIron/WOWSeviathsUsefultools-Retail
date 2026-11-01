@@ -23,6 +23,7 @@ Data\Expansions.lua
 Data\Spawns.lua
 Data\Rares.lua
 Data\SpawnsWowhead.lua
+Data\WildPets.lua
 Data\Gathering.lua
 Data\GatherZones.lua
 Data\Seed.lua
