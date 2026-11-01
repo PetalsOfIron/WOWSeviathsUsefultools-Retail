@@ -2457,8 +2457,19 @@ end
 local wpButton
 local function updateWaypointButton()
     local show = false
-    local wp = C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
-    if WorldMapFrame:IsShown() and spawnLayer and wp and wp.position and wp.uiMapID == WorldMapFrame:GetMapID() then
+    -- the waypoint's place on the map being viewed: it is also shown on the maps around the one it was set on (a region, a neighbour
+    -- zone), so the position is asked for the viewed map
+    local viewed = WorldMapFrame:GetMapID()
+    local pos = viewed and C_Map.GetUserWaypointPositionForMap and C_Map.GetUserWaypointPositionForMap(viewed)
+    local wp
+    if pos then
+        local px, py = pos:GetXY()
+        wp = { position = { x = px, y = py } }
+    else
+        local w0 = C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+        if w0 and w0.position and w0.uiMapID == viewed then wp = w0 end
+    end
+    if WorldMapFrame:IsShown() and spawnLayer and wp and wp.position then
         local w, h = spawnLayer:GetWidth(), spawnLayer:GetHeight()
         if w and w > 0 then
             if not wpButton then
