@@ -34,7 +34,14 @@ class P:
             if t[j] == "\\":
                 j += 1
                 c = t[j]
-                buf.append({"n": "\n", "t": "\t", "r": "\r"}.get(c, c))
+                if c.isdigit():   # decimal escape (\000 is what %q writes for a control character)
+                    k = j
+                    while k < j + 3 and k < len(t) and t[k].isdigit():
+                        k += 1
+                    buf.append(chr(int(t[j:k])))
+                    j = k - 1
+                else:
+                    buf.append({"n": "\n", "t": "\t", "r": "\r"}.get(c, c))
             else:
                 buf.append(t[j])
             j += 1
@@ -94,11 +101,31 @@ class P:
         return d, p
 
 
+def unpack_saved(db):
+    """The addon writes its big tables as text pieces (db.__packed, see SavedPack.lua): turned back into tables here."""
+    if not isinstance(db, dict) or not isinstance(db.get("__packed"), (dict, list)):
+        return db
+    packed = db.pop("__packed")
+    for name, pieces in packed.items():
+        into = db.setdefault(name, {})
+        if not isinstance(into, dict):
+            continue
+        for text in (pieces if isinstance(pieces, list) else pieces.values()):
+            try:
+                v, _ = P(text).value(0)
+            except Exception:
+                continue
+            if isinstance(v, dict):
+                for k, x in v.items():
+                    into.setdefault(k, x)
+    return db
+
+
 def parse_file(path):
     """{global name: value} of a SavedVariables file."""
     text = open(path, encoding="utf-8", errors="replace").read()
     out = {}
     for m in re.finditer(r"^(\w+) = ", text, re.M):
         v, _ = P(text).value(m.end())
-        out[m.group(1)] = v
+        out[m.group(1)] = unpack_saved(v)
     return out

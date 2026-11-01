@@ -420,6 +420,7 @@ pcall(ev.RegisterEvent, ev, "PLAYER_LOGIN")
 ev:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" and arg1 == ADDON then
         SeviathsCodexDB = SeviathsCodexDB or {}
+        if SeviathsUnpackSaved then pcall(SeviathsUnpackSaved, SeviathsCodexDB) end
         local db = SeviathsCodexDB
         db.minimap = db.minimap or { angle = 200, hide = true } -- merged: use the Farm Pack minimap menu
         ns.db = db
