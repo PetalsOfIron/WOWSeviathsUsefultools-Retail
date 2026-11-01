@@ -1017,7 +1017,7 @@ local function openGuide() openMode("mat") end
 -- which list a button opens: its collapsed flag in the saved settings (one open at a time)
 local FLAGS = { spots = "spotsCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
 local function openOnly(key)
-    local wasOpen = not SFP.db[FLAGS[key]]
+    local wasOpen = SFP.db[FLAGS[key]] == false
     for k, flag in pairs(FLAGS) do SFP.db[flag] = true end
     if not wasOpen then SFP.db[FLAGS[key]] = false end
     SFP.RefreshWorldMap()

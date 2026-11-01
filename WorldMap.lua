@@ -1224,7 +1224,8 @@ local function drawGatherList(mapID)
     local rows = gatherHere(mapID)
     gatherPanel = gatherPanel or buildGatherPanel()
     gatherPanel.title:SetText("|cffffb366Mining|r & |cff4dff8cHerbalism|r  |cffaaaaaa" .. SFP:ZoneName(mapID) .. "|r")
-    gatherPanel.toggle:SetText(SFP.db.gatherCollapsed and "[+]" or "[-]")
+    gatherPanel.toggle:SetText(SFP.db.gatherCollapsed ~= false and "[+]" or "[-]")
+    if SFP.db.gatherCollapsed ~= false then gatherPanel:Hide() return end
     local n = 0
     if not SFP.db.gatherCollapsed then
         if #rows == 0 then
@@ -1379,9 +1380,8 @@ local function buildSpotPanel()
     -- tick box on the map itself: show or hide the yellow route line (same switch as on the Settings page)
     local cb = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
     cb:SetSize(18, 18)
-    cb:SetPoint("TOPLEFT", 134, -1)
+    cb:SetPoint("BOTTOMLEFT", 6, 4)   -- inside the menu, at the bottom left (the list's own switch)
     cb:SetHitRectInsets(0, -64, 0, 0)
-    cb:SetFrameLevel(f.head:GetFrameLevel() + 5)   -- above the header button, which spans the whole top row
     cb.label = cb:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     cb.label:SetPoint("LEFT", cb, "RIGHT", 0, 0)
     cb.label:SetText("Route line")
@@ -1416,7 +1416,7 @@ local function buildSpotPanel()
     -- bottom button: the 10 best farm spots of the game by current auction prices, with a waypoint each
     f.top = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
     f.top:SetSize(150, 20)
-    f.top:SetPoint("BOTTOM", 0, 4)
+    f.top:SetPoint("BOTTOMRIGHT", -4, 4)
     f.top:SetText("Top 10 best spots")
     f.top:SetFrameLevel(f.head:GetFrameLevel() + 5)
     f.top:SetScript("OnClick", function() if SFP.ShowTopSpots then SFP:ShowTopSpots() end end)
@@ -1493,7 +1493,9 @@ drawSpotList = function(mapID)
         end
     end
     spotPanel.title:SetText("|c" .. SFP.CYAN_HEX .. "Farm spots|r  |cffaaaaaa" .. (nSpots - nHidden) .. "/" .. nSpots .. "|r")
-    spotPanel.toggle:SetText(SFP.db.spotsCollapsed and "[+]" or "[-]")
+    spotPanel.toggle:SetText(SFP.db.spotsCollapsed ~= false and "[+]" or "[-]")
+    -- closed: nothing of it stays on the map (the button below the map opens it)
+    if SFP.db.spotsCollapsed ~= false then spotPanel:Hide() return end
     spotPanel.routeCheck:SetChecked(SFP.db.showRoute ~= false)
     spotPanel.allOn:SetScript("OnClick", function()
         for g in pairs(groups) do enableGroup(g) end
@@ -1809,9 +1811,10 @@ local function drawCollectables(mapID)
     local mr, pr = mountRows(mapID), petRows(mapID)
     if #mr == 0 and #pr == 0 then return end
     collPanel = collPanel or buildCollPanel()
-    local collapsed = SFP.db.collCollapsed
+    local collapsed = SFP.db.collCollapsed ~= false
     collPanel.title:SetText("|cffa335eeCollectables|r  |cffaaaaaa" .. SFP:ZoneName(mapID) .. "|r")
     collPanel.toggle:SetText(collapsed and "[+]" or "[-]")
+    if collapsed then collPanel:Hide() return end
     local n = 0
     local function add(d)
         n = n + 1
