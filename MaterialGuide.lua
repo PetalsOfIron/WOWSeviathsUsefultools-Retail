@@ -80,7 +80,12 @@ local function rowOf(side, i)
     r.hl:SetTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
     r.hl:SetBlendMode("ADD")
     r:SetScript("OnEnter", function(self)
-        if self.item then
+        if self.tipFn then
+            local t = SFP.Tip()
+            t:SetOwner(self, "ANCHOR_RIGHT")
+            self.tipFn(t)
+            t:Show()
+        elseif self.item then
             local t = SFP.Tip()
             t:SetOwner(self, "ANCHOR_RIGHT")
             t:SetItemByID(self.item)
@@ -107,7 +112,7 @@ local function place(side, r, n, indent)
     r.text:ClearAllPoints()
     r.text:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
     r.text:SetPoint("RIGHT", r.right, "LEFT", -4, 0)
-    r.item, r.click, r.hint = nil, nil, nil
+    r.item, r.click, r.hint, r.tipFn = nil, nil, nil, nil
     r:EnableMouse(true)
     r.right:SetText("")
     r.bg:SetColorTexture(0, 0, 0, 0)
@@ -1191,7 +1196,7 @@ local function farmSpotsFor(map, group)
 end
 
 -- the blocks of some monsters of one map: name and red WAYPOINT, place, all the loot (grey items too), a space after each
-local function renderBlocks(n, map, spots)
+local function renderBlocks(n, map, spots, compact)
     local parentMap = map
     for _, s in ipairs(spots) do
         local map = s.map or parentMap
@@ -1206,6 +1211,15 @@ local function renderBlocks(n, map, spots)
         r.right:SetText("|cffff3030WAYPOINT|r")
         r.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         r.click = function() goToMonster(map, s) end
+        local function lootTip(t)
+            t:AddLine(tostring(s.name), 1, 0.5, 0)
+            t:AddLine(SFP:ZoneName(map) .. "  " .. (s.hx and string.format("%.1f, %.1f", s.hx * 100, s.hy * 100) or ""), 1, 0.82, 0)
+            if type(s.note) == "string" and s.note ~= "" then t:AddLine(s.note, 0.8, 0.8, 0.8, true) end
+            t:AddLine(" ")
+            if SFP.AddSpotDrops then SFP.AddSpotDrops(t, s) end
+            t:AddLine("Click: set a waypoint", 0, 0.9, 1)
+        end
+        if compact then r.tipFn = lootTip end
         n = n + 1
         local p = rowOf(list, n)
         place(list, p, n, 30)
@@ -1216,7 +1230,8 @@ local function renderBlocks(n, map, spots)
             (s.valueText or ""))
         p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         p.click = function() goToMonster(map, s) end
-        if type(s.note) == "string" and s.note ~= "" then
+        if compact then p.tipFn = lootTip end
+        if not compact and type(s.note) == "string" and s.note ~= "" then
             n = n + 1
             local nr = rowOf(list, n)
             place(list, nr, n, 30)
@@ -1225,7 +1240,7 @@ local function renderBlocks(n, map, spots)
             nr.hint = s.note
             nr.hl:Hide()
         end
-        for _, d in ipairs(loot) do
+        for _, d in ipairs(compact and {} or loot) do
             n = n + 1
             local l = rowOf(list, n)
             place(list, l, n, 30)
@@ -1243,7 +1258,20 @@ local function renderBlocks(n, map, spots)
             l:EnableMouse(false)
             l.hl:Hide()
         end
-        if #loot == 0 then
+        local gold, goldKills = SFP.MonsterGold and SFP.MonsterGold(s)
+        if gold and not compact then
+            n = n + 1
+            local g = rowOf(list, n)
+            place(list, g, n, 30)
+            g.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
+            g.text:SetText("Gold  |cff808080from " .. goldKills .. (goldKills == 1 and " kill" or " kills") .. "|r")
+            g.right:SetText("|cffffd100" .. SFP:FormatPrice(math.floor(gold)) .. " per kill|r")
+            g:EnableMouse(false)
+            g.hl:Hide()
+        end
+        if compact then
+            -- the loot is in the tooltip of the name
+        elseif #loot == 0 then
             n = n + 1
             local l = rowOf(list, n)
             place(list, l, n, 30)
@@ -1284,6 +1312,8 @@ local function renderTop()
             local price = SFP:GetPrice(d.id)
             if price and d.q > 0 then val = val + price * d.q / kills end
         end
+        local gold = SFP.MonsterGold and SFP.MonsterGold(s)
+        if gold then val = val + gold end
         return val
     end
     -- the ranking is made once a week, at the weekly reset (with that day's prices), and kept for the week; a spot learned later is in
@@ -1350,7 +1380,7 @@ local function renderFarmList(group)
         local map = selected
         if type(map) ~= "number" then map = WorldMapFrame:GetMapID() end
         win.title:SetText(label .. "  |cffaaaaaa" .. (map and SFP:ZoneName(map) or "") .. "|r")
-        if map then n = renderBlocks(n, map, farmSpotsFor(map, group)) end
+        if map then n = renderBlocks(n, map, farmSpotsFor(map, group), group == "rare") end
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing recorded|r") end
     finish(list, n)
