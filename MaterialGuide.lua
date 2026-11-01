@@ -104,7 +104,7 @@ local function place(side, r, n, indent)
 end
 
 -- the list is cut into pages that fit the window (Previous / Next below it); the tree on the left just scrolls
-local mode = "mat"          -- "mat", "mount", "hunter" or "pet"
+local mode = "mat"          -- "mat", "mount", "hunter", "pet", "farm" or "rare"
 local matTab = "monsters"   -- the Material search has two tabs: "monsters" and "gather"
 local gatherExp = "zone"   -- what the gathering tab shows: "zone" (the zone on the map), "all" or an expansion key
 local expSel = "all"        -- expansion key / family shown in the mount, hunter and pet lists
@@ -812,7 +812,7 @@ local function renderPets(q)
         local where = (e.who and (e.who .. (e.zoneName and " - " or "")) or "") .. (e.zoneName or "")
         r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r" ..
             (where ~= "" and ("  |cffffd100" .. where .. "|r") or ""))
-        r.right:SetText((e.map and "|cffff3030WAYPOINT|r   " or (e.zoneMap and "|cffff3030OPEN MAP|r   " or "")) ..
+        r.right:SetText((e.map and "|cffff3030WAYPOINT|r   " or (e.zoneMap and "|cffff3030WAYPOINT|r   " or "")) ..
             (e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r"))
         r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cff33e6ffClick: waypoint at the place and open the map there|r" or "")
         if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end
@@ -946,8 +946,60 @@ local function setMode(m)
     expSel = "all"
     if win then
         search:SetText("")
-        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or m == "pet" and "Battle pets" or "Material search") .. "|r")
+        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or m == "pet" and "Battle pets" or m == "farm" and "Farm spots" or m == "rare" and "Rares" or "Material search") .. "|r")
     end
+end
+
+-- Farm spots and Rares: the same window - the zones on the left, and for the zone picked a block per monster: its name and a red
+-- WAYPOINT, its place, everything it drops (grey items too) with how often and the price, and a space before the next one
+local function renderFarmList(group)
+    local n = 0
+    local map = selected
+    if type(map) ~= "number" then map = WorldMapFrame:GetMapID() end
+    local spots = (map and SFP.FarmSpotsOf) and SFP.FarmSpotsOf(map, group) or {}
+    win.title:SetText((group == "rare" and "|cffff8000Rares|r" or "|c" .. SFP.CYAN_HEX .. "Farm spots|r") .. "  |cffaaaaaa" .. (map and SFP:ZoneName(map) or "") .. "|r")
+    for _, s in ipairs(spots) do
+        local loot, kills = SFP.MonsterLoot(s)
+        local x0, y0 = s.hx, s.hy
+        local top = loot[1] and loot[1].id or (s.items and s.items[1])
+        n = n + 1
+        local r = rowOf(list, n)
+        place(list, r, n, 8)
+        r.icon:SetTexture(top and SFP:ItemIcon(top) or "Interface\\Icons\\INV_Misc_QuestionMark")
+        r.text:SetText("|cff00e5ff" .. tostring(s.name) .. "|r")
+        r.right:SetText("|cffff3030WAYPOINT|r")
+        r.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
+        r.click = function() goToMonster(map, s) end
+        n = n + 1
+        local p = rowOf(list, n)
+        place(list, p, n, 30)
+        p.icon:SetTexture(nil)
+        p.text:SetText("|cffffd100" .. SFP.AreaAt(map, x0, y0) .. "|r  |cff808080" .. (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r")
+        p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
+        p.click = function() goToMonster(map, s) end
+        for _, d in ipairs(loot) do
+            n = n + 1
+            local l = rowOf(list, n)
+            place(list, l, n, 30)
+            l.icon:SetTexture(SFP:ItemIcon(d.id))
+            l.text:SetText(iname(d.id))
+            local price = SFP:GetPrice(d.id)
+            local pct = (kills >= 3 and d.q > 0) and ("|cffffd100" .. math.min(100, math.floor(d.q / kills * 1000) / 10) .. "%|r  ") or ""
+            l.right:SetText(pct .. (price and SFP:FormatPrice(price) or ""))
+            l.item = d.id
+        end
+        if #loot == 0 then
+            n = n + 1
+            local l = rowOf(list, n)
+            place(list, l, n, 30)
+            l.icon:SetTexture(nil)
+            l.text:SetText("|cff808080no loot recorded yet|r")
+            l.hl:Hide()
+        end
+        n = spacer(n)
+    end
+    if n == 0 then n = headerRow(0, "|cff808080Nothing recorded for this zone|r") end
+    finish(list, n)
 end
 
 local function renderList()
@@ -956,6 +1008,8 @@ local function renderList()
     if mode == "mount" then return renderMounts(q) end
     if mode == "hunter" then return renderHunters(q) end
     if mode == "pet" then return renderPets(q) end
+    if mode == "farm" then return renderFarmList("farm") end
+    if mode == "rare" then return renderFarmList("rare") end
     if matTab == "gather" then return renderGather(#q >= 2 and q or nil) end
     if #q >= 2 then renderSearch(q) else renderZone() end
 end
@@ -966,7 +1020,7 @@ end
 local renderTree
 local function renderTreeMat()
     local n = 0
-    if matTab == "gather" then
+    if mode == "mat" and matTab == "gather" then
         local function sub(text, key, indent)
             n = n + 1
             local r = rowOf(tree, n)
@@ -1015,7 +1069,7 @@ local function renderTreeMat()
 end
 
 renderTree = function()
-    if mode == "mat" then renderTreeMat() else renderModeTree() end
+    if mode == "mat" or mode == "farm" or mode == "rare" then renderTreeMat() else renderModeTree() end
 end
 
 local function setTab(t)
@@ -1162,11 +1216,22 @@ local function openMode(m)
     SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
     SFP.RefreshWorldMap()
     setMode(m)
+    if m == "farm" or m == "rare" then selected = WorldMapFrame:GetMapID() end
     win:Show()
     renderTree()
     renderList()
 end
 local function openGuide() openMode("mat") end
+local function openGather()
+    if not win then build() end
+    if win:IsShown() and mode == "mat" and matTab == "gather" then win:Hide() return end
+    SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
+    SFP.RefreshWorldMap()
+    setMode("mat")
+    gatherExp = "zone"
+    win:Show()
+    setTab("gather")
+end
 
 -- which list a button opens: its collapsed flag in the saved settings (one open at a time)
 local FLAGS = { spots = "spotsCollapsed", rares = "raresCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
@@ -1202,14 +1267,14 @@ local function refreshRow()
         row:SetFrameStrata("HIGH")
         row:SetHeight(28)
         row:SetPoint("TOPRIGHT", WorldMapFrame, "BOTTOMRIGHT", -2, 2)
-        makeButton("spots", "Farm spots", "The farm spots of this zone, with a checkbox each", function() openOnly("spots") end)
+        makeButton("spots", "Farm spots", "The farm spots of this zone, with a checkbox each", function() openMode("farm") end)
         makeButton("coll", "Collectables", "Mounts of the dungeons and raids here, and the hunter pets of the zone", function() openOnly("coll") end)
-        makeButton("rares", "Rares", "The rare monsters of this zone with a waypoint each", function() openOnly("rares") end)
+        makeButton("rares", "Rares", "The rare monsters of this zone with a waypoint each", function() openMode("rare") end)
         makeButton("search", "Material search", "Every zone from Classic to Midnight: what you can farm there and which monsters drop it. Click a monster for a waypoint.", openGuide)
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
         makeButton("pet", "Battle pets", "Every battle pet with its auction price - search by name, or pick a family", function() openMode("pet") end)
-        makeButton("gather", "Mining & Herbalism", "The ores and herbs of this zone and the best zone for each", function() openOnly("gather") end)
+        makeButton("gather", "Mining & Herbalism", "The ores and herbs of this zone and the best zone for each", openGather)
     end
     local map = WorldMapFrame:GetMapID()
     local zone = map and SFP.zoneByMap[map]
@@ -1218,7 +1283,7 @@ local function refreshRow()
     local show = {
         spots = hasFarm,
         rares = hasRares,
-        coll = map and SFP.HasCollectables and SFP.HasCollectables(map),
+        coll = false,   -- Collectables is covered by Mount search and Hunter search
         search = true,
         mount = true,
         hunter = true,
