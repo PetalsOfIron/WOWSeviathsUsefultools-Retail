@@ -935,7 +935,14 @@ local function OnItemTooltip(tooltip, data)
     local sources = SFP.itemSources[base]
     -- the auction price first, right under the normal sell price, like on every other item
     local ahFirst = SFP:GetPrice(itemID)
-    if ahFirst and ahFirst > 0 then tooltip:AddLine("|cff66e6ffAuction price:|r " .. SFP:FormatPrice(ahFirst), 1, 1, 1) end
+    if ahFirst and ahFirst > 0 then
+        tooltip:AddLine("|cff66e6ffAuction price:|r " .. SFP:FormatPrice(ahFirst), 1, 1, 1)
+        -- the stack right under it, written the same way
+        local stackFirst = SFP:StackCount(itemID)
+        if stackFirst and stackFirst > 1 then
+            tooltip:AddLine(("|cff66e6ffAuction price (stack of %d):|r "):format(stackFirst) .. SFP:FormatPrice(ahFirst * stackFirst), 1, 1, 1)
+        end
+    end
     tooltip:AddLine(" ")
     tooltip:AddLine("|c" .. SFP.CYAN_HEX .. "SeviathsUsefulTools|r")
     if sources then
@@ -946,13 +953,6 @@ local function OnItemTooltip(tooltip, data)
     end
     -- own scan first; Auctionator / TradeSkillMaster when there is none of our own
     local ahPrice = SFP:GetPrice(itemID)
-    if ahPrice and ahPrice > 0 then
-        -- and the price of a whole stack next to it
-        local stack = SFP:StackCount(itemID)
-        if stack and stack > 1 then
-            tooltip:AddDoubleLine(("AH (stack of %d):"):format(stack), SFP:FormatPrice(ahPrice * stack), 0.8, 0.8, 0.8, 1, 1, 1)
-        end
-    end
     -- what crafting orders pay for this item (read from the orders the game listed), like the auction price above
     local tip, orders = SFP.OrderPrice and SFP:OrderPrice(itemID)
     if tip then
