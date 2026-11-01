@@ -482,16 +482,30 @@ ev:SetScript("OnEvent", function(_, event, arg1)
     elseif event == "PLAYER_LOGIN" then
         if ns.CreateMinimapButton then ns:CreateMinimapButton() end
         -- Index lazily: start a few seconds after login so it never slows loading.
-        C_Timer.After(8, function() ns:StartIndexing() end)
     end
 end)
 
-function ns:StartIndexing()
-    if self.indexStarted then return end
-    self.indexStarted = true
+-- Only what a section needs is read, when that section is opened (cat); "all" reads everything (a search, /codex <words>, /codex reindex).
+-- Opening the window alone reads nothing. Each step runs once.
+function ns:IndexCategory(cat)
+    local all = (cat == "all")
     for _, step in ipairs(self.INDEXERS or {}) do
-        self:RunJob(step.name, step.fn)
+        if not step.queued then
+            local want = all
+            if not want and cat then
+                for _, c in ipairs(step.cats or {}) do if c == cat then want = true break end end
+            end
+            if want then
+                step.queued = true
+                self:RunJob(step.name, step.fn)
+            end
+        end
     end
+    if self.ResumeJobs then self:ResumeJobs() end
+end
+
+function ns:StartIndexing(cat)
+    if cat then self:IndexCategory(cat) end
 end
 
 SLASH_SEVIATHSCODEX1 = "/codex"
@@ -507,10 +521,10 @@ SlashCmdList.SEVIATHSCODEX = function(msg)
         ns:ClearPin()
         return
     elseif msg == "reindex" then
-        ns.indexStarted = false
-        ns:StartIndexing()
+        for _, step in ipairs(ns.INDEXERS or {}) do step.queued = false end
+        ns:StartIndexing("all")
         return
     end
-    ns:StartIndexing()
+    if msg ~= "" then ns:StartIndexing("all") end
     ns:Toggle(msg ~= "" and msg or nil)
 end

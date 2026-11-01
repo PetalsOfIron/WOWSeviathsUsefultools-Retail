@@ -13,7 +13,7 @@ local ADDON, ns = SFP_Module("Codex")
 ------------------------------------------------------------------------
 function ns:OpenQuest(questID)
     if not questID or questID == 0 then return end
-    self:StartIndexing()
+    self:StartIndexing("quest")
     local key = "quest:" .. questID
     if not self:Get(key) then
         -- not scanned yet: build it now
@@ -39,7 +39,7 @@ end
 
 function ns:OpenItem(itemID, linkName)
     if not itemID then return end
-    self:StartIndexing()
+    self:StartIndexing("item")
     local key = "item:" .. itemID
     if not self:Get(key) then
         if self.RecordItem then self.RecordItem(itemID) end
@@ -246,11 +246,11 @@ SlashCmdList.SEVIATHSCODEX = function(msg)
     if kind == "quest" then
         local id = tonumber(rest)
         if id then ns:OpenQuest(id) return end
-        ns:StartIndexing(); ns:Toggle(rest); return
+        ns:StartIndexing("all"); ns:Toggle(rest); return
     elseif kind == "item" then
         local id = ItemIDFromLink(rest) or tonumber(rest)
         if id then ns:OpenItem(id) return end
-        ns:StartIndexing(); ns:Toggle(rest); return
+        ns:StartIndexing("all"); ns:Toggle(rest); return
     elseif msg:match("^%s*hint%s*$") then
         ns.db.hideHint = not ns.db.hideHint
         ns:Print("tooltip hints (items and quests) " .. (ns.db.hideHint and "off" or "on"))
