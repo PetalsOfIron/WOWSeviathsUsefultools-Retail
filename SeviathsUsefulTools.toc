@@ -83,6 +83,7 @@ collected\tools.mountStats.lua
 collected\tools.nameRealm.lua
 collected\tools.nameRealms.lua
 collected\tools.nameplateText.lua
+collected\tools.npcMaps.lua
 collected\tools.npcPos.lua
 collected\tools.objects.lua
 collected\tools.petPrices.lua
