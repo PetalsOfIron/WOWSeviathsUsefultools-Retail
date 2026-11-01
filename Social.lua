@@ -2075,7 +2075,7 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
                 -- a group of 2 or more (questing, delves, dungeons, raids, PvP, custom): the group window opens once per group
                 SFP:Safe("open group window", function()
                     if not (IsInGroup and IsInGroup()) then groupAutoShown = false return end
-                    if groupAutoShown or S.Config().groupAuto == false then return end
+                    if groupAutoShown or S.Config().groupAuto ~= true then return end   -- the group window opens by itself only when it was switched on
                     if (GetNumGroupMembers and GetNumGroupMembers() or 0) < 2 then return end
                     groupAutoShown = true
                     S.ShowGroup(true)
@@ -2089,7 +2089,7 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
         C_Timer.After(6, function()
             SFP:Safe("open group window", function()
                 local c = S.Config()
-                if c.groupAuto == false then return end
+                if c.groupAuto ~= true then return end
                 local okI, inInst, itype = pcall(IsInInstance)
                 if not (okI and inInst) then return end
                 if itype ~= "party" and itype ~= "raid" and itype ~= "scenario" and itype ~= "pvp" and itype ~= "arena" then return end
