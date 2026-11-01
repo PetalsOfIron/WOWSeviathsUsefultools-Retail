@@ -1638,6 +1638,214 @@ local function onUpdate(self, elapsed)
 end
 
 ---------------------------------------------------------------------------
+-- Collectables of the zone (side list): under it the mounts that dungeons and raids with an entrance on this map drop (drop chance and
+-- auction price on hover) and the tameable hunter pets (spirit beasts and unique looks) of the zone. A click sets a waypoint and opens
+-- the map there.
+---------------------------------------------------------------------------
+local collPanel
+local LROW_H = 18
+
+local function chanceText(id)
+    local info = SFP.Items[id]
+    return info and info.drop or nil
+end
+
+-- the boss of an instance that drops an item (from the Adventure Guide read)
+local function bossOf(id, instName)
+    for _, l in ipairs(SFP.lootIndex and SFP.lootIndex[id] or {}) do
+        if l[1] == instName and l[2] and l[2] ~= "" then return l[2] end
+    end
+end
+
+-- the mount lines of one instance, added to a tooltip
+local function addMountLines(t, inst)
+    local any = false
+    for _, id in ipairs(inst.items) do
+        local info = SFP.Items[id]
+        if info and info.kind == "mount" then
+            if not any then t:AddLine("Mounts", 0.64, 0.21, 0.93); any = true end
+            local ch = chanceText(id)
+            local boss = bossOf(id, inst.name)
+            local price = SFP:GetPrice(id)
+            t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":14|t " .. SFP:ItemName(id) .. (boss and (" |cffaaaaaa" .. boss .. "|r") or ""),
+                (ch and ("|cffffd100" .. ch .. "|r  ") or "|cff808080chance not known|r  ") .. (price and SFP:FormatPrice(price) or ""), 1, 1, 1, 1, 1, 1)
+        end
+    end
+    return any
+end
+
+local function buildCollPanel()
+    local sc = WorldMapFrame.ScrollContainer
+    local f = CreateFrame("Frame", "SeviathsUsefulToolsCollectablesList", sc, "BackdropTemplate")
+    f:SetFrameStrata("HIGH")
+    f:SetWidth(262)
+    f:SetPoint("TOPRIGHT", sc, "TOPRIGHT", -8, -8)
+    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    f:SetBackdropColor(0.05, 0.04, 0.02, 0.88)
+    f:SetBackdropBorderColor(0.64, 0.21, 0.93, 0.8)
+    f:EnableMouse(true)
+    f.head = CreateFrame("Button", nil, f)
+    f.head:SetPoint("TOPLEFT", 0, 0)
+    f.head:SetPoint("TOPRIGHT", 0, 0)
+    f.head:SetHeight(20)
+    f.title = f.head:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    f.title:SetPoint("LEFT", 7, 0)
+    f.toggle = f.head:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    f.toggle:SetPoint("RIGHT", -7, 0)
+    f.head:SetScript("OnClick", function()
+        SFP.db.collCollapsed = not SFP.db.collCollapsed
+        SFP.RefreshWorldMap()
+    end)
+    f.rows = {}
+    makeMovable(f, "collectables", sc)
+    return f
+end
+
+local function collRow(f, i)
+    local r = f.rows[i]
+    if r then return r end
+    r = CreateFrame("Button", nil, f)
+    r:SetHeight(LROW_H)
+    r.icon = r:CreateTexture(nil, "ARTWORK")
+    r.icon:SetSize(15, 15)
+    r.icon:SetPoint("LEFT", 6, 0)
+    r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.right:SetPoint("RIGHT", -4, 0)
+    r.right:SetJustifyH("RIGHT")
+    r.name = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.name:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
+    r.name:SetPoint("RIGHT", r.right, "LEFT", -4, 0)
+    r.name:SetJustifyH("LEFT")
+    r.hl = r:CreateTexture(nil, "HIGHLIGHT")
+    r.hl:SetAllPoints()
+    r.hl:SetTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
+    r.hl:SetBlendMode("ADD")
+    r:SetScript("OnEnter", function(self)
+        if self.header then return end
+        local t = SFP.Tip()
+        t:SetOwner(self, "ANCHOR_LEFT")
+        if self.item then t:SetItemByID(self.item) end
+        for _, l in ipairs(self.lines or {}) do t:AddLine(l, 1, 1, 1, true) end
+        t:AddLine("Click: set a waypoint and open the map there", 0, 0.9, 1)
+        t:Show()
+    end)
+    r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+    r:SetScript("OnClick", function(self)
+        if self.header or not self.map then return end
+        SFP:SetWaypoint(self.map, self.x, self.y, self.label)
+        if WorldMapFrame:GetMapID() ~= self.map then WorldMapFrame:SetMapID(self.map) end
+    end)
+    f.rows[i] = r
+    return r
+end
+
+local function mountRows(mapID)
+    local rows, seen = {}, {}
+    for _, exp in ipairs(SFP.Expansions) do
+        for _, inst in ipairs(exp.instances or {}) do
+            local e = SFP:FindEntrance(inst)
+            if e and e.map == mapID then
+                for _, id in ipairs(inst.items) do
+                    local info = SFP.Items[id]
+                    if info and info.kind == "mount" and not seen[id .. inst.name] then
+                        seen[id .. inst.name] = true
+                        local ch = chanceText(id)
+                        local boss = bossOf(id, inst.name)
+                        local price = SFP:GetPrice(id)
+                        local lines = {
+                            (inst.kind == "raid" and "Raid: " or "Dungeon: ") .. inst.name .. (boss and (" - " .. boss) or ""),
+                            "Drop chance: " .. (ch or "not known yet"),
+                        }
+                        if price then lines[#lines + 1] = "Auction price: " .. SFP:FormatPrice(price) end
+                        rows[#rows + 1] = { item = id, map = e.map, x = e.x, y = e.y, label = inst.name, icon = SFP:ItemIcon(id),
+                            name = SFP:ItemName(id), right = "|cffaaaaaa" .. inst.name .. "|r", lines = lines }
+                    end
+                end
+            end
+        end
+    end
+    return rows
+end
+
+local function petRows(mapID)
+    local rows = {}
+    local zone = SFP.zoneByMap[mapID]
+    for _, sp in ipairs(zone and zone.spawns or {}) do
+        if sp.hunter and type(sp.pts) == "string" then
+            local x, y = sp.pts:match("([%d%.]+),([%d%.]+)")
+            if x then
+                rows[#rows + 1] = { map = mapID, x = tonumber(x) / 100, y = tonumber(y) / 100, label = sp.name,
+                    icon = SFP.HUNTER_ICON, name = sp.name,
+                    right = sp.hunter == "spirit" and "|cffabd473spirit beast|r" or "|cffabd473unique look|r",
+                    lines = { SFP.HUNTER_TYPE[sp.hunter] or "Hunter tame", sp.note } }
+            end
+        end
+    end
+    return rows
+end
+
+local function drawCollectables(mapID)
+    local mr, pr = mountRows(mapID), petRows(mapID)
+    if #mr == 0 and #pr == 0 then return end
+    collPanel = collPanel or buildCollPanel()
+    local collapsed = SFP.db.collCollapsed
+    collPanel.title:SetText("|cffa335eeCollectables|r  |cffaaaaaa" .. SFP:ZoneName(mapID) .. "|r")
+    collPanel.toggle:SetText(collapsed and "[+]" or "[-]")
+    local n = 0
+    local function add(d)
+        n = n + 1
+        local r = collRow(collPanel, n)
+        r:ClearAllPoints()
+        r:SetPoint("TOPLEFT", 4, -20 - (n - 1) * LROW_H)
+        r:SetPoint("TOPRIGHT", -4, -20 - (n - 1) * LROW_H)
+        r.header = d.header
+        r.item, r.map, r.x, r.y, r.label, r.lines = d.item, d.map, d.x, d.y, d.label, d.lines
+        r.icon:SetTexture(d.icon)
+        r.name:SetText(d.name)
+        r.right:SetText(d.right or "")
+        r.hl:SetShown(not d.header)
+        r:Show()
+    end
+    if not collapsed then
+        if #mr > 0 then
+            add({ header = true, name = "|cffa335eeMounts|r", right = "|cff808080dungeons and raids here|r" })
+            for _, d in ipairs(mr) do add(d) end
+        end
+        if #pr > 0 then
+            add({ header = true, name = "|c" .. SFP.HUNTER_HEX .. "Hunter pets|r", right = "|cff808080tameable here|r" })
+            for _, d in ipairs(pr) do add(d) end
+        end
+    end
+    for i = n + 1, #collPanel.rows do collPanel.rows[i]:Hide() end
+    collPanel:SetHeight(24 + n * LROW_H)
+    collPanel:Show()
+end
+
+-- the game's own dungeon/raid circles on the map: the mounts of that instance are added to its tooltip
+local pinHooked
+local function hookEntrancePins()
+    if pinHooked then return end
+    local mix = _G.DungeonEntrancePinMixin
+    if not mix or not mix.OnMouseEnter then return end
+    pinHooked = true
+    hooksecurefunc(mix, "OnMouseEnter", function(pin)
+        pcall(function()
+            local name = pin.name
+            if not name and pin.journalInstanceID and EJ_GetInstanceInfo then name = EJ_GetInstanceInfo(pin.journalInstanceID) end
+            if type(name) ~= "string" then return end
+            local lname = name:lower()
+            for _, exp in ipairs(SFP.Expansions) do
+                for _, inst in ipairs(exp.instances or {}) do
+                    if inst.name:lower() == lname or (inst.alias and inst.alias:lower() == lname) then
+                        if GameTooltip:IsShown() and addMountLines(GameTooltip, inst) then GameTooltip:Show() end
+                    end
+                end
+            end
+        end)
+    end)
+end
+
+---------------------------------------------------------------------------
 -- Refresh
 ---------------------------------------------------------------------------
 refresh = function()
@@ -1647,6 +1855,8 @@ refresh = function()
     panel:Hide()
     if gatherPanel then gatherPanel:Hide() end
     if spotPanel then spotPanel:Hide() end
+    if collPanel then collPanel:Hide() end
+    hookEntrancePins()
     for _, e in ipairs(edges) do e:Hide() end
     if WorldMapFrame:IsShown() and WorldMapFrame:GetMapID() and SFP.QuestMarkers then
         SFP:Safe("quest zones", SFP.QuestMarkers.DrawZones, SFP.QuestMarkers, WorldMapFrame:GetMapID())
@@ -1662,6 +1872,7 @@ refresh = function()
         if SFP.zoneByMap[mapID] or (info and info.mapType == zoneType) then drawGatherList(mapID) end
     end
     if SFP.db.showSpotList and SFP.zoneByMap[mapID] then SFP:Safe("spot list", drawSpotList, mapID) end
+    SFP:Safe("collectables", drawCollectables, mapID)
 
     drawRoute(mapID)
     if SFP.zoneByMap[mapID] then

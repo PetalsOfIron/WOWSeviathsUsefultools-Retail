@@ -274,11 +274,11 @@ local function QuestHoverTip(owner, questID, append)
                     for _, n in ipairs(type(p.unames) == "table" and p.unames or {}) do
                         if not (n:find("|c", 1, true) or n:find("Seviath", 1, true)) then un[#un + 1] = n end
                     end
-                    lines[#lines + 1] = ((shown == 1 or lastLabel ~= spotLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
+                    lines[#lines + 1] = (spotLabel .. ": ") .. text .. nm
                     lines[#lines + 1] = "Use at: " .. text .. (#un > 0 and (" - " .. table.concat(un, ", ")) or "")
                     spotLabel = "Use at"
                 else
-                    lines[#lines + 1] = ((shown == 1 or spotLabel ~= lastLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
+                    lines[#lines + 1] = (spotLabel .. ": ") .. text .. nm
                 end
                 lastLabel = spotLabel
                     added = true
