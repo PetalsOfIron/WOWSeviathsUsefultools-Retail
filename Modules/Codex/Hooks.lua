@@ -193,7 +193,8 @@ local function QuestHoverTip(owner, questID)
             local xy = (p.x and p.y) and (" (" .. ("%.1f, %.1f"):format(p.x * 100, p.y * 100) .. ")") or ""
             return (a or "") .. xy
         end
-        local function spotText(p) return (p.n and (p.n .. " - ") or "") .. placeText(p) end
+        -- "<place> - <NPC name>", like the vendor lines of items
+        local function spotText(p) return placeText(p) .. (p.n and (" - " .. p.n) or "") end
         -- what the next objective asks for decides the words: an item is picked up, a monster is killed
         local objLabel = "Objective at"
         local okO, objs = pcall(C_QuestLog.GetQuestObjectives, questID)
@@ -225,11 +226,11 @@ local function QuestHoverTip(owner, questID)
         local sameNpc = ql.g and ql.t and ql.g.n and ql.g.n == ql.t.n and ql.g.m == ql.t.m
             and ql.g.x and ql.t.x and math.abs(ql.g.x - ql.t.x) < 0.01 and math.abs(ql.g.y - ql.t.y) < 0.01
         if ql.g and not sameNpc then
-            lines[#lines + 1] = "Quest giver: " .. spotText(ql.g)
+            lines[#lines + 1] = "Quest giver at: " .. spotText(ql.g)
             added = true
         end
         if ql.t then
-            lines[#lines + 1] = (sameNpc and "Quest giver and hand-in: " or (complete and "Hand in to: " or "Then speak with: ")) .. spotText(ql.t)
+            lines[#lines + 1] = (sameNpc and "Quest giver and hand-in at: " or (complete and "Hand in at: " or "Then hand in at: ")) .. spotText(ql.t)
             added = true
         end
         if not added then
