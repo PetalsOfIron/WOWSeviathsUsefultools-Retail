@@ -297,7 +297,8 @@ function ns:BestPlace(e, itemID)
                 shown = shown + 1
                 local spot = spots and spots[1]
                 lines[#lines + 1] = ("%s |cffffd100%s|r (%s) in %s"):format(d[3] == "o" and "Gathered from" or (d[3] == "s" and "Skinned from" or "Dropped by"),
-                    rec.n, d[3] == "o" and "node or object" or "monster", self:MapName(map))
+                    rec.n, d[3] == "o" and "node or object" or "monster",
+                    (spot and spot[3] and spot[3] ~= self:MapName(map)) and (spot[3] .. " (" .. self:MapName(map) .. ")") or self:MapName(map))
                 if not target and spot and spot[1] then target = { m = map, x = spot[1], y = spot[2] } end
             end
         end

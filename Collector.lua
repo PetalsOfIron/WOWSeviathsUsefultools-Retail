@@ -48,9 +48,18 @@ local function addPoint(rec, map, x, y)
     local list = rec.m[map]
     if not list then list = {}; rec.m[map] = list end
     for _, p in ipairs(list) do
-        if math.abs(p[1] - x) < 0.012 and math.abs(p[2] - y) < 0.012 then return end
+        if math.abs(p[1] - x) < 0.012 and math.abs(p[2] - y) < 0.012 then
+            if not p[3] then   -- a spot saved before the area name was recorded gets it now
+                local okB, a2 = pcall(GetMinimapZoneText)
+                if okB and type(a2) == "string" and not (issecretvalue and issecretvalue(a2)) and a2 ~= "" then p[3] = a2 end
+            end
+            return
+        end
     end
-    if #list < 15 then list[#list + 1] = { floor(x * 10000) / 10000, floor(y * 10000) / 10000 } end
+    -- the third value is the text of the minimap's zone line at the spot ("Zeb'Alar Lumbermill"), the name of the area
+    local okA, area = pcall(GetMinimapZoneText)
+    if not okA or type(area) ~= "string" or (issecretvalue and issecretvalue(area)) or area == "" then area = nil end
+    if #list < 15 then list[#list + 1] = { floor(x * 10000) / 10000, floor(y * 10000) / 10000, area } end
 end
 
 ---------------------------------------------------------------------------
