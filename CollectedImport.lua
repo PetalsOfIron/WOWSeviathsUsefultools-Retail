@@ -10,11 +10,23 @@
 local C = _G.SeviathsUsefulToolsCollected
 local unpack = unpack or table.unpack
 
+-- a packed record is the text of a Lua table constructor, turned into a table when it is read (a table per record would use 5-10 times more memory)
+local loadfn = loadstring or load
+local function decode(s)
+    if type(s) ~= "string" then return s end
+    local fn = loadfn("return " .. s)
+    if not fn then return nil end
+    local ok, v = pcall(fn)
+    return ok and v or nil
+end
+SeviathsDecode = decode
+
 -- walks a saved table and the shipped table behind it (a table without a shipped one is walked as pairs does)
 function SeviathsAllPairs(t)
     local mt = type(t) == "table" and getmetatable(t)
     local shipped = mt and mt.shipped
     if not shipped then return pairs(t or {}) end
+    local packed = mt.packed
     local k, v
     local phase = 1
     return function()
@@ -24,6 +36,7 @@ function SeviathsAllPairs(t)
             phase, k = 2, nil
         end
         repeat k, v = next(shipped, k) until k == nil or rawget(t, k) == nil
+        if k ~= nil and packed then v = decode(v) end
         return k, v
     end
 end
@@ -105,6 +118,25 @@ end
 local jobs, ji = {}, 1
 
 local function addJobs(smallAlso)
+    -- the big tables ship packed (one string per record): the shipped table is the fallback of the saved one, a record is decoded when read
+    for dbName, tables in pairs(C.packed or {}) do
+        local db = _G[dbName]
+        if type(db) == "table" then
+            for key, packed in pairs(tables) do
+                if type(db[key]) ~= "table" then db[key] = {} end
+                setmetatable(db[key], {
+                    __index = function(_, k)
+                        local s = packed[k]
+                        if s ~= nil then return decode(s) end
+                    end,
+                    shipped = packed, packed = true,
+                })
+                local keys = {}
+                for k in pairs(db[key]) do keys[#keys + 1] = k end
+                jobs[#jobs + 1] = { kind = "prune", dst = db[key], shipped = packed, keys = keys, i = 1 }
+            end
+        end
+    end
     for dbName, tables in pairs(C.data or {}) do
         local db = _G[dbName]
         if type(db) == "table" then
