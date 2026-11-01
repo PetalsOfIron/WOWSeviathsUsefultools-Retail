@@ -610,7 +610,7 @@ local function shippedP(R)
     return R.p
 end
 
-local shippedRealm
+local shippedRealm, shippedFreed
 function SFP:ShippedPriceTime(id)
     local _, t = self:ShippedPrice(id)
     return t
@@ -656,6 +656,16 @@ function SFP:ShippedPrice(id)
                 if n > bestN then bestN, shippedRealm = n, r end
             end
             shippedRealm = shippedRealm or false
+        end
+    end
+    -- the price lists of the other realms are not needed in this session: their texts are released (only this realm's list and the
+    -- region's commodity list stay)
+    if shippedRealm and not shippedFreed then
+        shippedFreed = true
+        local region0 = GetCurrentRegion and GetCurrentRegion()
+        local keep = ({ [1] = "REGION_US", [2] = "REGION_KR", [3] = "REGION_EU", [4] = "REGION_TW" })[region0 or 0]
+        for name, r in pairs(G) do
+            if r ~= shippedRealm and name ~= keep then r.s, r.p = nil, nil end
         end
     end
     local rec = shippedRealm and shippedP(shippedRealm)[id]
