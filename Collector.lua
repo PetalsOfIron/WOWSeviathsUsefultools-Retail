@@ -301,6 +301,20 @@ local function isMountItem(id)
     return info and info.kind == "mount"
 end
 
+-- the rares of the addon's own data: a monster that is one of them is marked rare when it is looted, even when it was not the target
+local rareNpcs
+local function isDataRare(npcID)
+    if not rareNpcs then
+        rareNpcs = {}
+        for _, list in pairs(SFP.Rares or {}) do
+            for _, sp in ipairs(list) do
+                if sp.npc and not sp.hunter then rareNpcs[sp.npc] = true end
+            end
+        end
+    end
+    return rareNpcs[npcID]
+end
+
 function SFP:RareKillTry(npcID)
     if not rareMounts then
         rareMounts = {}
@@ -417,6 +431,12 @@ local function onLoot()
                 if safeGUID("target") == guid then
                     local cls = UnitClassification("target")
                     if cls and cls ~= "normal" then rec.c = cls end
+                else
+                    -- not the target any more: the class from the unit of that id when the game still has one, else from the rare data
+                    local unit = UnitTokenFromGUID and UnitTokenFromGUID(guid)
+                    local cls2 = unit and UnitClassification(unit)
+                    if cls2 and cls2 ~= "normal" then rec.c = cls2
+                    elseif not rec.c and isDataRare(id) then rec.c = "rare" end
                 end
                 if not seenGuid[guid .. (skin and "s" or "")] then
                     seenGuid[guid .. (skin and "s" or "")] = true
