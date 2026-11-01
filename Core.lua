@@ -598,6 +598,18 @@ function SFP:ConnectedWith(realm)
     return connIndex[plain(realm)] or {}
 end
 
+-- a shipped price list is stored as long texts ("id,price;id,price;..."); the table is made only for the list this player uses
+local function shippedP(R)
+    if not R.p then
+        local p = {}
+        for _, text in ipairs(R.s or {}) do
+            for k, v in text:gmatch("(%d+),(%d+);") do p[tonumber(k)] = tonumber(v) end
+        end
+        R.p, R.s = p, nil
+    end
+    return R.p
+end
+
 local shippedRealm
 function SFP:ShippedPriceTime(id)
     local _, t = self:ShippedPrice(id)
@@ -640,20 +652,19 @@ function SFP:ShippedPrice(id)
             -- the nearest guess: the shipped realm with the most prices
             local bestN = 0
             for _, r in pairs(G) do
-                local n = 0
-                for _ in pairs(r.p) do n = n + 1 if n > 1000 then break end end
+                local n = r.n or 0
                 if n > bestN then bestN, shippedRealm = n, r end
             end
             shippedRealm = shippedRealm or false
         end
     end
-    local rec = shippedRealm and shippedRealm.p[id]
+    local rec = shippedRealm and shippedP(shippedRealm)[id]
     if rec then return rec, shippedRealm.t end
     -- commodities (materials, consumables, reagents) are one price list for the whole region: the region's file covers every realm of it
     local region = GetCurrentRegion and GetCurrentRegion()
     local regionKey = ({ [1] = "REGION_US", [2] = "REGION_KR", [3] = "REGION_EU", [4] = "REGION_TW" })[region or 0]
     local rr = regionKey and G[regionKey]
-    local rrec = rr and rr.p[id]
+    local rrec = rr and shippedP(rr)[id]
     if rrec then return rrec, rr.t end
 end
 
