@@ -157,9 +157,10 @@ end)
 local hoverOwner
 -- our block is written once per tooltip: the flag is cleared when the tooltip is cleared for the next one
 pcall(function() GameTooltip:HookScript("OnTooltipCleared", function(tt) tt.SeviathsQuestBlock = nil end) end)
-local function QuestHoverTip(owner, questID)
+local function QuestHoverTip(owner, questID, append)
     if not owner or type(questID) ~= "number" or questID <= 0 then return end
-    if GameTooltip.SeviathsQuestBlock and GameTooltip:IsShown() and GameTooltip:GetOwner() == owner then return end
+    -- append = the tooltip on screen belongs to a part of the quest line (a world quest's reward icon): our lines go below it
+    if GameTooltip.SeviathsQuestBlock and GameTooltip:IsShown() and (append or GameTooltip:GetOwner() == owner) then return end
     if ns.db and ns.db.hideHint then return end
     pcall(function()
         local e = { id = questID, worldQuest = C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID) or nil }
@@ -272,7 +273,7 @@ local function QuestHoverTip(owner, questID)
             if where and not where:find("Not known yet") then lines[#lines + 1] = where end
         end
         if #lines == 0 then return end
-        if GameTooltip:IsShown() and GameTooltip:GetOwner() == owner then
+        if GameTooltip:IsShown() and (append or GameTooltip:GetOwner() == owner) then
             GameTooltip:AddLine(" ")
         else
             GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
@@ -328,7 +329,8 @@ local function HookTrackerBlock(block)
         if type(qid) == "number" and C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(qid) then
             for _, delay in ipairs({ 0.4, 1.2 }) do
                 C_Timer.After(delay, function()
-                    if self:IsMouseOver() and GameTooltip:IsShown() and GameTooltip:GetOwner() == self then QuestHoverTip(self, qid) end
+                    -- the rewards tooltip belongs to a child of the block (its icon), so the owner is not checked: the mouse is over the line
+                    if self:IsMouseOver() and GameTooltip:IsShown() then QuestHoverTip(self, qid, true) end
                 end)
             end
         end
