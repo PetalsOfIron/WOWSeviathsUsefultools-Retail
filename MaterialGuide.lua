@@ -95,27 +95,71 @@ end
 ---------------------------------------------------------------------------
 -- the loot of one zone: item -> monsters that drop it
 ---------------------------------------------------------------------------
-local function monstersFor(zone, id)
+-- Data/SpawnsWowhead.lua: [map] = { { npc, name, pts, drop = { [item] = percent } } } for every crafting reagent monsters drop
+local function guideList(map)
+    return SFP.SpawnsWowhead and SFP.SpawnsWowhead[map] or {}
+end
+
+local function monstersFor(map, id)
     local out = {}
-    for _, sp in ipairs(zone.spawns or {}) do
+    local zone = SFP.zoneByMap[map]
+    for _, sp in ipairs(zone and zone.spawns or {}) do
         for _, it in ipairs(sp.items or {}) do
             if it == id then out[#out + 1] = sp break end
         end
     end
+    local have = {}
+    for _, sp in ipairs(out) do have[sp.name or ""] = true end
+    local extra = {}
+    for _, w in ipairs(guideList(map)) do
+        if w.drop and w.drop[id] and not have[w.name] then extra[#extra + 1] = w end
+    end
+    table.sort(extra, function(a, c) return a.drop[id] > c.drop[id] end)
+    for _, w in ipairs(extra) do out[#out + 1] = w end
     return out
 end
 
-local function zoneItems(zone)
+local function zoneItems(map)
     local ids, seen = {}, {}
-    for _, id in ipairs(zone.items or {}) do
+    local zone = SFP.zoneByMap[map]
+    for _, id in ipairs(zone and zone.items or {}) do
         if not seen[id] and SFP.Items[id] then seen[id] = true; ids[#ids + 1] = id end
     end
+    for _, w in ipairs(guideList(map)) do
+        for id in pairs(w.drop or {}) do
+            if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+        end
+    end
     return ids
+end
+
+-- the zones of an expansion: its farm zones and every map the Wowhead data puts reagent monsters on
+local zonesCache = {}
+local function zonesOf(exp)
+    local c = zonesCache[exp.key]
+    if c then return c end
+    local seen, out = {}, {}
+    for _, z in ipairs(exp.zones or {}) do
+        if not seen[z.map] then seen[z.map] = true; out[#out + 1] = z.map end
+    end
+    for map in pairs(SFP.SpawnsWowhead or {}) do
+        if not seen[map] then
+            local e = SFP:ExpansionForMap(map)
+            if e == exp then seen[map] = true; out[#out + 1] = map end
+        end
+    end
+    table.sort(out, function(a, c2) return SFP:ZoneName(a) < SFP:ZoneName(c2) end)
+    zonesCache[exp.key] = out
+    return out
 end
 
 local function goToMonster(mapID, sp)
     local x, y = sp.hx, sp.hy
     if not x then local p = sp.points and sp.points[1]; if p then x, y = p[1], p[2] end end
+    if not x and sp.pts then
+        local px, py = sp.pts:match("([%d%.]+),([%d%.]+)")
+        if px then x, y = tonumber(px) / 100, tonumber(py) / 100 end
+    end
     if not x then return end
     -- the map shows that zone and the waypoint sits on the monster (set again, never removed by a second click)
     if WorldMapFrame:GetMapID() ~= mapID then WorldMapFrame:SetMapID(mapID) end
@@ -127,7 +171,7 @@ local function goToMonster(mapID, sp)
 end
 
 -- add the rows of one item (its line and one line per monster); returns the new row count
-local function addItem(n, mapID, zone, id, withZone)
+local function addItem(n, mapID, id, withZone)
     n = n + 1
     local r = rowOf(list, n)
     place(list, r, n, 8)
@@ -136,7 +180,7 @@ local function addItem(n, mapID, zone, id, withZone)
     local price = SFP:GetPrice(id)
     r.right:SetText(price and SFP:FormatPrice(price) or "")
     r.item = id
-    local mons = monstersFor(zone, id)
+    local mons = monstersFor(mapID, id)
     if #mons == 0 then
         n = n + 1
         local m = rowOf(list, n)
@@ -152,8 +196,9 @@ local function addItem(n, mapID, zone, id, withZone)
         m.icon:SetTexture("Interface\\Icons\\Ability_Hunter_SniperShot")
         m.text:SetText("|cff00e5ff" .. tostring(sp.name) .. "|r")
         local drops = sp.counts and sp.counts[id] and sp.kills and sp.kills > 0
-        if drops then
-            local pct = 100 * sp.counts[id] / sp.kills
+        local wpct = sp.drop and sp.drop[id]
+        if drops or wpct then
+            local pct = drops and (100 * sp.counts[id] / sp.kills) or wpct
             m.right:SetText(string.format("|cffffd100%s%%|r  |cff808080waypoint|r", pct >= 10 and string.format("%.0f", pct) or string.format("%.1f", pct)))
         else
             m.right:SetText("|cff808080click: waypoint|r")
@@ -171,10 +216,8 @@ local function renderZone()
         win.title:SetText("Pick a zone on the left, or search for a material")
         return
     end
-    local zone = SFP.zoneByMap[selected]
     win.title:SetText("|cff33e6ff" .. SFP:ZoneName(selected) .. "|r")
-    if not zone then finish(list, 0) return end
-    local ids = zoneItems(zone)
+    local ids = zoneItems(selected)
     for _, sec in ipairs(SECTIONS) do
         local mine = {}
         for _, id in ipairs(ids) do if sectionOf(id) == sec.key then mine[#mine + 1] = id end end
@@ -187,7 +230,7 @@ local function renderZone()
             h.text:SetText(sec.color .. sec.title .. "|r  |cff808080" .. #mine .. "|r")
             h.bg:SetColorTexture(1, 1, 1, 0.06)
             h.hl:Hide()
-            for _, id in ipairs(mine) do n = addItem(n, selected, zone, id, false) end
+            for _, id in ipairs(mine) do n = addItem(n, selected, id, false) end
         end
     end
     if n == 0 then
@@ -206,11 +249,10 @@ local function renderSearch(q)
     win.title:SetText("Search: |cffffd100" .. q .. "|r")
     local ql = q:lower()
     for _, exp in ipairs(SFP.Expansions) do
-        for _, z in ipairs(exp.zones or {}) do
-            local zone = SFP.zoneByMap[z.map] or z
-            for _, id in ipairs(zoneItems(zone)) do
+        for _, map in ipairs(zonesOf(exp)) do
+            for _, id in ipairs(zoneItems(map)) do
                 local nm = (SFP:ItemName(id) or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
-                if nm:find(ql, 1, true) and n < 600 then n = addItem(n, z.map, zone, id, true) end
+                if nm:find(ql, 1, true) and n < 600 then n = addItem(n, map, id, true) end
             end
         end
     end
@@ -237,7 +279,7 @@ end
 local function renderTree()
     local n = 0
     for _, exp in ipairs(SFP.Expansions) do
-        if exp.zones and #exp.zones > 0 then
+        if #zonesOf(exp) > 0 then
             n = n + 1
             local r = rowOf(tree, n)
             place(tree, r, n, 0)
@@ -247,10 +289,7 @@ local function renderTree()
             r.bg:SetColorTexture(1, 1, 1, 0.06)
             r.click = function() collapsed[exp.key] = open or nil; renderTree() end
             if open then
-                local zones = {}
-                for _, z in ipairs(exp.zones) do zones[#zones + 1] = z.map end
-                table.sort(zones, function(a, b) return SFP:ZoneName(a) < SFP:ZoneName(b) end)
-                for _, map in ipairs(zones) do
+                for _, map in ipairs(zonesOf(exp)) do
                     n = n + 1
                     local z = rowOf(tree, n)
                     place(tree, z, n, 12)
@@ -333,7 +372,7 @@ local function build()
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
         if not selected then
             local m = WorldMapFrame:GetMapID()
-            if m and SFP.zoneByMap[m] then selected = m end
+            if m and (SFP.zoneByMap[m] or SFP.SpawnsWowhead and SFP.SpawnsWowhead[m]) then selected = m end
         end
         renderTree()
         renderList()
