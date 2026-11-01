@@ -31,6 +31,7 @@ local function iname(id)
     return n
 end
 
+local MONSTER_ICON = "Interface\\Icons\\Ability_Hunter_SniperShot"   -- the icon of a farm spot (a monster), not an item's
 local function plain(s) return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 local win, tree, list, search
 local selected          -- map ID of the zone shown
@@ -319,12 +320,7 @@ local function addItem(n, mapID, id, withZone)
         n = n + 1
         local m = rowOf(list, n)
         place(list, m, n, 30)
-        local iconId = id
-        if sp.drop then
-            local top = -1
-            for did, pct in pairs(sp.drop) do if pct > top then top, iconId = pct, did end end
-        elseif sp.items and sp.items[1] then iconId = sp.items[1] end
-        m.icon:SetTexture(SFP:ItemIcon(iconId))
+        m.icon:SetTexture(MONSTER_ICON)
         m.text:SetText("|cff00e5ff" .. tostring(sp.name) .. "|r")
         local drops = sp.counts and sp.counts[id] and sp.kills and sp.kills > 0
         local wpct = sp.drop and sp.drop[id]
@@ -1083,7 +1079,7 @@ local function renderBlocks(n, map, spots)
         n = n + 1
         local r = rowOf(list, n)
         place(list, r, n, 8)
-        r.icon:SetTexture(top and SFP:ItemIcon(top) or "Interface\\Icons\\INV_Misc_QuestionMark")
+        r.icon:SetTexture(MONSTER_ICON)
         r.text:SetText((s.rank and ("|cffffd100" .. s.rank .. ".|r  ") or "") .. "|cff00e5ff" .. tostring(s.name) .. "|r")
         r.right:SetText("|cffff3030WAYPOINT|r")
         r.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
