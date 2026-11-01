@@ -1029,22 +1029,20 @@ end
 
 -- Farm spots and Rares: the same window - the zones on the left, and for the zone picked a block per monster: its name and a red
 -- WAYPOINT, its place, everything it drops (grey items too) with how often and the price, and a space before the next one
-local function renderFarmList(group)
-    local n = 0
-    local map = selected
-    if type(map) ~= "number" then map = WorldMapFrame:GetMapID() end
+-- the monsters of a zone for Farm spots / Rares: the addon's farm data and the collected monsters, each name once
+local function farmSpotsFor(map, group)
     local spots = (map and SFP.FarmSpotsOf) and SFP.FarmSpotsOf(map, group) or {}
-    if map then
-        local have = {}
-        for _, s in ipairs(spots) do have[tostring(s.name):lower()] = true end
-        local merged = {}
-        for _, s in ipairs(spots) do merged[#merged + 1] = s end
-        for _, s in ipairs(collectedMonsters(map, group)) do
-            if not have[s.name:lower()] then have[s.name:lower()] = true; merged[#merged + 1] = s end
-        end
-        spots = merged
+    if not map then return spots end
+    local have, merged = {}, {}
+    for _, s in ipairs(spots) do have[tostring(s.name):lower()] = true; merged[#merged + 1] = s end
+    for _, s in ipairs(collectedMonsters(map, group)) do
+        if not have[s.name:lower()] then have[s.name:lower()] = true; merged[#merged + 1] = s end
     end
-    win.title:SetText((group == "rare" and "|cffff8000Rares|r" or "|c" .. SFP.CYAN_HEX .. "Farm spots|r") .. "  |cffaaaaaa" .. (map and SFP:ZoneName(map) or "") .. "|r")
+    return merged
+end
+
+-- the blocks of some monsters of one map: name and red WAYPOINT, place, all the loot (grey items too), a space after each
+local function renderBlocks(n, map, spots)
     for _, s in ipairs(spots) do
         local loot, kills = SFP.MonsterLoot(s)
         local x0, y0 = s.hx, s.hy
@@ -1061,7 +1059,8 @@ local function renderFarmList(group)
         local p = rowOf(list, n)
         place(list, p, n, 30)
         p.icon:SetTexture(nil)
-        p.text:SetText("|cffffd100" .. SFP.AreaAt(map, x0, y0) .. "|r  |cff808080" .. (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r")
+        p.text:SetText("|cffffd100" .. SFP:ZoneName(map) .. "|r  |cffaaaaaa" .. SFP.AreaAt(map, x0, y0) .. "|r  |cff808080" ..
+            (x0 and string.format("%.1f, %.1f", x0 * 100, y0 * 100) or "") .. "|r")
         p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         p.click = function() goToMonster(map, s) end
         for _, d in ipairs(loot) do
@@ -1085,7 +1084,41 @@ local function renderFarmList(group)
         end
         n = spacer(n)
     end
-    if n == 0 then n = headerRow(0, "|cff808080Nothing recorded for this zone|r") end
+    return n
+end
+
+-- does a zone have monsters for the list (for the zone tree on the left)
+local function zoneHasMonsters(map, group)
+    return #farmSpotsFor(map, group == "rare" and "rare" or "farm") > 0
+end
+
+local function renderFarmList(group)
+    local n = 0
+    local label = group == "rare" and "|cffff8000Rares|r" or ("|c" .. SFP.CYAN_HEX .. "Farm spots|r")
+    local q = strtrim(search and search:GetText() or "")
+    if #q >= 2 then
+        -- a search: the monsters of that name in every zone
+        win.title:SetText(label .. "  |cffffd100" .. q .. "|r")
+        local ql, found = q:lower(), 0
+        for _, exp in ipairs(SFP.Expansions) do
+            for _, map in ipairs(zonesOf(exp)) do
+                local mine = {}
+                for _, s in ipairs(farmSpotsFor(map, group)) do
+                    if tostring(s.name):lower():find(ql, 1, true) then mine[#mine + 1] = s end
+                end
+                if #mine > 0 and found < 60 then
+                    found = found + #mine
+                    n = renderBlocks(n, map, mine)
+                end
+            end
+        end
+    else
+        local map = selected
+        if type(map) ~= "number" then map = WorldMapFrame:GetMapID() end
+        win.title:SetText(label .. "  |cffaaaaaa" .. (map and SFP:ZoneName(map) or "") .. "|r")
+        if map then n = renderBlocks(n, map, farmSpotsFor(map, group)) end
+    end
+    if n == 0 then n = headerRow(0, "|cff808080Nothing recorded|r") end
     finish(list, n)
 end
 
@@ -1107,6 +1140,23 @@ end
 local renderTree
 local function renderTreeMat()
     local n = 0
+    local monsterMode = (mode == "farm" or mode == "rare")
+    local zq = monsterMode and strtrim(search and search:GetText() or "") or ""
+    if monsterMode then
+        local cur = WorldMapFrame:GetMapID()
+        n = 1
+        local r = rowOf(tree, 1)
+        place(tree, r, 1, 0)
+        r.icon:SetTexture(nil)
+        r.text:SetText("|cff33e6ffCurrent zone|r" .. (cur and ("  |cffaaaaaa" .. SFP:ZoneName(cur) .. "|r") or ""))
+        r.bg:SetColorTexture(0, 0.9, 1, 0.18)
+        r.click = function()
+            selected = WorldMapFrame:GetMapID()
+            search:SetText("")
+            renderTree()
+            renderList()
+        end
+    end
     if mode == "mat" and matTab == "gather" then
         local function sub(text, key, indent)
             n = n + 1
@@ -1125,17 +1175,25 @@ local function renderTreeMat()
         return
     end
     for _, exp in ipairs(SFP.Expansions) do
-        if #zonesOf(exp) > 0 then
+        local zoneList = zonesOf(exp)
+        if monsterMode then
+            local keep = {}
+            for _, map in ipairs(zoneList) do
+                if (#zq < 2 or SFP:ZoneName(map):lower():find(zq:lower(), 1, true)) and zoneHasMonsters(map, mode) then keep[#keep + 1] = map end
+            end
+            zoneList = keep
+        end
+        if #zoneList > 0 then
             n = n + 1
             local r = rowOf(tree, n)
             place(tree, r, n, 0)
-            local open = not collapsed[exp.key]
+            local open = not collapsed[exp.key] or #zq >= 2
             r.icon:SetTexture(nil)
             r.text:SetText("|cffffd100" .. (open and "[-] " or "[+] ") .. exp.name .. "|r")
             r.bg:SetColorTexture(1, 1, 1, 0.06)
             r.click = function() collapsed[exp.key] = open or nil; renderTree() end
             if open then
-                for _, map in ipairs(zonesOf(exp)) do
+                for _, map in ipairs(zoneList) do
                     n = n + 1
                     local z = rowOf(tree, n)
                     place(tree, z, n, 12)
@@ -1228,6 +1286,7 @@ local function build()
     search:SetAutoFocus(false)
     search:SetScript("OnTextChanged", function(self)
         if SearchBoxTemplate_OnTextChanged then SearchBoxTemplate_OnTextChanged(self) end
+        if mode == "farm" or mode == "rare" then renderTree() end
         renderList()
     end)
 
