@@ -1576,7 +1576,7 @@ drawSpotList = function(mapID)
     spotPanel.toggle:SetText(SFP.db.raresCollapsed ~= false and "[+]" or "[-]")
     -- closed: nothing of it stays on the map (the button below the map opens it)
     if SFP.db.raresCollapsed ~= false then spotPanel:Hide() return end
-    spotPanel.routeCheck:SetChecked(SFP.db.showRoute ~= false)
+    spotPanel.routeCheck:Hide()
     spotPanel.allOn:SetScript("OnClick", function()
         for g in pairs(groups) do enableGroup(g) end
         setSpotsHidden(zone, keys, false)
@@ -1584,8 +1584,8 @@ drawSpotList = function(mapID)
     spotPanel.allOff:SetScript("OnClick", function() setSpotsHidden(zone, keys, true) end)
     spotPanel.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)
     spotPanel.routeClear:SetScript("OnClick", function() SFP:ClearRoute() end)
-    spotPanel.route:SetShown(not SFP.db.raresCollapsed)
-    spotPanel.routeClear:SetShown(not SFP.db.raresCollapsed)
+    spotPanel.route:Hide()
+    spotPanel.routeClear:Hide()
     spotPanel.allOn:SetShown(not SFP.db.raresCollapsed)
     spotPanel.allOff:SetShown(not SFP.db.raresCollapsed)
 
@@ -1627,8 +1627,8 @@ drawSpotList = function(mapID)
         end
     end
     for i = shown + 1, #spotPanel.rows do spotPanel.rows[i]:Hide() end
-    spotPanel:SetHeight((SFP.db.raresCollapsed and 22) or (42 + shown * SROW_H + 26))
-    spotPanel.top:SetShown(not SFP.db.raresCollapsed)
+    spotPanel:SetHeight((SFP.db.raresCollapsed and 22) or (42 + shown * SROW_H + 8))
+    spotPanel.top:Hide()
     spotPanel:Show()
     if SFP.DockPanels then SFP.DockPanels() end
 end
@@ -2017,19 +2017,32 @@ local function drawSimple(key, flag, title, color, mapID, spots)
             f.foot = CreateFrame("Frame", nil, f)
             f.foot:SetPoint("BOTTOMLEFT", 0, 0)
             f.foot:SetPoint("BOTTOMRIGHT", 0, 0)
-            f.foot:SetHeight(28)
+            f.foot:SetHeight(58)
+            f.routeCheck = CreateFrame("CheckButton", nil, f.foot, "UICheckButtonTemplate")
+            f.routeCheck:SetSize(20, 20)
+            f.routeCheck:SetPoint("TOPLEFT", 4, -3)
+            f.routeCheck:SetHitRectInsets(0, -60, 0, 0)
+            f.routeCheck.label = f.routeCheck:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            f.routeCheck.label:SetPoint("LEFT", f.routeCheck, "RIGHT", 0, 0)
+            f.routeCheck.label:SetText("Route line")
+            f.routeCheck:SetScript("OnClick", function(self)
+                SFP.db.showRoute = self:GetChecked() and true or false
+                SFP.RefreshWorldMap()
+            end)
             f.route = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
-            f.route:SetSize(70, 22); f.route:SetPoint("LEFT", 4, 0); f.route:SetText("Route")
+            f.route:SetSize(70, 22); f.route:SetPoint("TOPRIGHT", -78, -3); f.route:SetText("Route")
             f.clear = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
-            f.clear:SetSize(70, 22); f.clear:SetPoint("LEFT", f.route, "RIGHT", 2, 0); f.clear:SetText("Clear")
+            f.clear:SetSize(70, 22); f.clear:SetPoint("TOPRIGHT", -4, -3); f.clear:SetText("Clear")
             f.top = CreateFrame("Button", nil, f.foot, "UIPanelButtonTemplate")
-            f.top:SetSize(100, 22); f.top:SetPoint("RIGHT", -4, 0); f.top:SetText("Top 10")
+            f.top:SetHeight(24); f.top:SetPoint("BOTTOMLEFT", 4, 4); f.top:SetPoint("BOTTOMRIGHT", -4, 4)
+            f.top:SetText("Top 10 best spots")
             f.clear:SetScript("OnClick", function() SFP:ClearRoute() end)
             f.top:SetScript("OnClick", function() if SFP.ShowTopSpots then SFP:ShowTopSpots() end end)
         end
+        f.routeCheck:SetChecked(SFP.db.showRoute ~= false)
         f.route:SetScript("OnClick", function() SFP:BuildRoute(mapID) end)
         f.foot:Show()
-        extra = 28
+        extra = 58
     end
     f:SetHeight(26 + #spots * SIMPLE_H + extra)
     f:Show()
