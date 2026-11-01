@@ -74,6 +74,9 @@ def push_data():
     dst = os.path.join(DATA_REPO, "collected")
     shutil.rmtree(dst, ignore_errors=True)
     shutil.copytree(os.path.join(ADDON, "collected"), dst)
+    readme = os.path.join(HERE, "README-FOR-CLAUDE.md")   # the recovery notes also live in the data repo (outside the addon zip)
+    if os.path.exists(readme):
+        shutil.copy2(readme, os.path.join(DATA_REPO, "README-FOR-CLAUDE.md"))
     run("git", "add", "-A", cwd=DATA_REPO)
     code, out = run("git", "diff", "--cached", "--quiet", cwd=DATA_REPO)
     if code == 0:
