@@ -63,7 +63,7 @@ function ns:LearnQuestAreas(qid)
     local m0, x0, y0 = PlayerSpot()
     if not m0 then return end
     local all = {}
-    for _, sp in ipairs(ql0.o) do all[#all + 1] = sp end
+    for _, sp in ipairs(ql0.o or {}) do all[#all + 1] = sp end
     if ql0.g then all[#all + 1] = ql0.g end
     if ql0.t then all[#all + 1] = ql0.t end
     for _, sp in ipairs(all) do
