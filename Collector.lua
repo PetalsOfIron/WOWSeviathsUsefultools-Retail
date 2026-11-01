@@ -524,6 +524,11 @@ function SFP:ItemTipLines(id, link)
     if madeBy[id] then
         lines[#lines + 1] = { "Craftable: " .. recipeTexts(madeBy[id], 3), 0.85, 0.85, 0.85, true }
     end
+    -- the auction price of any item the scans saw (farm items already show it in their own tooltip block)
+    if self.GetPrice and not (self.trackedIDs and self.trackedIDs[id]) then
+        local ahp = self:GetPrice(id)
+        if ahp and ahp > 0 then lines[#lines + 1] = { "Auction price: " .. self:FormatPrice(ahp), 0.8, 0.8, 0.8 } end
+    end
     local also = self.AlsoGives[id]
     if also then
         lines[#lines + 1] = { "Also gives: " .. itemName(also[1]) .. " " .. also[2], 0.6, 1, 0.6 }
