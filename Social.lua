@@ -2379,7 +2379,7 @@ local function notePlayer(unit)
     do
         SFP.db.rioCache = SFP.db.rioCache or {}
         local c = SFP.db.rioCache[key]
-        if _G.RaiderIO and _G.RaiderIO.GetProfile and (not c or time() - (c.t or 0) > 3600) then
+        if _G.RaiderIO and _G.RaiderIO.GetProfile and (not c or time() - (c.t or 0) > 86400) then
             local sc, raidText, prev, extra = rioInfo(unit)
             SFP.db.rioCache[key] = { score = sc, raid = raidText, prev = prev, best = extra and extra.best, timed = extra and extra.timed, warband = extra and extra.warband, prevSeason = extra and extra.prevSeason, timedLabel = extra and extra.timedLabel, main = extra and extra.main, t = time() }
         end
@@ -2387,7 +2387,7 @@ local function notePlayer(unit)
         local np = SFP.db.nameplateText and SFP.db.nameplateText[key]
         local seenNow = SFP.db.seenInfo and SFP.db.seenInfo[key]
         local changed = np and seenNow and (np.lvl ~= seenNow.lvl or np.guild ~= seenNow.guild or np.plate ~= seenNow.plate)
-        if not np or changed or time() - (np.t or 0) > 600 then
+        if not np or changed or time() - (np.t or 0) > 86400 then
             local lines = captureNameplateText(unit)
             if lines then
                 SFP.db.nameplateText = SFP.db.nameplateText or {}
@@ -2471,7 +2471,7 @@ C_Timer.NewTicker(3, function()
         for _, e in ipairs(list) do
             local key = normKey(e.u)
             local c = key and SFP.db.rioCache[key]
-            if key and (not c or now - (c.t or 0) > 3600) then
+            if key and (not c or now - (c.t or 0) > 86400) then
                 local sc, raidText, prev = rioInfo(e.u)
                 SFP.db.rioCache[key] = { score = sc, raid = raidText, prev = prev, t = now }
                 done = done + 1
@@ -2542,10 +2542,10 @@ local function queueInspect(unit)
     if not (S.Config().autoInspect ~= false and UnitIsPlayer(unit)) or UnitIsUnit(unit, "player") then return end
     local okG, guid = pcall(UnitGUID, unit)
     if not okG or type(guid) ~= "string" or secret(guid) or inspectFresh(guid) then return end
-    -- read within the last hour (with the gear): not again so soon
+    -- read within the last day (with the gear): not again so soon
     local key = normKey(unit)
     local sv = key and SFP.db and SFP.db.inspected and SFP.db.inspected[key]
-    if sv and sv.gear and time() - (sv.t or 0) < 3600 then return end
+    if sv and sv.gear and time() - (sv.t or 0) < 86400 then return end   -- a player is read again only after a day (or when his guild, level or name changed)
     for _, q in ipairs(inspectQueue) do if q.guid == guid then q.unit = unit return end end
     if #inspectQueue < 60 then inspectQueue[#inspectQueue + 1] = { unit = unit, guid = guid, since = GetTime() } end
 end
