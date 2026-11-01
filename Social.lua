@@ -329,6 +329,14 @@ function S.Progress()
         for have in pairs(names) do if have:find(l, 1, true) or l:find(have, 1, true) then dup = true break end end
         if not dup then names[l] = true end
     end
+    -- a delve finished that is in none of the lists (named by the game's instance name) counts too
+    for dk in pairs(done) do
+        if not names[dk] then
+            local dup = false
+            for have in pairs(names) do if have:find(dk, 1, true) or dk:find(have, 1, true) then dup = true break end end
+            if not dup then names[dk] = true end
+        end
+    end
     for l in pairs(names) do
         out.delve[2] = out.delve[2] + 1
         if done[l] then out.delve[1] = out.delve[1] + 1 end
@@ -1297,7 +1305,7 @@ local function playerTooltip(tt, unit)
         end
         if text then tt:AddLine("Talent choice: |cffffffff" .. text .. "|r", 1, 0.82, 0, true) end
     end
-    if S.AddGuildNote then S.AddGuildNote(tt, S.NormKey and S.NormKey(unit) or nil) end
+    if S.AddGuildNote then S.AddGuildNote(tt, S.NormKey and S.NormKey(unit) or nil, rec ~= nil) end
 
     -- sockets and enchants
     local gear
@@ -1434,7 +1442,7 @@ function S.AddByName(tt, fullName)
         send("Q", "WHISPER", fullName)
     end
     local rioHad = false
-    if S.AddGuildNote then S.AddGuildNote(tt, fullName) end
+    if S.AddGuildNote then S.AddGuildNote(tt, fullName, rec ~= nil) end
     -- the nameplate of this player as it was copied when he was seen: the game's own lines and Raider.IO's block, as written
     local copied = false
     if SFP.db and SFP.db.nameplateText then

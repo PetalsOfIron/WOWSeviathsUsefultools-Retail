@@ -174,7 +174,7 @@ notesFrame:SetScript("OnEvent", function(_, event)
 end)
 
 -- the note of a player (full name "Name-Realm" or just "Name"), as a blue line on a tooltip
-function S.AddGuildNote(tt, fullName)
+function S.AddGuildNote(tt, fullName, hasProfile)
     if not (SFP.db and SFP.db.guildNotes and type(fullName) == "string") then return end
     local short, realm = realmOf(fullName)
     local rec = SFP.db.guildNotes[short .. "-" .. (realm or "")]
@@ -183,7 +183,7 @@ function S.AddGuildNote(tt, fullName)
     -- achievement points from the guild roster, when the tooltip has none (the addon's own profile line says them for addon users)
     local ach = SFP.db.guildAch and (SFP.db.guildAch[short .. "-" .. (realm or "")]
         or SFP.db.guildAch[short .. "-" .. (GetNormalizedRealmName and GetNormalizedRealmName() or "")])
-    if ach and ach.pts then
+    if ach and ach.pts and not hasProfile then   -- a player with this addon has his own achievements line
         local has = false
         local nm = tt.GetName and tt:GetName()
         for i = 2, (tt.NumLines and tt:NumLines() or 0) do
