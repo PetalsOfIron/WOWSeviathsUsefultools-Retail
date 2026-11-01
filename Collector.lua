@@ -407,6 +407,11 @@ local function onLoot()
                     if type(lt) == "string" and not (issecretvalue and issecretvalue(lt)) and lt ~= "" then name = lt end
                 end
                 local rec = ensureNpc(id, name)
+                -- a monster whose name the loot did not give: asked from the addon's own data (rares, farm spots) before it stays "NPC <id>"
+                if (rec.n or ""):find("^NPC %d+$") and SFP.NpcNameFor then
+                    local ok, nm = pcall(SFP.NpcNameFor, SFP, id, guid)
+                    if ok and type(nm) == "string" and nm ~= "" and not nm:find("^NPC %d+$") then rec.n = nm end
+                end
                 if not skin and lootMoney then lootMoney.npcs[id] = true end
                 SFP.lastLoot = { kind = skin and "s" or "n", name = rec.n, t = GetTime() }   -- what the last loot came from (a monster)
                 if safeGUID("target") == guid then

@@ -105,7 +105,9 @@ local function rowOf(side, i)
     r.hl:SetTexture("Interface\\Buttons\\UI-Listbox-Highlight2")
     r.hl:SetBlendMode("ADD")
     r:SetScript("OnEnter", function(self)
-        if self.tipFn then
+        if self.spotTip then
+            if SFP.ShowSpotTip then SFP.ShowSpotTip(self, self.spotTip[1], self.spotTip[2]) end
+        elseif self.tipFn then
             local t = SFP.Tip()
             t:SetOwner(self, "ANCHOR_RIGHT")
             self.tipFn(t)
@@ -122,7 +124,7 @@ local function rowOf(side, i)
             t:Show()
         end
     end)
-    r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+    r:SetScript("OnLeave", function() SFP.Tip():Hide(); if SFP.HideSpotTip then SFP.HideSpotTip() end end)
     r:SetScript("OnClick", function(self) if self.click then self.click() end end)
     side.rows[i] = r
     return r
@@ -137,7 +139,7 @@ local function place(side, r, n, indent)
     r.text:ClearAllPoints()
     r.text:SetPoint("LEFT", r.icon, "RIGHT", 4, 0)
     r.text:SetPoint("RIGHT", r.right, "LEFT", -4, 0)
-    r.item, r.click, r.hint, r.tipFn = nil, nil, nil, nil
+    r.item, r.click, r.hint, r.tipFn, r.spotTip = nil, nil, nil, nil, nil
     r:EnableMouse(true)
     r.right:SetText("")
     r.bg:SetColorTexture(0, 0, 0, 0)
@@ -1253,10 +1255,15 @@ local function collectedMonsters(map, group)
         monsterIndex = {}
         local npcByName = {}
         for npcID, rec in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.npcs or {}) do
+            -- a monster recorded before its name was known ("NPC 246330"): the game is asked for it, and it is left out while it has none
+            if type(rec) == "table" and type(rec.n) == "string" and rec.n:find("^NPC %d+$") and type(npcID) == "number" and SFP.NpcNameFor then
+                local real = SFP:NpcNameFor(npcID)
+                if type(real) == "string" and real ~= "" and not real:find("^NPC %d+$") then rec.n = real end
+            end
             if type(rec) == "table" and rec.n and not npcByName[rec.n] then npcByName[rec.n] = npcID end
             -- a rare is listed as soon as it was seen or killed, with or without loot (the farm data does not have to know it yet)
             local isRare = type(rec) == "table" and (rec.c == "rare" or rec.c == "rareelite")
-            if type(rec) == "table" and rec.n and type(rec.m) == "table" and (rec.d or rec.s or isRare) and not rec.boss then
+            if type(rec) == "table" and rec.n and not tostring(rec.n):find("^NPC %d+$") and type(rec.m) == "table" and (rec.d or rec.s or isRare) and not rec.boss then
                 local cls = rec.c
                 local g = (cls == "rare" or cls == "rareelite") and "rare" or ((cls == nil or cls == "normal" or cls == "elite") and "farm" or nil)
                 if g then
@@ -1274,7 +1281,7 @@ local function collectedMonsters(map, group)
                                 local byMap = monsterIndex[m]
                                 if not byMap then byMap = { farm = {}, rare = {} }; monsterIndex[m] = byMap end
                                 local list = byMap[g]
-                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0, map = m,
+                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0, map = m, rare = (g == "rare") or nil,
                                     level = rec.lmax or rec.lmin, ctype = rec.t, family = rec.f }
                             end
                         end
@@ -1292,7 +1299,7 @@ local function collectedMonsters(map, group)
                 if not dup then
                     local npc = npcByName[r.n]
                     local rec = npc and SFP.db.npcs[npc]
-                    byMap.rare[#byMap.rare + 1] = { name = r.n, npc = npc, hx = r.x, hy = r.y, items = {}, kills = rec and rec.k or 0, map = r.m,
+                    byMap.rare[#byMap.rare + 1] = { name = r.n, npc = npc, hx = r.x, hy = r.y, items = {}, kills = rec and rec.k or 0, map = r.m, rare = true,
                         level = rec and (rec.lmax or rec.lmin), ctype = rec and rec.t }
                 end
             end
@@ -1382,7 +1389,7 @@ local function renderBlocks(n, map, spots, compact)
             end
             t:AddLine("Click: set a waypoint", 0, 0.9, 1)
         end
-        if compact then r.tipFn = lootTip end
+        if compact then r.spotTip = { s, map } end
         n = n + 1
         local p = rowOf(list, n)
         place(list, p, n, 30)
@@ -1393,7 +1400,7 @@ local function renderBlocks(n, map, spots, compact)
             (s.valueText or ""))
         p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         p.click = function() goToMonster(map, s) end
-        if compact then p.tipFn = lootTip end
+        if compact then p.spotTip = { s, map } end
         if not compact and type(s.note) == "string" and s.note ~= "" then
             n = n + 1
             local nr = rowOf(list, n)
