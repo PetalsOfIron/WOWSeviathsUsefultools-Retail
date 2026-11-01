@@ -192,7 +192,7 @@ local function step()
     end
     job.i = last + 1
     if job.i > #job.keys then ji = ji + 1 end
-    C_Timer.After(0.05, function() pcall(step) end)
+    return true
 end
 
 local f = CreateFrame("Frame")
@@ -201,14 +201,25 @@ f:SetScript("OnEvent", function()
     -- the big tables get their fallback at once (every login: a metatable is not saved), the small ones are merged once per new file
     local db = _G.SeviathsUsefulToolsDB
     local first = type(db) == "table" and (db.collectedDate or 0) < (C.date or 0)
-    if pcall(addJobs, first) then C_Timer.After(10, function() pcall(step) end) end
+    -- all of it at once, right here at the end of the loading screen (a few tenths of a second), not as small steps while playing
+    if pcall(addJobs, first) then
+        local guard = 0
+        while guard < 2000 and jobs[ji] do
+            guard = guard + 1
+            if not pcall(step) then break end
+        end
+        if not jobs[ji] then pcall(step) end   -- the last call finishes (dates, guild numbers)
+    end
+    -- the price list of this realm is made now too, so the first tooltip does not have to
+    local S = _G.SeviathsUsefulTools
+    if S and S.ShippedPrice then pcall(S.ShippedPrice, S, 0) end
 end)
 
 -- the price histories of earlier versions (a table per sample) are turned into flat lists a little after login
 local histFrame = CreateFrame("Frame")
 histFrame:RegisterEvent("PLAYER_LOGIN")
 histFrame:SetScript("OnEvent", function()
-    C_Timer.After(30, function()
+    C_Timer.After(5, function()
         local S = _G.SeviathsUsefulTools
         if S and S.CompactPriceHist then pcall(S.CompactPriceHist, S) end
     end)
