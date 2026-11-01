@@ -2270,6 +2270,7 @@ function S.BackfillGuilds()
             e[1].o = SFP.db.order
         end
     end
+    if SeviathsLoadAll then SeviathsLoadAll(SFP.db.seenInfo) end
     for key, rec in pairs(SFP.db.seenInfo) do
         local nm, realm = key:match("^([^-]+)-(.+)$")
         if nm and realm and type(rec.guild) == "string" and rec.guild ~= "" then
