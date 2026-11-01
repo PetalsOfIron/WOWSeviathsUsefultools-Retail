@@ -32,6 +32,31 @@ local function iname(id)
 end
 
 local MONSTER_ICON = "Interface\\Icons\\Ability_Hunter_SniperShot"   -- the icon of a farm spot (a monster), not an item's
+local function vendorCost(id)
+    local codex = _G.SeviathsCodexDB
+    local vi = codex and codex.vendorItems and codex.vendorItems[id]
+    local vendors = codex and codex.vendors
+    if type(vi) == "table" and vendors then
+        for _, key in ipairs(vi) do
+            local v = vendors[key]
+            local cost = type(v) == "table" and v.items and v.items[id]
+            if cost and cost ~= "?" then return cost, v.n end
+        end
+    end
+end
+
+-- the text of an item's price for a list: the auction price, else "vendor <cost>"
+local function priceText(id)
+    if not id then return "" end
+    local ah = SFP:GetPrice(id)
+    if ah then return SFP:FormatPrice(ah) end
+    local cost = vendorCost(id)
+    if cost then return "|cff808080vendor|r " .. cost end
+    return ""
+end
+
+SFP.PriceText = priceText   -- the other lists (the map tooltips) use it too
+
 local function plain(s) return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 local win, tree, list, search
 local selected          -- map ID of the zone shown
@@ -318,8 +343,7 @@ local function addItem(n, mapID, id, withZone)
     place(list, r, n, 8)
     r.icon:SetTexture(SFP:ItemIcon(id))
     r.text:SetText(iname(id) .. (withZone and ("  |cff808080" .. SFP:ZoneName(mapID) .. "|r") or ""))
-    local price = SFP:GetPrice(id)
-    r.right:SetText(price and SFP:FormatPrice(price) or "")
+    r.right:SetText(priceText(id))
     r.item = id
     local mons = monstersFor(mapID, id)
     if mons[1] then r.click = function() goToMonster(mapID, mons[1]) end end
@@ -434,8 +458,7 @@ local function addGatherItem(n, id, withKind)
     place(list, r, n, 8)
     r.icon:SetTexture(SFP:ItemIcon(id))
     r.text:SetText(iname(id))
-    local price = SFP:GetPrice(id)
-    r.right:SetText(price and SFP:FormatPrice(price) or "")
+    r.right:SetText(priceText(id))
     r.item = id
     -- exact spots from gathering, nearest to one area name once each
     local seenSpot = {}
@@ -846,10 +869,13 @@ local function petSpots(entries)
     if vendorItems and vendors then
         for id, keys in (SeviathsAllPairs or pairs)(vendorItems) do
             local e = petOf(id)
-            if e and not e.map and type(keys) == "table" then
+            if e and type(keys) == "table" then
                 for _, key in ipairs(keys) do
                     local v = vendors[key]
-                    if type(v) == "table" and v.m and v.x then
+                    if type(v) == "table" and v.items and v.items[id] and v.items[id] ~= "?" and not e.vendorCost then
+                        e.vendorCost, e.vendorItem = v.items[id], id
+                    end
+                    if not e.map and type(v) == "table" and v.m and v.x then
                         e.map, e.x, e.y = v.m, v.x, v.y
                         e.who = "Vendor " .. tostring(v.n or tostring(key):match("^(.-)@") or "?")
                         break
@@ -990,8 +1016,12 @@ local function renderPets(q)
         end
         r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r" ..
             (where ~= "" and ("  |cffffd100" .. where .. "|r") or ""))
-        r.right:SetText(((e.map or e.zoneMap) and "|cffff3030WAYPOINT|r   " or "") ..
-            (e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r"))
+        local priceStr
+        if e.tradeable ~= false and e.price then priceStr = SFP:FormatPrice(e.price)
+        elseif e.vendorCost then priceStr = "|cff808080vendor|r " .. e.vendorCost
+        elseif e.tradeable == false then priceStr = "|cffff8080not tradeable|r"
+        else priceStr = "|cff808080no price yet|r" end
+        r.right:SetText(((e.map or e.zoneMap) and "|cffff3030WAYPOINT|r   " or "") .. priceStr)
         r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cff33e6ffClick: waypoint at the place and open the map there|r" or "")
         if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end
         elseif e.zoneMap then
@@ -1125,8 +1155,7 @@ local function renderMounts(q)
         r.icon:SetTexture(e.item and SFP:ItemIcon(e.item) or e.icon or 134400)
         local chance = e.rarity < 100 and ("  |cff40ff40" .. (e.rarity >= 10 and string.format("%d", math.floor(e.rarity + 0.5)) or string.format("%.1f", e.rarity)) .. "%|r") or ""
         r.text:SetText((e.collected and "|cff40ff40" or "|cffffffff") .. nameOf(e) .. "|r" .. chance)
-        local price = e.item and SFP:GetPrice(e.item)
-        r.right:SetText(price and SFP:FormatPrice(price) or "")
+        r.right:SetText(e.item and priceText(e.item) or "")
         r.item = e.item
         -- the name bar is a waypoint too: the first source with a place
         for _, s in ipairs(e.sources) do
@@ -1346,7 +1375,7 @@ local function renderBlocks(n, map, spots, compact)
             if d.q > 0 then
                 l.text:SetText(iname(d.id) .. "  |cff808080x" .. d.q .. " from " .. kills .. (kills == 1 and " kill" or " kills") .. "|r")
             end
-            l.right:SetText((perText and ("|cffffd100" .. perText .. " per kill|r   ") or "") .. (price and SFP:FormatPrice(price) or ""))
+            l.right:SetText((perText and ("|cffffd100" .. perText .. " per kill|r   ") or "") .. priceText(d.id))
             -- the materials are plain text here: no highlight, no tooltip, nothing under the mouse
             l:EnableMouse(false)
             l.hl:Hide()
