@@ -2476,7 +2476,7 @@ local function updateWaypointButton()
                 wpButton = CreateFrame("Button", nil, spawnLayer)
                 wpButton:SetFrameStrata("HIGH")
                 wpButton:SetFrameLevel(spawnLayer:GetFrameLevel() + 50)
-                wpButton:SetSize(30, 40)
+                wpButton:SetSize(44, 44)
                 wpButton:RegisterForClicks("AnyUp")
                 -- any button, on the press (not the release): the map's own handling of the mouse cannot take it first
                 wpButton:RegisterForClicks("AnyDown", "AnyUp")
@@ -2501,7 +2501,7 @@ local function updateWaypointButton()
             end
             local x, y = wp.position.x, wp.position.y
             wpButton:ClearAllPoints()
-            wpButton:SetPoint("BOTTOM", spawnLayer, "TOPLEFT", x * w, -y * h - 4)
+            wpButton:SetPoint("CENTER", spawnLayer, "TOPLEFT", x * w, -y * h)   -- the pin is drawn centred on its place
             wpButton:Show()
             show = true
         end
