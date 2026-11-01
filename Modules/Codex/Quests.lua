@@ -172,6 +172,15 @@ local function scanOne(qid)
             -- a spot can have both: monsters killed here (names) and objects used here (unames)
             if target and killed then target.kill = true end   -- progress came from a kill here
             if target and oname and not killed then target.use = true end   -- from an object or node (a pool, a chest): "Pick up at"
+            -- the item that was picked up there (the loot that just came in) is kept with the spot
+            local S1 = _G.SeviathsUsefulTools
+            local ll1 = S1 and S1.lastLoot
+            if target and ll1 and ll1.itemID and GetTime() - ll1.t < 8 then
+                target.loot = target.loot or {}
+                local haveItem = false
+                for _, id in ipairs(target.loot) do if id == ll1.itemID then haveItem = true break end end
+                if not haveItem and #target.loot < 12 then target.loot[#target.loot + 1] = ll1.itemID end
+            end
             if target and oname then
                 local key = killed and "names" or "unames"
                 target[key] = target[key] or {}
