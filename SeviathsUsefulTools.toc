@@ -63,6 +63,7 @@ collected\tools.bestSpots.lua
 collected\tools.guildDir.lua
 collected\tools.hiddenSpots.lua
 collected\tools.inspected.lua
+collected\tools.itemExp.lua
 collected\tools.itemZones.lua
 collected\tools.knownItems.1.lua
 collected\tools.knownItems.2.lua
