@@ -251,7 +251,7 @@ local function QuestHoverTip(owner, questID, append)
             for _, p in ipairs(spotsToShow) do
                 local text = placeText(p)
                 local area = p.a or areaName(p) or text
-                if not seenPlace[area] and shown < 5 then
+                if not seenPlace[area] and shown < 20 then
                     seenPlace[area] = true
                     shown = shown + 1
                     local clean = {}

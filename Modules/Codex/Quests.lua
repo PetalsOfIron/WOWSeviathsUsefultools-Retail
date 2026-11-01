@@ -40,7 +40,7 @@ local function AddPerson(list, p)
     for _, q in ipairs(list) do
         if q.n == p.n and q.m == p.m and q.x and p.x and math.abs(q.x - p.x) < 0.01 and math.abs(q.y - p.y) < 0.01 then return end
     end
-    if #list < 8 then list[#list + 1] = p end
+    if #list < 30 then list[#list + 1] = p end
 end
 
 -- the name of what the progress came from: the monster you just killed (your target, dead), else the object or node you just used
@@ -155,7 +155,7 @@ local function scanOne(qid)
             end
             local oname, killed = ObjectiveName()
             local target = dupSpot
-            if not target and #l.o < 5 then target = { m = m, x = x, y = y, a = area }; l.o[#l.o + 1] = target end
+            if not target and #l.o < 20 then target = { m = m, x = x, y = y, a = area }; l.o[#l.o + 1] = target end
             -- the names of what was killed or picked up here are kept with the spot (each name once)
             -- a map-icon spot that real progress happened at becomes a real spot, with the area name of the minimap
             -- (and its coordinates become the place you were really at, not the position of the icon)
@@ -172,7 +172,7 @@ local function scanOne(qid)
                 target[key] = target[key] or {}
                 local have = false
                 for _, nm in ipairs(target[key]) do if nm == oname then have = true break end end
-                if not have and #target[key] < 8 then target[key][#target[key] + 1] = oname end
+                if not have and #target[key] < 30 then target[key][#target[key] + 1] = oname end
             end
         end
     end
@@ -433,7 +433,7 @@ local function RecordWorldQuests(mapID)
             for _, sp in ipairs(l.o) do
                 if sp.m == mapID and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dup = true break end
             end
-            if not dup and #l.o < 5 then
+            if not dup and #l.o < 20 then
                 local area
                 if C_Map and C_Map.GetMapInfoAtPosition then
                     local okA, info = pcall(C_Map.GetMapInfoAtPosition, mapID, x, y)
