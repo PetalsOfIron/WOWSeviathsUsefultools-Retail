@@ -49,6 +49,7 @@ collected\dungeonsraids.mplus.lua
 collected\dungeonsraids.quest.lua
 collected\dungeonsraids.raid.lua
 collected\gold.ArgentDawn.lua
+collected\gold.Bloodfeather_BurningSteppes_Darkspear_Executus_Kor_gall_Saurfang_ShatteredHand_Terokkar.lua
 collected\gold.DarkmoonFaire_DefiasBrotherhood_EarthenRing_Ravenholdt_ScarshieldLegion_Sporeggar_TheVentureCo.lua
 collected\gold.Kazzak.lua
 collected\gold.Ravencrest.lua
@@ -67,6 +68,7 @@ collected\tools.npcPos.lua
 collected\tools.npcs.lua
 collected\tools.objects.lua
 collected\tools.playerIDs.lua
+collected\tools.realmGroups.lua
 collected\tools.rioCache.lua
 collected\tools.seenBuilds.lua
 collected\tools.seenInfo.lua
