@@ -277,11 +277,17 @@ local function goToMonster(mapID, sp)
     if not x then return end
     -- the map shows that zone and the waypoint sits on the monster (set again, never removed by a second click)
     if WorldMapFrame:GetMapID() ~= mapID then WorldMapFrame:SetMapID(mapID) end
+    local placed = false
     if C_Map.CanSetUserWaypointOnMap and C_Map.CanSetUserWaypointOnMap(mapID) then
         C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(mapID, x, y))
         if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+        placed = true
     end
-    SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(sp.name), SFP:ZoneName(mapID), x * 100, y * 100))
+    if placed then
+        SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(sp.name), SFP:ZoneName(mapID), x * 100, y * 100))
+    else
+        SFP:Print(string.format("%s: the game does not allow a waypoint on %s - the spot %.1f, %.1f is pinged on the map.", tostring(sp.name), SFP:ZoneName(mapID), x * 100, y * 100))
+    end
     if SFP.PingSpot then SFP.PingSpot(mapID, x, y) end
 end
 
@@ -296,6 +302,7 @@ local function addItem(n, mapID, id, withZone)
     r.right:SetText(price and SFP:FormatPrice(price) or "")
     r.item = id
     local mons = monstersFor(mapID, id)
+    if mons[1] then r.click = function() goToMonster(mapID, mons[1]) end end
     if #mons == 0 then
         n = n + 1
         local m = rowOf(list, n)
@@ -423,6 +430,7 @@ local function addGatherItem(n, id, withKind)
             m.right:SetText("|cffff3030WAYPOINT|r")
             m.hint = "A spot where gathering was recorded. Click: set a waypoint there and open the map"
             m.click = function() openSpot(s.map, s.x, s.y, tostring(s.name or iname(id))) end
+            if shown == 1 then r.click = m.click end   -- the name of the material goes to the first spot
         end
     end
     -- the zones it spawns in, most nodes first
@@ -449,6 +457,7 @@ local function addGatherItem(n, id, withKind)
             end
             openSpot(z.map, x, y, iname(id))
         end
+        if i == 1 and not r.click then r.click = m.click end
     end
     if shown == 0 and #zones == 0 then
         n = n + 1
