@@ -225,7 +225,7 @@ local function QuestHoverTip(owner, questID, append)
                         or txt:find("kill ", 1, true) or txt:find("destroyed", 1, true)
                     local pick = txt:find("collect", 1, true) or txt:find("gather", 1, true) or txt:find("pick", 1, true)
                         or txt:find("loot", 1, true) or txt:find("retriev", 1, true) or txt:find("recover", 1, true)
-                    if kill then objLabel = "Kill at"
+                    if kill then objLabel = "Monster at"
                     elseif o.type == "item" or pick then objLabel = "Pick up at"
                     elseif o.type == "object" then objLabel = "Use at"
                     else objLabel = "Objective at" end
@@ -251,8 +251,8 @@ local function QuestHoverTip(owner, questID, append)
                     shown = shown + 1
                     local nm = (type(p.names) == "table" and #p.names > 0) and (" - " .. table.concat(p.names, ", ")) or ""
                 -- a spot where progress came from a kill says "Kill at", whatever the objective's own words are
-                -- a kill for an item objective is a monster drop ("Lumpy Fish Guts" come from monsters): said so, not as a kill objective
-                local spotLabel = (p.kill and (objIsItem and "Monsters drop it at" or "Kill at")) or (p.use and "Pick up at") or objLabel
+                -- two kinds of monster objective: just kill them ("Monster at") and an item the monsters drop ("Monster item at", e.g. Lumpy Fish Guts)
+                local spotLabel = (p.kill and (objIsItem and "Monster item at" or "Monster at")) or (p.use and "Pick up at") or objLabel
                 lines[#lines + 1] = ((shown == 1 or spotLabel ~= lastLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
                 lastLabel = spotLabel
                     added = true
