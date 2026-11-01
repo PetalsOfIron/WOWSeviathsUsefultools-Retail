@@ -104,7 +104,7 @@ local function zoneTexts(id, classID, subID, expID)
             if v and v.n then
                 local cdx = _G.SeviathsCodex
                 local kind = (cdx and cdx.VendorKind and cdx:VendorKind(v)) or "Vendor"
-                out[#out + 1] = ("%s: |cffffd100%s|r in %s"):format(kind, v.n, placeName(v.m, v.x, v.y))
+                out[#out + 1] = ("Vendor found at: %s - |cffffd100%s|r (%s)"):format(placeName(v.m, v.x, v.y), v.n, kind)
             end
         end
     end
@@ -116,8 +116,12 @@ local function zoneTexts(id, classID, subID, expID)
         if rec and type(rec.m) == "table" then map, spots = next(rec.m) end
         local spot1 = type(spots) == "table" and spots[1] or nil
         if rec and rec.n then
-            local what = d[3] == "o" and "Gathered from (node or object)" or (d[3] == "s" and "Skinned from (monster)" or "Dropped by (monster)")
-            out[#out + 1] = ("%s: |cffffd100%s|r%s"):format(what, rec.n, map and (" in " .. placeName(map, spot1 and spot1[1], spot1 and spot1[2])) or "")
+            local place = map and placeName(map, spot1 and spot1[1], spot1 and spot1[2]) or nil
+            if d[3] == "o" then
+                out[#out + 1] = ("Picked up at: %s|cffffd100%s|r (node or object)"):format(place and (place .. " - ") or "", rec.n)
+            else
+                out[#out + 1] = ("%s: |cffffd100%s|r (monster)%s"):format(d[3] == "s" and "Skinned from" or "Dropped by", rec.n, place and (" - found at: " .. place) or "")
+            end
         end
     end
     local found = {}
