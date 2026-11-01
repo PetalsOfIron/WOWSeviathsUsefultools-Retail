@@ -469,15 +469,15 @@ local function placeFarmPin(p, x, y, h)
         p.pinTex:SetAtlas("Waypoint-MapPin-Untracked")
         p.pinTex:SetVertexColor(0.3, 0.95, 1, 1)
         p.ring = p:CreateTexture(nil, "ARTWORK")
-        p.ring:SetTexture("Interface\\Cooldown\\ping4")
-        p.ring:SetBlendMode("ADD")
-        p.ring:SetVertexColor(0.3, 0.95, 1, 1)
+        p.ring:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
+        p.ring:SetBlendMode("BLEND")
+        p.ring:SetVertexColor(0.1, 0.55, 1, 0.9)
         p.ring:SetPoint("CENTER", p, "CENTER", 0, 0)
         p.ringAg = p.ring:CreateAnimationGroup()
         local sc = p.ringAg:CreateAnimation("Scale")
-        sc:SetScaleFrom(0.4, 0.4); sc:SetScaleTo(3, 3); sc:SetDuration(1.1)
+        sc:SetScaleFrom(0.5, 0.5); sc:SetScaleTo(2.6, 2.6); sc:SetDuration(0.8)
         local al = p.ringAg:CreateAnimation("Alpha")
-        al:SetFromAlpha(1); al:SetToAlpha(0); al:SetDuration(1.1)
+        al:SetFromAlpha(0.95); al:SetToAlpha(0.1); al:SetDuration(0.8)
         p.ringAg:SetScript("OnFinished", function()
             if GetTime() < (p.pingUntil or 0) then p.ringAg:Play() else p.ring:Hide() end
         end)
@@ -2272,28 +2272,32 @@ end
 
 -- the side lists sit above their button on the line below the map (see MaterialGuide.lua)
 function SFP.DockPanels()
-    -- each list opens below its own button (the line below the map), as tall as the screen allows there; with too little room below
-    -- it opens above the button instead
-    local function dock(panel, key, wantH)
+    -- Farm spots opens below its button (as tall as the screen allows there); the other lists stay above theirs
+    local function dock(panel, key, below, wantH)
         if not panel then return end
         local btn = _G["SeviathsUsefulToolsRow" .. key]
         if not (btn and btn:IsShown()) then return end
         if panel:GetParent() ~= WorldMapFrame then panel:SetParent(WorldMapFrame) end
-        local ps = panel:GetEffectiveScale()
-        local below = ((btn:GetBottom() or 0) * btn:GetEffectiveScale()) / ps - 8
         panel:ClearAllPoints()
-        local edge = key == "rares" and "LEFT" or "RIGHT"
-        if below >= 200 then
-            panel:SetPoint("TOP" .. edge, btn, "BOTTOM" .. edge, 0, -4)
-            if wantH then panel:SetHeight(math.min(wantH, below)) end
-        else
+        if below then
+            local ps = panel:GetEffectiveScale()
+            local room = ((btn:GetBottom() or 0) * btn:GetEffectiveScale()) / ps - 8
+            if room >= 200 then
+                panel:SetPoint("TOPRIGHT", btn, "BOTTOMRIGHT", 0, -4)
+                if wantH then panel:SetHeight(math.min(wantH, room)) end
+                return
+            end
             local above = (UIParent:GetTop() * UIParent:GetEffectiveScale() - (btn:GetTop() or 0) * btn:GetEffectiveScale()) / ps - 8
-            panel:SetPoint("BOTTOM" .. edge, btn, "TOP" .. edge, 0, 4)
+            panel:SetPoint("BOTTOMRIGHT", btn, "TOPRIGHT", 0, 4)
             if wantH then panel:SetHeight(math.min(wantH, math.max(above, 200))) end
+        elseif key == "rares" then
+            panel:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 16, 2)   -- opens up and to the right of its button at the map's edge
+        else
+            panel:SetPoint("BOTTOMRIGHT", btn, "TOPRIGHT", 0, 2)
         end
     end
     dock(gatherPanel, "gather")
-    dock(farmPanel, "spots", 520)
+    dock(farmPanel, "spots", true, 520)
     dock(spotPanel, "rares")
     dock(collPanel, "coll")
 end
@@ -2381,7 +2385,7 @@ function SFP.PingSpot(map, x, y)
                 t:SetBlendMode("ADD")
                 t:SetPoint("CENTER")
                 t:SetSize(40, 40)
-                t:SetVertexColor(0.2, 0.9, 1, 1)
+                t:SetVertexColor(0.25, 0.6, 1, 1)
                 local ag = t:CreateAnimationGroup()
                 ag:SetLooping("REPEAT")
                 local sc = ag:CreateAnimation("Scale")
@@ -2397,6 +2401,18 @@ function SFP.PingSpot(map, x, y)
                 t.ag = ag
                 pingFrame.rings[i] = t
             end
+            pingFrame.disc = pingFrame:CreateTexture(nil, "ARTWORK")
+            pingFrame.disc:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
+            pingFrame.disc:SetPoint("CENTER")
+            pingFrame.disc:SetSize(54, 54)
+            pingFrame.disc:SetVertexColor(0.1, 0.55, 1, 0.9)
+            local dg = pingFrame.disc:CreateAnimationGroup()
+            dg:SetLooping("BOUNCE")
+            local ds = dg:CreateAnimation("Scale")
+            ds:SetScaleFrom(0.6, 0.6); ds:SetScaleTo(1.6, 1.6); ds:SetDuration(0.55)
+            local da = dg:CreateAnimation("Alpha")
+            da:SetFromAlpha(1); da:SetToAlpha(0.3); da:SetDuration(0.55)
+            pingFrame.disc.ag = dg
             pingFrame.pin = pingFrame:CreateTexture(nil, "OVERLAY")
             pingFrame.pin:SetAtlas("Waypoint-MapPin-Tracked")
             pingFrame.pin:SetSize(34, 34)
@@ -2413,12 +2429,14 @@ function SFP.PingSpot(map, x, y)
         pingFrame:Show()
         for _, t in ipairs(pingFrame.rings) do t.ag:Stop(); t.ag:Play() end
         pingFrame.pin.ag:Stop(); pingFrame.pin.ag:Play()
+        pingFrame.disc.ag:Stop(); pingFrame.disc.ag:Play()
         pingFrame.token = (pingFrame.token or 0) + 1
         local token = pingFrame.token
-        C_Timer.After(4.5, function()
+        C_Timer.After(5, function()
             if pingFrame.token == token then
                 for _, t in ipairs(pingFrame.rings) do t.ag:Stop() end
                 pingFrame.pin.ag:Stop()
+                pingFrame.disc.ag:Stop()
                 pingFrame:Hide()
             end
         end)
@@ -2446,7 +2464,7 @@ refresh = function()
 
     local mapID = WorldMapFrame:GetMapID()
     if not mapID then return end
-    if SFP._pingMap ~= mapID then SFP._pingMap = mapID; SFP._pingUntil = GetTime() + 3.5 end
+    if SFP._pingMap ~= mapID then SFP._pingMap = mapID; SFP._pingUntil = GetTime() + 5 end
     if SFP.db.showDungeons or SFP.db.showRaids then drawInstances(mapID) end
     if SFP.db.showGatherList then
         local info = C_Map.GetMapInfo(mapID)
