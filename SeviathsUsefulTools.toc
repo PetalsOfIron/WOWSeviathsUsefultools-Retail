@@ -49,6 +49,7 @@ collected\dungeonsraids.mplus.lua
 collected\dungeonsraids.quest.lua
 collected\dungeonsraids.raid.lua
 collected\gold.ArgentDawn.lua
+collected\gold.DarkmoonFaire_DefiasBrotherhood_EarthenRing_Ravenholdt_ScarshieldLegion_Sporeggar_TheVentureCo.lua
 collected\gold.Kazzak.lua
 collected\gold.Ravencrest.lua
 collected\tools.bestSpots.lua
