@@ -25,6 +25,7 @@ end
 ns.lazy = {
     item = { groups = {}, built = {}, state = nil, needExp = {} },    -- state: nil = not indexed, "indexing", "ready"
     quest = { groups = {}, built = {}, state = nil },
+    tmog = { groups = {}, built = {}, state = nil },   -- the transmog items of Wowhead's list (SeviathsUsefulTools_Transmog)
 }
 
 ------------------------------------------------------------------------
@@ -83,6 +84,27 @@ scanners.item = function(done)
     end, done)
 end
 
+-- every transmog item, grouped Source > Type > Slot > Quality (the group is a path: the Codex opens each part on its own)
+local QUALITY = { [0] = "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Artifact", "Heirloom" }
+scanners.tmog = function(done)
+    local blocks = SFP and SFP.TransmogBlocks and SFP:TransmogBlocks()
+    if not blocks then if done then done() end return end
+    local keys = {}
+    for k in pairs(blocks) do keys[#keys + 1] = k end
+    local lz = ns.lazy.tmog
+    budgetLoop(#keys, 6, function(n)
+        for line in blocks[keys[n]]:gmatch("[^\n]+") do
+            local r = SFP.TransmogParseLine(line)
+            if r then
+                local g = (r.source or "Other") .. " > " .. (r.type or "Other") .. " > " .. (r.slot or "Other") .. " > " .. (QUALITY[r.quality] or "Other")
+                local list = lz.groups[g]
+                if not list then list = {}; lz.groups[g] = list end
+                list[#list + 1] = r.id
+            end
+        end
+    end, done)
+end
+
 function ns:LazyIndex(cat, done)
     local lz = self.lazy[cat]
     if not lz or not scanners[cat] then if done then done() end return end
@@ -133,6 +155,17 @@ makers.item = function(id)
                 itemID = id, wh = "item=" .. id, sub = cn, lazy = true })
         end
     end
+end
+
+makers.tmog = function(id)
+    local r = SFP:TransmogItem(id)
+    if not r or ns:Get("tmog:" .. id) then return end
+    local sub = {}
+    if r.type or r.slot then sub[#sub + 1] = (r.type or "") .. ((r.type and r.slot) and " " or "") .. (r.slot or "") end
+    sub[#sub + 1] = r.source .. (r.sourceName and (": " .. r.sourceName) or "")
+    ns:Add({ cat = "tmog", id = id, name = r.name, itemID = id, wh = "item=" .. id, lazy = true, icon = C_Item.GetItemIconByID(id),
+        group = (r.source or "Other") .. " > " .. (r.type or "Other") .. " > " .. (r.slot or "Other") .. " > " .. (QUALITY[r.quality] or "Other"),
+        sub = table.concat(sub, "  ") })
 end
 
 function ns:BuildLazyGroup(cat, group, done)

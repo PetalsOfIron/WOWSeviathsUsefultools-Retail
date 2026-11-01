@@ -88,9 +88,25 @@ local TWEAPON = { [0] = "One-handed axe", "Two-handed axe", "Bow", "Gun", "One-h
 local TSLOT = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands", "Finger", "Trinket", "One-hand", "Shield", "Ranged", "Back",
     "Two-hand", "Bag", "Tabard", "Robe", "Main hand", "Off hand", "Held in off-hand", "Ammo", "Thrown", "Ranged" }
 
--- { name, quality, source ("Drop", "Vendor" ...), source name (the quest, zone or achievement Wowhead names) } or nil
-function SFP:TransmogItem(id)
-    if type(id) ~= "number" then return nil end
+-- one record line "id|name|quality|source|source name|item class|subclass|slot|required level|classes" as a table
+local function parseTransmog(line)
+    local id, name, q, src, sname, ic, isub, slot, req, cls = line:match("^(%d+)|(.-)|(%d+)|(%d+)|([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)$")
+    if not id then return nil end
+    local classes
+    if cls and cls ~= "" then
+        classes = {}
+        for c in cls:gmatch("%d+") do classes[#classes + 1] = TCLASS[tonumber(c)] end
+    end
+    ic, isub = tonumber(ic), tonumber(isub)
+    local kind = (ic == 4 and TARMOR[isub]) or (ic == 2 and TWEAPON[isub]) or nil
+    return {
+        id = tonumber(id), name = name, quality = tonumber(q), source = TSOURCE[tonumber(src)], sourceName = sname ~= "" and sname or nil,
+        type = kind, slot = TSLOT[tonumber(slot) or 0], reqLevel = tonumber(req), classes = classes,
+    }
+end
+SFP.TransmogParseLine = parseTransmog
+
+local function loadTransmog()
     if tstate == nil then
         tstate = false
         if C_AddOns and C_AddOns.LoadAddOn then
@@ -98,8 +114,16 @@ function SFP:TransmogItem(id)
             else tstate = C_AddOns.LoadAddOn(TNAME) and true or false end
         end
     end
-    if not tstate then return nil end
-    local blocks = _G.SeviathsTransmogBlocks
+    return tstate and _G.SeviathsTransmogBlocks or nil
+end
+
+-- the blocks (500 ids each) of the transmog items, for the Codex section that lists them; nil when the folder is not there
+function SFP:TransmogBlocks() return loadTransmog() end
+
+-- { name, quality, source ("Drop", "Vendor" ...), source name, type, slot, required level, classes } or nil
+function SFP:TransmogItem(id)
+    if type(id) ~= "number" then return nil end
+    local blocks = loadTransmog()
     local text = blocks and blocks[math.floor(id / 500)]
     if not text then return nil end
     local key = id .. "|"
@@ -109,20 +133,7 @@ function SFP:TransmogItem(id)
         if not s then return nil end
         if s == 1 or text:sub(s - 1, s - 1) == "\n" then
             local e = text:find("\n", s, true) or (#text + 1)
-            local name, q, src, sname, ic, isub, slot, req, cls = text:sub(s + #key, e - 1):match("^(.-)|(%d+)|(%d+)|([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)$")
-            if not name then return nil end
-            local st = tonumber(src)
-            local classes
-            if cls and cls ~= "" then
-                classes = {}
-                for c in cls:gmatch("%d+") do classes[#classes + 1] = TCLASS[tonumber(c)] end
-            end
-            ic, isub = tonumber(ic), tonumber(isub)
-            local kind = (ic == 4 and TARMOR[isub]) or (ic == 2 and TWEAPON[isub]) or nil
-            return {
-                name = name, quality = tonumber(q), source = TSOURCE[st], sourceName = sname ~= "" and sname or nil,
-                type = kind, slot = TSLOT[tonumber(slot) or 0], reqLevel = tonumber(req), classes = classes,
-            }
+            return parseTransmog(text:sub(s, e - 1))
         end
         from = s + 1
     end

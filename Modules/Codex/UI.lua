@@ -19,9 +19,11 @@ local frame, searchBox, listRows, listSlider, detail, statusText
 -- Codex is closed. A search builds everything.
 function ns:ShowCategoryData(cat, searching)
     if searching then ns:IndexCategory("all") elseif cat then ns:IndexCategory(cat) end
-    for _, lc in ipairs({ "item", "quest" }) do
+    for _, lc in ipairs({ "item", "quest", "tmog" }) do
         local mine = (cat == lc) or (lc == "item" and cat == "material")
-        if searching then
+        if searching and lc == "tmog" then
+            ns:UnloadAllLazy(lc)   -- 94,000 pages: never built by a search, open the section to browse them
+        elseif searching then
             ns:LazyIndex(lc, function() ns:BuildAllLazy(lc) end)
         elseif mine then
             ns:LazyIndex(lc)
@@ -443,7 +445,7 @@ local function DetailText(e)
         end
     end
     -- an item that is a transmog item: where it comes from (Wowhead's list, read only for this item)
-    if c == "item" then
+    if c == "item" or c == "tmog" then
         local S = _G.SeviathsUsefulTools
         local tm = S and S.TransmogItem and S:TransmogItem(e.itemID or tonumber(e.id) or 0)
         if tm and tm.source then
@@ -953,6 +955,7 @@ local function CreateWindow()
             if frame:IsShown() then return end
             ns:UnloadAllLazy("item")
             ns:UnloadAllLazy("quest")
+            ns:UnloadAllLazy("tmog")
             ns:UnloadAll()
             state.selected = nil
             state.history = {}
