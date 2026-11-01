@@ -1189,7 +1189,7 @@ local function refreshRow()
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "pet", "hunter", "mount", "search", "coll", "spots" }) do
+    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "search", "coll", "rares", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
@@ -1201,25 +1201,6 @@ local function refreshRow()
         end
     end
     row:SetWidth(math.max(x, 10))
-    -- the Rares button stands at the right edge of the map, outside it, and goes up from there (its list opens above it)
-    local rb = rowBtns.rares
-    rb:ClearAllPoints()
-    if show.rares then
-        rb:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 6, 2)
-        rb:Show()
-    else
-        rb:Hide()
-    end
-    -- Mining & Herbalism stands outside the map too, on the same line, to the right of Rares
-    local gb = rowBtns.gather
-    gb:ClearAllPoints()
-    if show.gather then
-        if show.rares then gb:SetPoint("LEFT", rowBtns.rares, "RIGHT", 4, 0)
-        else gb:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 6, 2) end
-        gb:Show()
-    else
-        gb:Hide()
-    end
     row:Show()
     if SFP.DockPanels then SFP.DockPanels() end
 end
