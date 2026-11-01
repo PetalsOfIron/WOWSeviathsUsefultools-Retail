@@ -546,6 +546,21 @@ end
 
 -- the price shipped with the addon (collected/gold.<realm>.lua: prices scanned on the author's realms): this realm group's, else a part of
 -- it, else any shipped realm (prices of other servers are usually close). Returns copper and the time it was scanned.
+-- the realms that share an auction house with this one, from the shipped list (compared without spaces, apostrophes and hyphens)
+local connIndex
+local function plain(s) return (tostring(s):gsub("[%s'-]", "")) end
+function SFP:ConnectedWith(realm)
+    if not connIndex then
+        connIndex = {}
+        for _, g in ipairs(self.ConnectedRealms or {}) do
+            local names = {}
+            for i = 2, #g do names[#names + 1] = g[i] end
+            for _, n in ipairs(names) do connIndex[plain(n)] = names end
+        end
+    end
+    return connIndex[plain(realm)] or {}
+end
+
 local shippedRealm
 function SFP:ShippedPriceTime(id)
     local _, t = self:ShippedPrice(id)
@@ -570,14 +585,16 @@ function SFP:ShippedPrice(id)
             -- is the same auction house, whichever of its realms was scanned
             local mine = {}
             for part in tostring(key):gmatch("[^,]+") do
-                mine[part] = true
+                mine[plain(part)] = true
                 -- the realms known to share its auction house (learned by any player of the addon, shipped in realmGroups)
                 local grp = self.db and self.db.realmGroups and self.db.realmGroups[part]
-                for other in tostring(grp or ""):gmatch("[^,]+") do mine[other] = true end
+                for other in tostring(grp or ""):gmatch("[^,]+") do mine[plain(other)] = true end
+                -- and the list shipped for all regions (Data/ConnectedRealms.lua)
+                for _, other in ipairs(self:ConnectedWith(part)) do mine[plain(other)] = true end
             end
             for gkey, r in pairs(G) do
                 for part in tostring(gkey):gmatch("[^,]+") do
-                    if mine[part] then shippedRealm = r break end
+                    if mine[plain(part)] then shippedRealm = r break end
                 end
                 if shippedRealm then break end
             end
