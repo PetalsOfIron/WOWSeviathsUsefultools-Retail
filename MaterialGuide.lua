@@ -216,8 +216,10 @@ local function monstersFor(map, id)
     local out = {}
     local zone = SFP.zoneByMap[map]
     for _, sp in ipairs(zone and zone.spawns or {}) do
-        for _, it in ipairs(sp.items or {}) do
-            if it == id then out[#out + 1] = sp break end
+        if not (sp.rare or sp.special or sp.hunter or sp.gather) then
+            for _, it in ipairs(sp.items or {}) do
+                if it == id then out[#out + 1] = sp break end
+            end
         end
     end
     local have = {}
@@ -985,6 +987,46 @@ local function setMode(m)
     end
 end
 
+-- the monsters the addon has collected (kills and loot, with positions), by map: normal monsters (elites too) for Farm spots, rares for
+-- Rares; no bosses, no monster that drops a battle pet (those are under Battle pets). Built when first needed, dropped with the window.
+local monsterIndex
+local function collectedMonsters(map, group)
+    if not monsterIndex then
+        monsterIndex = {}
+        for npcID, rec in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.npcs or {}) do
+            if type(rec) == "table" and rec.n and type(rec.m) == "table" and (rec.d or rec.s) and not rec.boss then
+                local cls = rec.c
+                local g = (cls == "rare" or cls == "rareelite") and "rare" or ((cls == nil or cls == "normal" or cls == "elite") and "farm" or nil)
+                if g then
+                    local pet = false
+                    for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
+                        for id in pairs(src) do
+                            local info = SFP.Items[id]
+                            if info and info.kind == "pet" then pet = true break end
+                        end
+                    end
+                    if not pet then
+                        for m, pts in pairs(rec.m) do
+                            local p = type(pts) == "table" and pts[1]
+                            if p and p[1] and p[2] then
+                                local byMap = monsterIndex[m]
+                                if not byMap then byMap = { farm = {}, rare = {} }; monsterIndex[m] = byMap end
+                                local list = byMap[g]
+                                list[#list + 1] = { name = rec.n, npc = npcID, hx = p[1], hy = p[2], items = {}, kills = rec.k or 0 }
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        for _, byMap in pairs(monsterIndex) do
+            for _, list in pairs(byMap) do table.sort(list, function(a, c) return a.name < c.name end) end
+        end
+    end
+    local byMap = monsterIndex[map]
+    return byMap and byMap[group] or {}
+end
+
 -- Farm spots and Rares: the same window - the zones on the left, and for the zone picked a block per monster: its name and a red
 -- WAYPOINT, its place, everything it drops (grey items too) with how often and the price, and a space before the next one
 local function renderFarmList(group)
@@ -992,6 +1034,16 @@ local function renderFarmList(group)
     local map = selected
     if type(map) ~= "number" then map = WorldMapFrame:GetMapID() end
     local spots = (map and SFP.FarmSpotsOf) and SFP.FarmSpotsOf(map, group) or {}
+    if map then
+        local have = {}
+        for _, s in ipairs(spots) do have[tostring(s.name):lower()] = true end
+        local merged = {}
+        for _, s in ipairs(spots) do merged[#merged + 1] = s end
+        for _, s in ipairs(collectedMonsters(map, group)) do
+            if not have[s.name:lower()] then have[s.name:lower()] = true; merged[#merged + 1] = s end
+        end
+        spots = merged
+    end
     win.title:SetText((group == "rare" and "|cffff8000Rares|r" or "|c" .. SFP.CYAN_HEX .. "Farm spots|r") .. "  |cffaaaaaa" .. (map and SFP:ZoneName(map) or "") .. "|r")
     for _, s in ipairs(spots) do
         local loot, kills = SFP.MonsterLoot(s)
@@ -1224,6 +1276,7 @@ local function build()
     win.tabs.gather:SetEnabled(matTab ~= "gather")
     win:SetScript("OnHide", function()
         guideIndex = nil
+        monsterIndex = nil
         zonesCache = {}
     end)
     win:SetScript("OnShow", function()
