@@ -1213,8 +1213,8 @@ local function gatherRow(i)
     r.name:SetWordWrap(false)   -- one line: a long name is cut instead of running into the next row
     r.name:SetMaxLines(1)
     r.best = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    r.best:SetPoint("RIGHT", -2, 0)
-    r.best:SetJustifyH("RIGHT")
+    r.best:SetPoint("LEFT", r.name, "RIGHT", 12, 0)
+    r.best:SetJustifyH("LEFT")
     r:SetHighlightTexture("Interface\\Buttons\\UI-Listbox-Highlight2", "ADD")
     r:SetScript("OnEnter", function(self)
         if not self.item then return end
@@ -1324,7 +1324,7 @@ local function drawGatherList(mapID)
                 r.best:SetText("|cffffd100how to get it|r")
                 r.bestText = g.how
             end
-            r.name:SetPoint("RIGHT", r.best, "LEFT", -4, 0)
+            r.name:SetWidth(0)
             r:Show()
         end
     end
@@ -2277,21 +2277,21 @@ end
 function SFP.DockPanels()
     -- every list opens like the big search window: on the right of the map, in the empty screen next to it, as tall as the map; the
     -- buttons that open them are in one line right below the map
-    local function dock(panel)
+    local function dock(panel, full)
         if not panel then return end
         if panel:GetParent() ~= WorldMapFrame then panel:SetParent(WorldMapFrame) end
         panel:SetClampedToScreen(false)
         panel:ClearAllPoints()
         panel:SetPoint("TOPLEFT", WorldMapFrame, "TOPRIGHT", 4, 0)
-        panel:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 4, 0)
+        if full then panel:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 4, 0) end   -- only the Farm spots list is as tall as the map
         local mr, ms = WorldMapFrame:GetRight(), WorldMapFrame:GetEffectiveScale()
         local ur, us = UIParent:GetRight(), UIParent:GetEffectiveScale()
         local ps = panel:GetEffectiveScale()
         local space = (mr and ur and ps > 0) and ((ur * us - mr * ms) / ps) or 0
-        panel:SetWidth(space >= 400 and math.min(space - 8, 820) or 420)
+        panel:SetWidth(space >= 400 and math.min(space - 8, full and 460 or 400) or 400)
     end
     dock(gatherPanel)
-    dock(farmPanel)
+    dock(farmPanel, true)
     dock(spotPanel)
     dock(collPanel)
     if farmPanel then farmPanel.content:SetWidth(math.max(farmPanel:GetWidth() - 40, 300)) end
