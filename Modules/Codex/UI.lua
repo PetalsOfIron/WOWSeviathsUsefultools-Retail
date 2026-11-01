@@ -625,6 +625,7 @@ local function CreateWindow()
         if pending then pending:Cancel() end
         pending = C_Timer.NewTimer(0.25, function()
             state.query = txt
+            if txt ~= "" and ns.EnsureCollectedItems then ns:EnsureCollectedItems() end   -- the item pages are made when a search is first typed
             ns:RefreshList()
             RefreshCategories()
         end)
@@ -666,6 +667,7 @@ local function CreateWindow()
         b.cat = c.key
         b:SetScript("OnClick", function()
             state.cat = c.key
+            if (c.key == "item" or c.key == "material") and ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
             if searchBox:GetText() ~= "" then searchBox:SetText("") end
             state.query = ""
             ns:RefreshList()
@@ -892,6 +894,7 @@ function ns:OpenCategory(key)
     frame:Show()
     if ns.CATBYKEY[key] then
         state.cat = key
+        if (key == "item" or key == "material") and ns.EnsureCollectedItems then ns:EnsureCollectedItems() end
         if searchBox:GetText() ~= "" then searchBox:SetText("") end
         state.query = ""
         ns:RefreshList()
