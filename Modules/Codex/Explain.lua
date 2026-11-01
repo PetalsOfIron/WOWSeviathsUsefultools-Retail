@@ -566,6 +566,12 @@ function ns:SetHowTo(e)
                     how[1] = stype
                 end
             end
+            -- no drop found by the game: Wowhead's source of the piece
+            if #how == 0 or how[1] == stype then
+                local S = _G.SeviathsUsefulTools
+                local tm = S and S.TransmogItem and S:TransmogItem(info.itemID)
+                if tm and tm.source then how = { tm.source .. (tm.sourceName and (": " .. tm.sourceName) or "") } end
+            end
             local item = ns:Get("item:" .. info.itemID)
             if item then keys[#keys + 1] = item.key end
             pieces[#pieces + 1] = (info.isCollected and "|TInterface\\RaidFrame\\ReadyCheck-Ready:12|t " or "• ")

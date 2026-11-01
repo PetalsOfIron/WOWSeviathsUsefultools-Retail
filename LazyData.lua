@@ -70,3 +70,43 @@ end
 function SFP:FreeMonsterCache()
     cache = {}
 end
+
+---------------------------------------------------------------------------
+-- Transmog items (SeviathsUsefulTools_Transmog): where an item comes from, read from its block of 500 ids only when that item is looked at
+---------------------------------------------------------------------------
+local TNAME = "SeviathsUsefulTools_Transmog"
+local tstate
+local TSOURCE = {
+    "Crafted", "Drop", "PvP", "Quest", "Vendor", "Trainer", "Discovery", "Redemption", "Talent", "Starter", "Event", "Achievement",
+    "Black Market", "Disenchanting", "Fishing", "Gathering", "Milling", "Mining", "Prospecting", "Pickpocketing", "Salvaging", "In-game shop",
+}
+
+-- { name, quality, source ("Drop", "Vendor" ...), source name (the quest, zone or achievement Wowhead names) } or nil
+function SFP:TransmogItem(id)
+    if type(id) ~= "number" then return nil end
+    if tstate == nil then
+        tstate = false
+        if C_AddOns and C_AddOns.LoadAddOn then
+            if C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(TNAME) then tstate = true
+            else tstate = C_AddOns.LoadAddOn(TNAME) and true or false end
+        end
+    end
+    if not tstate then return nil end
+    local blocks = _G.SeviathsTransmogBlocks
+    local text = blocks and blocks[math.floor(id / 500)]
+    if not text then return nil end
+    local key = id .. "|"
+    local from = 1
+    while true do
+        local s = text:find(key, from, true)
+        if not s then return nil end
+        if s == 1 or text:sub(s - 1, s - 1) == "\n" then
+            local e = text:find("\n", s, true) or (#text + 1)
+            local name, q, src, sname = text:sub(s + #key, e - 1):match("^(.-)|(%d+)|(%d+)|(.*)$")
+            if not name then return nil end
+            local st = tonumber(src)
+            return { name = name, quality = tonumber(q), source = TSOURCE[st], sourceName = sname ~= "" and sname or nil }
+        end
+        from = s + 1
+    end
+end
