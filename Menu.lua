@@ -654,9 +654,8 @@ local buildDelve = simplePage("Delve Planner",
             if sl.key == "role" then
                 mkText(c, ("Slot %d - Role: the companion role, set with the Healer / Tank / Damage buttons above."):format(i), 0, nextY, 480, "GameFontNormal")
                 mkButton(c, "Scan my account's curios", 220, function()
-                    local n, rep = SFP:ScanOwnedCurios()
-                    SFP:Print(n > 0 and ("Found " .. n .. " of your curios and marked them as owned.") or "No curios could be read from the game.")
-                    SFP:Print(rep)
+                    -- silent: the owned curios are marked in the list below (nothing is written to the chat)
+                    SFP:ScanOwnedCurios()
                     pane.refresh()
                 end, "Reads the curios of your delve companion from the game and marks them as owned. Right-click a curio to mark it by hand."):SetPoint("TOPLEFT", 0, nextY - 24)
                 nextY = nextY - 70
