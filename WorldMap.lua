@@ -2051,6 +2051,7 @@ local function drawSimple(key, flag, title, color, mapID, spots)
     if SFP.DockPanels then SFP.DockPanels() end
 end
 
+local drawFarmScroll   -- defined below
 local function drawFarmLists(mapID)
     local zone = SFP.zoneByMap[mapID]
     drawFarmScroll(mapID, spotsOfGroup(zone, "farm"))
@@ -2175,7 +2176,7 @@ local function farmRow(f, i)
     return r
 end
 
-local function drawFarmScroll(mapID, spots)
+drawFarmScroll = function(mapID, spots)
     if SFP.db.spotsCollapsed ~= false or #spots == 0 then if farmPanel then farmPanel:Hide() end return end
     if not farmPanel then farmPanel = buildFarmPanel() end
     local f = farmPanel
