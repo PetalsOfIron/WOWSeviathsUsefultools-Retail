@@ -100,7 +100,14 @@ local function ScanLog()
                     -- the area name is what the minimap's zone text says here ("Zeb'Alar Lumbermill"), saved with the spot
                     local okA, area = pcall(GetMinimapZoneText)
                     if not okA or type(area) ~= "string" or secret(area) or area == "" then area = nil end
-                    if #l.o < 3 then l.o[#l.o + 1] = { m = m, x = x, y = y, a = area } end
+                    -- a spot is added only when it is a different place: not within a short distance of one already saved, and not in the
+                    -- same area; a new place (another item or monster of the same quest) is listed under the first
+                    local dup = false
+                    for _, sp in ipairs(l.o) do
+                        if sp.m == m and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dup = true break end
+                        if area and sp.a == area and sp.m == m then dup = true break end
+                    end
+                    if not dup and #l.o < 5 then l.o[#l.o + 1] = { m = m, x = x, y = y, a = area } end
                 end
             end
             lastProgress[qid] = prog

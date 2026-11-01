@@ -213,7 +213,7 @@ local function QuestHoverTip(owner, questID)
             for _, p in ipairs(ql.o) do
                 local text = placeText(p)
                 local area = p.a or areaName(p) or text
-                if not seenPlace[area] and shown < 3 then
+                if not seenPlace[area] and shown < 5 then
                     seenPlace[area] = true
                     shown = shown + 1
                     lines[#lines + 1] = (shown == 1 and (objLabel .. ": ") or "also: ") .. text
