@@ -2150,6 +2150,33 @@ SFP:OnLogin(function()
     end
     C_Timer.After(45, learnAll)
     C_Timer.NewTicker(900, learnAll)
+    -- the curios are also read when the companion window is opened or closed (that is where they are changed)
+    local curioHooked = false
+    local function hookCompanionWindow()
+        local fr = _G.DelvesCompanionConfigurationFrame
+        if curioHooked or not (fr and fr.HookScript) then return end
+        curioHooked = true
+        local function scanSoon() C_Timer.After(1.5, function() SFP:Safe("curio scan", SFP.ScanOwnedCurios, SFP) end) end
+        fr:HookScript("OnShow", scanSoon)
+        fr:HookScript("OnHide", scanSoon)
+    end
+    hookCompanionWindow()
+    local cf = CreateFrame("Frame")
+    cf:RegisterEvent("ADDON_LOADED")
+    cf:RegisterEvent("TRAIT_CONFIG_UPDATED")
+    local lastTraitScan = 0
+    cf:SetScript("OnEvent", function(_, event, arg1)
+        if event == "ADDON_LOADED" then
+            if arg1 == "Blizzard_DelvesCompanionConfiguration" then hookCompanionWindow() end
+        elseif GetTime() - lastTraitScan > 3 then
+            -- a curio changed in the companion's trait tree
+            local fr = _G.DelvesCompanionConfigurationFrame
+            if fr and fr.IsShown and fr:IsShown() then
+                lastTraitScan = GetTime()
+                C_Timer.After(1, function() SFP:Safe("curio scan", SFP.ScanOwnedCurios, SFP) end)
+            end
+        end
+    end)
     -- the achievement planner's search list is read in the background, so it is ready when you open the window
     C_Timer.After(25, function() SFP:Safe("achievement list", achReadAll) end)
 end)
