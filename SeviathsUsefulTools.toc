@@ -69,6 +69,7 @@ collected\tools.knownItems.1.lua
 collected\tools.knownItems.2.lua
 collected\tools.knownItems.3.lua
 collected\tools.learned.lua
+collected\tools.learnedCurios.lua
 collected\tools.learnedDecor.lua
 collected\tools.nameRealm.lua
 collected\tools.nameRealms.lua
