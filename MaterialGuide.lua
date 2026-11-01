@@ -115,13 +115,7 @@ local function rowOf(side, i)
         elseif self.item then
             local t = SFP.Tip()
             t:SetOwner(self, "ANCHOR_RIGHT")
-            local kept = SFP.db and SFP.db.itemTip and SFP.db.itemTip[self.item]
-            if kept and not (C_Item.GetItemNameByID and C_Item.GetItemNameByID(self.item)) then
-                -- the game has not loaded this item: the tooltip that was kept when it was looted
-                for k, line in ipairs(kept) do t:AddLine(line, 1, 1, 1, true) end
-            else
-                t:SetItemByID(self.item)
-            end
+            t:SetItemByID(self.item)
             t:Show()
         elseif self.hint then
             local t = SFP.Tip()
