@@ -337,9 +337,18 @@ function S.Progress()
             if not dup then names[dk] = true end
         end
     end
+    -- a delve entered and recorded in the library (a visit) is a delve done: the completion event does not always fire
+    local libDone = {}
+    for n, r in pairs((S.Config().lib and S.Config().lib.delve) or {}) do
+        if type(r) == "table" and (r.n or 0) > 0 then libDone[tostring(n):lower()] = true end
+    end
     for l in pairs(names) do
         out.delve[2] = out.delve[2] + 1
-        if done[l] then out.delve[1] = out.delve[1] + 1 end
+        local isDone = done[l] or libDone[l]
+        if not isDone then
+            for ld in pairs(libDone) do if ld:find(l, 1, true) or l:find(ld, 1, true) then isDone = true break end end
+        end
+        if isDone then out.delve[1] = out.delve[1] + 1 end
     end
     if C_ChallengeMode and C_ChallengeMode.GetMapTable and C_MythicPlus and C_MythicPlus.GetSeasonBestForMap then
         local ok, maps = pcall(C_ChallengeMode.GetMapTable)
