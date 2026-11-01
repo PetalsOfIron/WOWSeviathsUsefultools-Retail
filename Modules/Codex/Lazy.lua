@@ -23,7 +23,7 @@ local function budgetLoop(total, perFrameMs, fn, done)
 end
 
 ns.lazy = {
-    item = { groups = {}, built = {}, state = nil },    -- state: nil = not indexed, "indexing", "ready"
+    item = { groups = {}, built = {}, state = nil, needExp = {} },    -- state: nil = not indexed, "indexing", "ready"
     quest = { groups = {}, built = {}, state = nil },
 }
 
@@ -64,7 +64,9 @@ scanners.item = function(done)
             if r.c == 7 then
                 if ns.MaybeMaterial then pcall(ns.MaybeMaterial, ns, id, r.n) end   -- materials are few: made at once
             elseif not ns:Get("item:" .. id) then
-                g = ns:ItemGroupFor(id, (r.t or "Other") .. ((r.st and r.st ~= "" and r.st ~= r.t) and (" - " .. r.st) or ""), r.x)
+                local ex = r.x or (db.itemExp and db.itemExp[id])
+                g = ns:ItemGroupFor(id, (r.t or "Other") .. ((r.st and r.st ~= "" and r.st ~= r.t) and (" - " .. r.st) or ""), ex)
+                if ex == nil then ns.lazy.item.needExp[#ns.lazy.item.needExp + 1] = id end
             end
         else
             local cls = db.ahItems and db.ahItems[id]
@@ -117,7 +119,7 @@ makers.item = function(id)
     if type(r) == "table" and r.n then
         if not ns:Get("item:" .. id) then
             ns:Add({ cat = "item", id = id, name = r.n,
-                group = ns:ItemGroupFor(id, (r.t or "Other") .. ((r.st and r.st ~= "" and r.st ~= r.t) and (" - " .. r.st) or ""), r.x),
+                group = ns:ItemGroupFor(id, (r.t or "Other") .. ((r.st and r.st ~= "" and r.st ~= r.t) and (" - " .. r.st) or ""), r.x or (db.itemExp and db.itemExp[id])),
                 icon = C_Item.GetItemIconByID(id), itemID = id, wh = "item=" .. id,
                 sub = (r.t or "") .. ((r.st and r.st ~= "") and (" - " .. r.st) or "") .. ((r.i and r.i > 0) and ("  item level " .. r.i) or ""),
                 lazy = true })
@@ -182,3 +184,38 @@ function ns:LazyPending(cat, group)
     local list = lz.groups[group]
     return list and #list or 0
 end
+
+------------------------------------------------------------------------
+-- Items whose expansion is not known yet (they sit under their type, e.g. "Armor - Cloth") are asked from the game, a few each second,
+-- while the Codex is open; the answer is kept in db.itemExp, so the next time the section opens they are in their expansion.
+------------------------------------------------------------------------
+local pendingExp = {}
+local expFrame = CreateFrame("Frame")
+expFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+expFrame:SetScript("OnEvent", function(_, _, itemID)
+    if not pendingExp[itemID] then return end
+    pendingExp[itemID] = nil
+    local ok, x = pcall(function() return select(15, C_Item.GetItemInfo(itemID)) end)
+    if ok and type(x) == "number" and SFP and SFP.db then
+        SFP.db.itemExp = SFP.db.itemExp or {}
+        SFP.db.itemExp[itemID] = x
+    end
+end)
+
+C_Timer.NewTicker(1, function()
+    local lz = ns.lazy and ns.lazy.item
+    if not lz or lz.state ~= "ready" or #lz.needExp == 0 then return end
+    if not (ns.IsOpen and ns:IsOpen()) then return end
+    for _ = 1, 60 do
+        local id = table.remove(lz.needExp)
+        if not id then break end
+        local ok, x = pcall(function() return select(15, C_Item.GetItemInfo(id)) end)
+        if ok and type(x) == "number" and SFP and SFP.db then
+            SFP.db.itemExp = SFP.db.itemExp or {}
+            SFP.db.itemExp[id] = x
+        else
+            pendingExp[id] = true
+            if C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
+        end
+    end
+end)
