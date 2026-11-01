@@ -189,7 +189,8 @@ local function QuestHoverTip(owner, questID)
         end
         local function placeText(p)
             local a = areaName(p)
-            return (a and (a .. " ") or "") .. "(" .. ns:Coords(p) .. ")"
+            local xy = (p.x and p.y) and (" (" .. ("%.1f, %.1f"):format(p.x * 100, p.y * 100) .. ")") or ""
+            return (a or "") .. xy
         end
         local function spotText(p) return (p.n and (p.n .. " - ") or "") .. placeText(p) end
         local added = false
