@@ -14,10 +14,26 @@ local PIECE = 200000   -- characters of text per piece
 -- the big tables of each saved database (the small ones stay as they are)
 local PACK = {
     SeviathsUsefulToolsDB = { "ahAll", "ahNames", "ahItems", "prices", "realmPrices", "priceHist", "ahListings", "knownItems", "npcs",
-        "objects", "nameplateText", "inspected", "seenInfo", "rioCache", "playerIDs", "seenPlayers", "nameRealms", "nameRealm", "history",
+        "objects", "playerIDs", "seenPlayers", "nameRealms", "nameRealm", "history",
         "learnedDecor", "itemExp", "guildDir", "guildNotes", "guildAch", "towns", "itemZones", "petPrices", "ejCache", "learned", "hiddenSpots" },
     SeviathsCodexDB = { "quests", "loot", "matUses", "items", "qloc", "lootZones", "npcs", "vendors", "vendorItems", "beasts", "rares" },
 }
+
+-- The player tables (nameplateText, inspected, rioCache, seenInfo) are kept in 256 buckets by the key of the player ("Name-Realm"): a
+-- bucket is turned into records only when a player of it is looked up (a hover, a nameplate), so a long collection of players is
+-- never read all at once. Collecting goes on as before: a new or changed record is written into the table and the buckets are made again
+-- (only the touched ones) when the game saves.
+local BUCKETED = { SeviathsUsefulToolsDB = { "nameplateText", "inspected", "rioCache", "seenInfo" } }
+local NBUCKETS = 256
+local function bucketOf(key)
+    local h = 0
+    if type(key) == "string" then
+        for i = 1, #key do h = (h * 31 + key:byte(i)) % 1000003 end
+    elseif type(key) == "number" then
+        h = floor(key) % 1000003
+    end
+    return h % NBUCKETS + 1
+end
 
 local loadfn = loadstring or load
 local format, floor, concat = string.format, math.floor, table.concat
@@ -83,7 +99,48 @@ local function unpackPiece(text)
 end
 
 -- turns db.__packed back into the tables (called when the saved data was loaded, before anything reads it)
+-- a table whose records are read bucket by bucket
+local function bucketTable(buckets)
+    local meta = { buckets = buckets, loaded = {} }
+    meta.__index = function(t, k)
+        local b = bucketOf(k)
+        if not meta.loaded[b] then
+            meta.loaded[b] = true
+            local text = buckets[b]
+            if text then
+                local d = unpackPiece(text)
+                if d then
+                    for kk, vv in pairs(d) do if rawget(t, kk) == nil then rawset(t, kk, vv) end end
+                end
+            end
+            return rawget(t, k)
+        end
+        return nil
+    end
+    return setmetatable({}, meta)
+end
+
+-- every bucket read (before looping over all records)
+function SeviathsLoadAll(t)
+    local meta = type(t) == "table" and getmetatable(t)
+    if not (meta and meta.buckets) then return t end
+    for b = 1, NBUCKETS do
+        if meta.buckets[b] and not meta.loaded[b] then
+            meta.loaded[b] = true
+            local d = unpackPiece(meta.buckets[b])
+            if d then for kk, vv in pairs(d) do if rawget(t, kk) == nil then rawset(t, kk, vv) end end end
+        end
+    end
+    return t
+end
+
 function SeviathsUnpackSaved(db)
+    if type(db) == "table" and type(db.__buckets) == "table" then
+        for name, buckets in pairs(db.__buckets) do
+            if type(buckets) == "table" and type(db[name]) ~= "table" then db[name] = bucketTable(buckets) end
+        end
+        db.__buckets = nil
+    end
     if type(db) ~= "table" or type(db.__packed) ~= "table" then return end
     local packed = db.__packed
     db.__packed = nil
@@ -108,7 +165,57 @@ function SeviathsUnpackSaved(db)
 end
 
 -- cuts the big tables of a saved database into text pieces (called just before the game saves)
+-- the player tables as buckets (see above): a bucket nobody touched keeps its text as it was; a touched one is made again from the old
+-- text plus the records written since
+local function packBuckets(t)
+    local meta = getmetatable(t)
+    local old = meta and meta.buckets or {}
+    local loaded = meta and meta.loaded or {}
+    local raw = {}
+    for k, v in next, t do
+        local b = bucketOf(k)
+        local r = raw[b]
+        if not r then r = {}; raw[b] = r end
+        r[k] = v
+    end
+    local out = {}
+    for b = 1, NBUCKETS do
+        local r = raw[b]
+        if r then
+            local base = {}
+            if old[b] and not loaded[b] then base = unpackPiece(old[b]) or {} end
+            for k, v in pairs(r) do base[k] = v end
+            -- one text per bucket (a bucket is small)
+            local joined = {}
+            for k, v in pairs(base) do
+                local o = {}
+                o[1] = "["; ser(k, o, 1); o[#o + 1] = "]="; ser(v, o, 1); o[#o + 1] = ","
+                joined[#joined + 1] = concat(o)
+            end
+            out[b] = "{" .. concat(joined) .. "}"
+        elseif old[b] then
+            out[b] = old[b]
+        end
+    end
+    return out
+end
+
 function SeviathsPackSaved(db, dbName)
+    local blist = BUCKETED[dbName]
+    if type(db) == "table" and blist then
+        local buckets = type(db.__buckets) == "table" and db.__buckets or {}
+        for _, name in ipairs(blist) do
+            local t = db[name]
+            if type(t) == "table" and not (db.__packedKept and db.__packedKept[name]) then
+                local ok, res = pcall(packBuckets, t)
+                if ok and next(res) ~= nil then
+                    buckets[name] = res
+                    db[name] = nil
+                end
+            end
+        end
+        if next(buckets) ~= nil then db.__buckets = buckets end
+    end
     local list = PACK[dbName]
     if type(db) ~= "table" or not list then return end
     local packed = type(db.__packed) == "table" and db.__packed or {}

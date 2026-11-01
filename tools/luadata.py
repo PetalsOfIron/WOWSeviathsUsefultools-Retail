@@ -101,8 +101,29 @@ class P:
         return d, p
 
 
+def unpack_buckets(db):
+    """The player tables are kept in buckets (db.__buckets, see SavedPack.lua): turned back into tables here."""
+    if not isinstance(db, dict) or not isinstance(db.get("__buckets"), dict):
+        return db
+    for name, buckets in db.pop("__buckets").items():
+        into = db.setdefault(name, {})
+        if not isinstance(into, dict):
+            continue
+        items = buckets.values() if isinstance(buckets, dict) else buckets
+        for text in items:
+            try:
+                v, _ = P(text).value(0)
+            except Exception:
+                continue
+            if isinstance(v, dict):
+                for k, x in v.items():
+                    into.setdefault(k, x)
+    return db
+
+
 def unpack_saved(db):
     """The addon writes its big tables as text pieces (db.__packed, see SavedPack.lua): turned back into tables here."""
+    unpack_buckets(db)
     if not isinstance(db, dict) or not isinstance(db.get("__packed"), (dict, list)):
         return db
     packed = db.pop("__packed")
