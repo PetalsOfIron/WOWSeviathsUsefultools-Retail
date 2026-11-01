@@ -57,7 +57,7 @@ local function rowOf(side, i)
     r.bg:SetAllPoints()
     r.icon = r:CreateTexture(nil, "ARTWORK")
     r.icon:SetSize(16, 16)
-    r.right = r:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    r.right = r:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     r.right:SetPoint("RIGHT", -6, 0)
     r.right:SetJustifyH("RIGHT")
     r.text = r:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -313,9 +313,9 @@ local function addItem(n, mapID, id, withZone)
         if wpct == 0 then wpct = nil end
         if drops or wpct then
             local pct = drops and (100 * sp.counts[id] / sp.kills) or wpct
-            m.right:SetText(string.format("|cffffd100%s%%|r  |A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r", pct >= 10 and string.format("%.0f", pct) or string.format("%.1f", pct)))
+            m.right:SetText(string.format("|cffffd100%s%%|r  |cffff3030WAYPOINT|r", pct >= 10 and string.format("%.0f", pct) or string.format("%.1f", pct)))
         else
-            m.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r")
+            m.right:SetText("|cffff3030WAYPOINT|r")
         end
         m.hint = "Click: set a waypoint on " .. tostring(sp.name) .. " and open the map there"
         m.click = function() goToMonster(mapID, sp) end
@@ -413,7 +413,7 @@ local function addGatherItem(n, id, withKind)
             m.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
             m.text:SetText("|cff00e5ff" .. (s.area and (s.area .. " - ") or "") .. SFP:ZoneName(s.map) .. "|r  |cff808080" ..
                 string.format("%.1f, %.1f", s.x * 100, s.y * 100) .. "|r")
-            m.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r")
+            m.right:SetText("|cffff3030WAYPOINT|r")
             m.hint = "A spot where gathering was recorded. Click: set a waypoint there and open the map"
             m.click = function() openSpot(s.map, s.x, s.y, tostring(s.name or iname(id))) end
         end
@@ -429,7 +429,7 @@ local function addGatherItem(n, id, withKind)
         place(list, m, n, 30)
         m.icon:SetTexture(nil)
         m.text:SetText("|cffffffff" .. SFP:ZoneName(z.map) .. "|r")
-        m.right:SetText("|cffffd100" .. z.count .. " nodes|r  |A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r")
+        m.right:SetText("|cffffd100" .. z.count .. " nodes|r  |cffff3030WAYPOINT|r")
         m.hint = "Click: open the map of " .. SFP:ZoneName(z.map) .. " with a waypoint on the best spot there"
         m.click = function()
             local x, y
@@ -682,6 +682,40 @@ local function petPrices()
     return {}
 end
 
+-- where a pet's source is: the vendor ("Vendor: Name") or the monster ("Drop: Name") that its source text names, found in the collected
+-- vendors and monsters: { map, x, y }
+local function petSpots(entries)
+    local need = {}
+    for _, e in ipairs(entries) do
+        local src = plain(e.source or "")
+        e.vendorName = src:match("Vendor:%s*([^\n]+)")
+        e.dropName = src:match("Drop:%s*([^\n]+)")
+        if e.vendorName then need[e.vendorName] = true end
+        if e.dropName then need[e.dropName] = true end
+    end
+    if next(need) == nil then return end
+    local found = {}
+    local vendors = _G.SeviathsCodexDB and _G.SeviathsCodexDB.vendors
+    for key, v in (SeviathsAllPairs or pairs)(vendors or {}) do
+        if type(v) == "table" and v.m and v.x then
+            local name = v.n or tostring(key):match("^(.-)@")
+            if name and need[name] and not found[name] then found[name] = { map = v.m, x = v.x, y = v.y } end
+        end
+    end
+    for _, rec in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.npcs or {}) do
+        if type(rec) == "table" and rec.n and need[rec.n] and not found[rec.n] and type(rec.m) == "table" then
+            for map, pts in pairs(rec.m) do
+                local p = type(pts) == "table" and pts[1]
+                if p and p[1] and p[2] then found[rec.n] = { map = map, x = p[1], y = p[2] } break end
+            end
+        end
+    end
+    for _, e in ipairs(entries) do
+        local s = (e.vendorName and found[e.vendorName]) or (e.dropName and found[e.dropName])
+        if s then e.map, e.x, e.y = s.map, s.x, s.y end
+    end
+end
+
 local function petEntries()
     local out = {}
     if not (C_PetJournal and C_PetJournal.GetPetInfoBySpeciesID) then return out end
@@ -693,6 +727,7 @@ local function petEntries()
                 canBattle = canBattle, price = prices[i] }
         end
     end
+    petSpots(out)
     return out
 end
 
@@ -744,8 +779,9 @@ local function renderPets(q)
         place(list, r, n, 8)
         r.icon:SetTexture(e.icon)
         r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r")
-        r.right:SetText(e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r")
-        r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r")
+        r.right:SetText((e.map and ("|cffff3030WAYPOINT|r   ") or "") .. (e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r"))
+        r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cff33e6ffClick: waypoint at the place and open the map there|r" or "")
+        if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end end
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
     finish(list, n)
@@ -816,7 +852,7 @@ local function renderMounts(q)
             place(list, m, n, 30)
             m.icon:SetTexture(nil)
             m.text:SetText("|cff00e5ff" .. s.text .. "|r")
-            m.right:SetText(s.zone and ("|A:Waypoint-MapPin-Tracked:16:16|a |cff808080" .. s.zone .. "|r") or (s.map and "|A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r" or "|cff808080no map spot|r"))
+            m.right:SetText(s.zone and ("|cffff3030WAYPOINT|r   |cff808080" .. s.zone .. "|r") or (s.map and "|cffff3030WAYPOINT|r" or "|cff808080no map spot|r"))
             m.hint = s.map and "Click: set a waypoint and open the map there" or nil
             if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(iname(e.item))) end end
         end
@@ -857,7 +893,7 @@ local function renderHunters(q)
         place(list, r, n, 8)
         r.icon:SetTexture("Interface\\Icons\\ClassIcon_Hunter")
         r.text:SetText("|cff00e5ff" .. tostring(e.name) .. "|r")
-        r.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|a |cff808080" .. SFP:ZoneName(e.map) .. "|r   |cffabd473" .. e.kind .. "|r")
+        r.right:SetText("|cffff3030WAYPOINT|r   |cff808080" .. SFP:ZoneName(e.map) .. "|r   |cffabd473" .. e.kind .. "|r")
         r.hint = (e.x and "Click: set a waypoint and open the map there") or "Click: open the map"
         r.click = function() openWaypoint(e.map, e.x, e.y, tostring(e.name)) end
     end
@@ -1153,7 +1189,7 @@ local function refreshRow()
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "search", "coll", "spots" }) do
+    for _, key in ipairs({ "pet", "hunter", "mount", "search", "coll", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
@@ -1173,6 +1209,16 @@ local function refreshRow()
         rb:Show()
     else
         rb:Hide()
+    end
+    -- Mining & Herbalism stands outside the map too, on the same line, to the right of Rares
+    local gb = rowBtns.gather
+    gb:ClearAllPoints()
+    if show.gather then
+        if show.rares then gb:SetPoint("LEFT", rowBtns.rares, "RIGHT", 4, 0)
+        else gb:SetPoint("BOTTOMLEFT", WorldMapFrame, "BOTTOMRIGHT", 6, 2) end
+        gb:Show()
+    else
+        gb:Hide()
     end
     row:Show()
     if SFP.DockPanels then SFP.DockPanels() end

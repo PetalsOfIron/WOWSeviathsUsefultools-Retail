@@ -2007,7 +2007,7 @@ local function drawSimple(key, flag, title, color, mapID, spots)
         local id = s.items and s.items[1]
         r.icon:SetTexture(id and SFP:ItemIcon(id) or "Interface\\Icons\\INV_Misc_QuestionMark")
         r.name:SetText(tostring(s.name))
-        r.right:SetText("|A:Waypoint-MapPin-Tracked:14:14|a |cff33e6ffWaypoint|r")
+        r.right:SetText("|cffff3030WAYPOINT|r")
         r:Show()
     end
     for i = #spots + 1, #f.rows do f.rows[i]:Hide() end
@@ -2206,7 +2206,7 @@ local function drawFarmScroll(mapID, spots)
             r.icon:SetSize(26, 26); r.icon:SetPoint("LEFT", 4, 0)
             r.icon:SetTexture(firstId and SFP:ItemIcon(firstId) or "Interface\\Icons\\INV_Misc_QuestionMark")
             r.right:SetFontObject("GameFontNormalLarge")
-            r.right:SetText("|A:Waypoint-MapPin-Tracked:24:24|a |cffff3030WAYPOINT|r")
+            r.right:SetText("|cffff3030WAYPOINT|r")
             r.text:SetFontObject("GameFontNormalLarge")
             r.text:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
             r.text:SetPoint("RIGHT", r.right, "LEFT", -6, 0)
@@ -2283,17 +2283,17 @@ function SFP.DockPanels()
             local ps = panel:GetEffectiveScale()
             local room = ((btn:GetBottom() or 0) * btn:GetEffectiveScale()) / ps - 8
             if room >= 200 then
-                panel:SetPoint("TOPRIGHT", btn, "BOTTOMRIGHT", 0, -4)
+                panel:SetPoint("TOPLEFT", btn, "BOTTOMLEFT", 0, -4)
                 if wantH then panel:SetHeight(math.min(wantH, room)) end
                 return
             end
             local above = (UIParent:GetTop() * UIParent:GetEffectiveScale() - (btn:GetTop() or 0) * btn:GetEffectiveScale()) / ps - 8
-            panel:SetPoint("BOTTOMRIGHT", btn, "TOPRIGHT", 0, 4)
+            panel:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 0, 4)
             if wantH then panel:SetHeight(math.min(wantH, math.max(above, 200))) end
         elseif key == "rares" then
             panel:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 16, 2)   -- opens up and to the right of its button at the map's edge
         else
-            panel:SetPoint("BOTTOMRIGHT", btn, "TOPRIGHT", 0, 2)
+            panel:SetPoint("BOTTOMLEFT", btn, "TOPLEFT", 0, 2)
         end
     end
     dock(gatherPanel, "gather")
