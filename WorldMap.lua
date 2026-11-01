@@ -1908,7 +1908,7 @@ local function addSpotDrops(t, s)
     local function itemLine(id, q)
         local price = SFP:GetPrice(id)
         local per = (q and q > 0 and kills >= 1) and ("  |cff808080x" .. q .. " from " .. kills .. (kills == 1 and " kill" or " kills") .. "|r") or ""
-        t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. per, price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+        t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. per, (SFP.PriceText and SFP.PriceText(id)) or (price and SFP:FormatPrice(price)) or "", 1, 1, 1, 1, 1, 1)
     end
     if #order > 0 then t:AddLine("Recorded drops" .. (kills > 0 and ("  |cff808080" .. kills .. " kills|r") or ""), 0.8, 0.8, 0.8) end
     local gold = SFP.MonsterGold and SFP.MonsterGold(s)
