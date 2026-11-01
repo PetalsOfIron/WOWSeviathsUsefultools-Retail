@@ -255,7 +255,8 @@ local function QuestHoverTip(owner, questID, append)
             local spotsToShow = #real > 0 and real or ql.o
             for _, p in ipairs(spotsToShow) do
                 local text = placeText(p)
-                local area = p.a or areaName(p) or text
+                -- one line for a place: the same area name and the same part of the map; a pickup further off in the same area is a line of its own
+                local area = (p.a or areaName(p) or text) .. "|" .. (p.x and (math.floor(p.x * 30) .. "," .. math.floor((p.y or 0) * 30)) or "")
                 if not seenPlace[area] and shown < 1000 then
                     seenPlace[area] = true
                     shown = shown + 1
