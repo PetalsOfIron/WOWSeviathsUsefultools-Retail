@@ -57,7 +57,7 @@ end
 
 SFP.PriceText = priceText   -- the other lists (the map tooltips) use it too
 
-local function plain(s) return (tostring(s or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+local function plain(s) return (tostring(s or ""):gsub("|n", "\n"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
 local win, tree, list, search
 local selected          -- map ID of the zone shown
 local collapsed = {}    -- [expansion key] = true
@@ -160,7 +160,7 @@ local function finish(side, n)
     -- rows that fit: the window's height less the header (64) and the page buttons (40); the scroll frame has no size yet on the first draw
     local winH = (win and win:GetHeight()) or 0
     if winH < 100 then winH = (WorldMapFrame:GetHeight() or 400) end
-    local per = math.max(6, math.floor((winH - 104) / ROW_H))
+    local per = math.min(30, math.max(6, math.floor((winH - 104) / ROW_H)))
     local sig = tostring(mode) .. "|" .. tostring(matTab) .. "|" .. tostring(gatherExp) .. "|" .. tostring(selected) .. "|" .. tostring(expSel) .. "|" .. (search and search:GetText() or "")
     if sig ~= listSig then listSig, listPage = sig, 1 end
     local pages = math.max(1, math.ceil(n / per))
@@ -1755,12 +1755,29 @@ local function build()
     win.tabs.monsters:SetEnabled(matTab ~= "monsters")
     win.tabs.gather:SetEnabled(matTab ~= "gather")
     win:SetScript("OnHide", function()
+        -- everything built for the section that was open is let go
         guideIndex = nil
         monsterIndex = nil
+        entriesCache = nil
         zonesCache = {}
     end)
     win:SetScript("OnShow", function()
         fit()
+        -- the icons of the crafting reagents are stored the first time the window opens (a few hundred a frame), not at login
+        if not SFP._reagentIcons then
+            SFP._reagentIcons = true
+            local ids = {}
+            for id, a2 in pairs(SFP.AuctionItems or {}) do if a2[1] == 7 then ids[#ids + 1] = id end end
+            for id, info in pairs(SFP.Items or {}) do if info.kind and info.kind ~= "mount" then ids[#ids + 1] = id end end
+            local i = 1
+            local function step()
+                local last = math.min(i + 300, #ids)
+                for k = i, last do pcall(SFP.StoreIcon, SFP, ids[k]) end
+                i = last + 1
+                if i <= #ids then C_Timer.After(0, step) end
+            end
+            step()
+        end
         list.content:SetWidth(math.max(list.scroll:GetWidth(), 100))
         if not selected then
             local m = WorldMapFrame:GetMapID()
@@ -1968,21 +1985,6 @@ SFP:OnLogin(function()
         SFP.db.panelsClosedV2 = true
         SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
     end
-    -- the icons of all crafting reagents are stored a little after login (the game knows an item's icon without asking the server), a few
-    -- hundred per frame, so the Material search shows the right icon for every material
-    C_Timer.After(12, function()
-        local ids = {}
-        for id, a2 in pairs(SFP.AuctionItems or {}) do if a2[1] == 7 then ids[#ids + 1] = id end end
-        for id, info in pairs(SFP.Items or {}) do if info.kind and info.kind ~= "mount" then ids[#ids + 1] = id end end
-        local i = 1
-        local function step()
-            local last = math.min(i + 400, #ids)
-            for k = i, last do pcall(SFP.StoreIcon, SFP, ids[k]) end
-            i = last + 1
-            if i <= #ids then C_Timer.After(0, step) end
-        end
-        step()
-    end)
     if not WorldMapFrame or not WorldMapFrame.ScrollContainer then return end
     WorldMapFrame:HookScript("OnHide", function()
         if win then win:Hide() end

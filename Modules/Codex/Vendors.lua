@@ -19,7 +19,9 @@ local function CostText(i, price, hasExtended)
         for j = 1, n do
             local tex, value, link, currencyName = GetMerchantItemCostItem(i, j)
             local nm = currencyName or (link and link:match("%[(.-)%]")) or "?"
-            if value and value > 0 then parts[#parts + 1] = value .. " " .. nm end
+            -- the icon of what is paid (a currency or an item) comes with its name
+            local icon = (type(tex) == "number" or type(tex) == "string") and ("|T" .. tex .. ":14|t ") or ""
+            if value and value > 0 then parts[#parts + 1] = value .. " " .. icon .. nm end
         end
     end
     return #parts > 0 and table.concat(parts, " + ") or "?"
