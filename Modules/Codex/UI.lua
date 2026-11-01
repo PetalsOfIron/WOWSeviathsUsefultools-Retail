@@ -888,8 +888,8 @@ local function CreateWindow()
     statusText:SetPoint("BOTTOMLEFT", 14, 10)
 
     frame:SetScript("OnHide", function()
-        -- closed for 10 seconds: the item and quest pages are taken out of memory (made again when it opens)
-        C_Timer.After(10, function()
+        -- closed: the section's big pages are taken out of memory at once (only one section holds data), made again when it opens
+        C_Timer.After(0.2, function()
             if frame:IsShown() then return end
             ns:UnloadLazy({ "item", "quest" })
             if ns.ForgetCollectedItems then ns:ForgetCollectedItems() end
