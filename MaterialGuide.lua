@@ -313,9 +313,9 @@ local function addItem(n, mapID, id, withZone)
         if wpct == 0 then wpct = nil end
         if drops or wpct then
             local pct = drops and (100 * sp.counts[id] / sp.kills) or wpct
-            m.right:SetText(string.format("|cffffd100%s%%|r  |A:Waypoint-MapPin-Tracked:16:16|t |cff33e6ffWaypoint|r", pct >= 10 and string.format("%.0f", pct) or string.format("%.1f", pct)))
+            m.right:SetText(string.format("|cffffd100%s%%|r  |A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r", pct >= 10 and string.format("%.0f", pct) or string.format("%.1f", pct)))
         else
-            m.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|t |cff33e6ffWaypoint|r")
+            m.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r")
         end
         m.hint = "Click: set a waypoint on " .. tostring(sp.name) .. " and open the map there"
         m.click = function() goToMonster(mapID, sp) end
@@ -413,7 +413,7 @@ local function addGatherItem(n, id, withKind)
             m.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
             m.text:SetText("|cff00e5ff" .. (s.area and (s.area .. " - ") or "") .. SFP:ZoneName(s.map) .. "|r  |cff808080" ..
                 string.format("%.1f, %.1f", s.x * 100, s.y * 100) .. "|r")
-            m.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|t |cff33e6ffWaypoint|r")
+            m.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r")
             m.hint = "A spot where gathering was recorded. Click: set a waypoint there and open the map"
             m.click = function() openSpot(s.map, s.x, s.y, tostring(s.name or iname(id))) end
         end
@@ -429,7 +429,7 @@ local function addGatherItem(n, id, withKind)
         place(list, m, n, 30)
         m.icon:SetTexture(nil)
         m.text:SetText("|cffffffff" .. SFP:ZoneName(z.map) .. "|r")
-        m.right:SetText("|cffffd100" .. z.count .. " nodes|r  |A:Waypoint-MapPin-Tracked:16:16|t |cff33e6ffWaypoint|r")
+        m.right:SetText("|cffffd100" .. z.count .. " nodes|r  |A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r")
         m.hint = "Click: open the map of " .. SFP:ZoneName(z.map) .. " with a waypoint on the best spot there"
         m.click = function()
             local x, y
@@ -816,7 +816,7 @@ local function renderMounts(q)
             place(list, m, n, 30)
             m.icon:SetTexture(nil)
             m.text:SetText("|cff00e5ff" .. s.text .. "|r")
-            m.right:SetText(s.zone and ("|A:Waypoint-MapPin-Tracked:16:16|t |cff808080" .. s.zone .. "|r") or (s.map and "|A:Waypoint-MapPin-Tracked:16:16|t |cff33e6ffWaypoint|r" or "|cff808080no map spot|r"))
+            m.right:SetText(s.zone and ("|A:Waypoint-MapPin-Tracked:16:16|a |cff808080" .. s.zone .. "|r") or (s.map and "|A:Waypoint-MapPin-Tracked:16:16|a |cff33e6ffWaypoint|r" or "|cff808080no map spot|r"))
             m.hint = s.map and "Click: set a waypoint and open the map there" or nil
             if s.map then m.click = function() openWaypoint(s.map, s.x, s.y, plain(iname(e.item))) end end
         end
@@ -857,7 +857,7 @@ local function renderHunters(q)
         place(list, r, n, 8)
         r.icon:SetTexture("Interface\\Icons\\ClassIcon_Hunter")
         r.text:SetText("|cff00e5ff" .. tostring(e.name) .. "|r")
-        r.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|t |cff808080" .. SFP:ZoneName(e.map) .. "|r   |cffabd473" .. e.kind .. "|r")
+        r.right:SetText("|A:Waypoint-MapPin-Tracked:16:16|a |cff808080" .. SFP:ZoneName(e.map) .. "|r   |cffabd473" .. e.kind .. "|r")
         r.hint = (e.x and "Click: set a waypoint and open the map there") or "Click: open the map"
         r.click = function() openWaypoint(e.map, e.x, e.y, tostring(e.name)) end
     end
