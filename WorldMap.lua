@@ -2453,11 +2453,19 @@ local function updateWaypointButton()
                 wpButton:SetFrameLevel(spawnLayer:GetFrameLevel() + 50)
                 wpButton:SetSize(30, 40)
                 wpButton:RegisterForClicks("AnyUp")
-                wpButton:SetScript("OnClick", function(self)
-                    if C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint() end
-                    if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+                -- any button, on the press (not the release): the map's own handling of the mouse cannot take it first
+                wpButton:RegisterForClicks("AnyDown", "AnyUp")
+                local function remove(self)
+                    local ok, err = pcall(function()
+                        if C_Map.ClearUserWaypoint then C_Map.ClearUserWaypoint() end
+                        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(false) end
+                    end)
+                    if not ok then SFP:Print("Could not remove the waypoint: " .. tostring(err)) return end
                     self:Hide()
-                end)
+                    SFP.Tip():Hide()
+                    SFP:Print("Waypoint removed.")
+                end
+                wpButton:SetScript("OnClick", remove)
                 wpButton:SetScript("OnEnter", function(self)
                     SFP.Tip():SetOwner(self, "ANCHOR_RIGHT")
                     SFP.Tip():AddLine("Waypoint", 1, 0.2, 0.2)
