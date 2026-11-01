@@ -31,6 +31,7 @@ ns.CATEGORIES = {
     { key = "pet",        name = "Battle Pets",             icon = "Interface\\Icons\\INV_Box_PetCarrier_01" },
     { key = "achievement",name = "Achievements & Titles",   icon = "Interface\\Icons\\Achievement_Quests_Completed_08" },
     { key = "tset",       name = "Transmog Sets",           icon = "Interface\\Icons\\INV_Chest_Cloth_17" },
+    { key = "tmog",       name = "Transmog Items",          icon = "Interface\\Icons\\INV_Chest_Plate16" },
     { key = "material",   name = "Materials (what for)",   icon = "Interface\\Icons\\INV_Fabric_Linen_01" },
     { key = "mats",       name = "Gold Farming",            icon = "Interface\\Icons\\INV_Misc_Herb_Felblossom" },
     { key = "grind",      name = "Best Grinding Spots",     icon = "Interface\\Icons\\INV_Misc_Coin_01" },
@@ -150,7 +151,7 @@ end
 local dataCount = {}
 function ns:Count(cat)
     local n = #self.byCat[cat]
-    if cat == "quest" or cat == "item" then
+    if cat == "quest" or cat == "item" or cat == "tmog" then
         local lz = self.lazy and self.lazy[cat]
         if lz and lz.state == "ready" then
             for g, list in pairs(lz.groups) do if not lz.built[g] then n = n + #list end end
