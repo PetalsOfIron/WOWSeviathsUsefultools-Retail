@@ -169,7 +169,7 @@ function ns:IndexMaterials()
         self:Yield()
     end
     -- everything recorded from profession scans
-    for id in pairs((self.db and self.db.matUses) or {}) do
+    for id in SeviathsAllPairs((self.db and self.db.matUses) or {}) do
         local n = C_Item.GetItemNameByID(id)
         if n then
             local _, _, subType = C_Item.GetItemInfoInstant(id)

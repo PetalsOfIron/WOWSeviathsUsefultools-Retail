@@ -496,6 +496,48 @@ function A.Suggest(content)
     }
 end
 
+-- the talents of a player as a short summary: the hero tree and the guide build they are closest to.
+-- cfg is the active config (yourself) or the inspect config (a player you inspected).
+function A.Summarize(cfg, specID, token, specName)
+    if not (cfg and specID and token and type(specName) == "string") then return nil end
+    local okT, treeID = pcall(C_ClassTalents.GetTraitTreeForSpec, specID)
+    if not okT or not treeID then return nil end
+    local okN, nodes = pcall(C_Traits.GetTreeNodes, treeID)
+    if not okN or type(nodes) ~= "table" then return nil end
+    local nodeIDs = {}
+    for i, id in ipairs(nodes) do nodeIDs[i] = id end
+    table.sort(nodeIDs)
+    local my = mine({ cfg = cfg, nodeIDs = nodeIDs })
+    local nMine, mineKeys = 0, {}
+    for id, p in pairs(my) do mineKeys[id .. ":" .. tostring(p.choice or 0)] = true; nMine = nMine + 1 end
+    if nMine == 0 then return nil end
+    local out = { hero = heroNameOf(cfg, nodeIDs, my) }
+    local list = SFP.TalentBuilds and SFP.TalentBuilds[token .. ":" .. specName]
+    local function maxRankOf(nodeID)
+        local info = nodeInfo(cfg, nodeID)
+        return info and info.maxRanks or 1
+    end
+    for _, row in ipairs(list or {}) do
+        local dec = A.Decode(row[3], nodeIDs, maxRankOf)
+        if dec and dec.specID == specID then
+            local inter, nB = 0, 0
+            for id, p in pairs(dec.picks) do
+                nB = nB + 1
+                if mineKeys[id .. ":" .. tostring(p.choice or 0)] then inter = inter + 1 end
+            end
+            local pct = (nB + nMine - inter) > 0 and inter / (nB + nMine - inter) or 0
+            if not out.matchPct or pct > out.matchPct then out.matchName, out.matchPct = row[1], pct end
+            -- the closest build of each content (Raid, Mythic+, Delves)
+            out.per = out.per or {}
+            for k in tostring(row[2]):gmatch("[^,]+") do
+                local cur = out.per[k]
+                if CONTENTS[k] and (not cur or pct > cur.pct) then out.per[k] = { name = row[1], pct = pct } end
+            end
+        end
+    end
+    return out
+end
+
 ---------------------------------------------------------------------------
 -- the panel and the glow
 ---------------------------------------------------------------------------

@@ -130,6 +130,11 @@ function ns:Analyze(resultID)
     friends = (info.numBNetFriends or 0) + (info.numCharFriends or 0) + (info.numGuildMates or 0),
     needsMe = true, kind = "other",
   }
+  -- every listed leader is noted for the armory and the Raider.IO cache, without hovering or opening anything
+  do
+    local Soc = _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social
+    if Soc and Soc.NoteSeenName and r.leader then Soc.NoteSeenName(r.leader) end
+  end
   r.age = ns.Safe(info.age)
   r.isNew = r.age and r.age < 120
 
@@ -778,6 +783,28 @@ local function AddTooltip(tooltip, resultID)
   if r.info.autoAccept then tooltip:AddLine("Auto-accept: joins instantly", 0.25, 1, 0.4) end
   if r.friends > 0 then tooltip:AddLine("Friends / guild in group: " .. r.friends, 0.5, 0.75, 1) end
   if r.tooLow then tooltip:AddLine("Above your level", 1, 0.3, 0.3) end
+  -- the leader: what is known about them (their addon's profile, Raider.IO, the baked armory data)
+  local S = _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social
+  if S and S.AddByName and r.leader then
+    tooltip:AddLine(" ")
+    tooltip:AddLine("Leader: " .. tostring(r.leader), 0.0, 0.9, 1.0)
+    pcall(S.AddByName, tooltip, r.leader)
+    -- the other players of the group, when the game gives their names: one short line each
+    if C_LFGList.GetSearchResultPlayerInfo then
+      local shown = 0
+      for i = 1, math.min(r.info.numMembers or 0, 10) do
+        local okP, pinfo = pcall(C_LFGList.GetSearchResultPlayerInfo, r.id, i)
+        local pname = okP and type(pinfo) == "table" and ns.Safe(pinfo.name)
+        if pname and ns.FullName(pname) ~= r.leader then
+          local okL, line = pcall(S.OneLine, ns.FullName(pname))
+          if okL and line and shown < 5 then
+            tooltip:AddLine(line, 0.8, 0.8, 0.8, true)
+            shown = shown + 1
+          end
+        end
+      end
+    end
+  end
   tooltip:Show()
 end
 
@@ -816,4 +843,202 @@ ns:RequestHook("LFGListSearchEntry_Update", function(entry)
     entry.SDRText = fs
   end
   entry.SDRText:SetText(r and ns:ShortTags(r) or "")
+end)
+
+---------------------------------------------------------------------------
+-- A separate window for the listing you select in Premade Groups (any section: raids, dungeons, delves, Mythic+, questing, custom, PvP):
+-- the leader and every player of the group with what the addon knows about them, the same lines as the player tooltip.
+-- A player the game gives no name for shows as the class and role.
+---------------------------------------------------------------------------
+local membersWin, membersShown
+local SELECT_FN = "LFGListSearchPanel_SelectResult"
+
+local function AddonSocial() return _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social end
+
+-- a listed player: found by the name the game gives, or by the player ID (GUID) when there is no name; returns "Name-Realm" or nil
+local function PlayerFromInfo(pinfo)
+  if not Accessible(pinfo) then return nil end
+  local name = ns.Safe(pinfo.name)
+  local S = AddonSocial()
+  if type(name) == "string" and name ~= "" then
+    -- a name without a realm stays without one: the realm is searched (yours and the connected realms), not assumed
+    local full = name:find("-", 1, true) and ns.FullName(name) or name
+    if S and S.NoteSeenName then S.NoteSeenName(full) end   -- for the armory script
+    return full
+  end
+  for _, v in pairs(pinfo) do
+    v = ns.Safe(v)
+    if type(v) == "string" and v:find("^Player%-") and S and S.NameFromGUID then
+      local n = S.NameFromGUID(v)
+      if n then return n:find("-", 1, true) and ns.FullName(n) or n end
+    end
+  end
+  return nil
+end
+
+-- the tooltip builder runs on a collector, and the lines become text
+local function PlayerLines(fullName)
+  local S = AddonSocial()
+  local lines = {}
+  local collector = {
+    AddLine = function(_, text, r, g, b)
+      if type(text) ~= "string" or text == " " then return end
+      if r then text = string.format("|cff%02x%02x%02x%s|r", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255), text) end
+      lines[#lines + 1] = "  " .. text
+    end,
+    Show = function() end,
+  }
+  if S and S.AddByName and fullName then pcall(S.AddByName, collector, fullName) end
+  return lines
+end
+
+local function MembersText(resultID)
+  local r = ns:Analyze(resultID)
+  if not r then return "|cff808080The group is gone from the list.|r" end
+  local out = {}
+  out[#out + 1] = "|cff00e5ff" .. (ns.KIND_LABEL[r.kind] or "Group") .. (r.placeName and (" - " .. r.placeName) or "") .. "|r"
+  local function block(title, fullName)
+    local lines = PlayerLines(fullName)
+    -- no Raider.IO number for this player: the check runs by itself and says what Raider.IO answered
+    local S = AddonSocial()
+    local hasRio = false
+    for _, l in ipairs(lines) do if l:find("Raider.IO", 1, true) then hasRio = true break end end
+    if not hasRio and fullName and S and S.RioDiagnose then
+      local okD, diag = pcall(S.RioDiagnose, fullName)
+      if okD and diag then lines[#lines + 1] = "  |cff808080" .. diag .. "|r" end
+    end
+    out[#out + 1] = title
+    if #lines == 0 then lines[1] = "  |cff808080nothing known yet|r" end
+    for _, l in ipairs(lines) do out[#out + 1] = l end
+    out[#out + 1] = ""
+  end
+  if r.leader then block("|cffffd100Leader|r " .. tostring(r.leader), r.leader) end
+  local n = r.info and r.info.numMembers or 0
+  for i = 1, math.min(n, 40) do
+    local okP, pinfo = pcall(C_LFGList.GetSearchResultPlayerInfo, resultID, i)
+    local pfull = okP and PlayerFromInfo(pinfo) or nil
+    local role, class = MemberInfo(resultID, i)
+    local col = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    local hex = col and col.colorStr and ("|c" .. col.colorStr) or "|cffffffff"
+    local label = hex .. (pfull or (class or "?")) .. "|r" .. (role and ("  " .. role:lower()) or "")
+    if not (pfull and ns.FullName(pfull) == r.leader) then block(label, pfull) end
+  end
+  return table.concat(out, "\n")
+end
+
+local function BuildMembersWindow()
+  if membersWin then return end
+  local Tool = _G.SeviathsUsefulTools
+  if not (Tool and Tool.MakeToolWindow) then return end
+  membersWin = Tool.MakeToolWindow("SeviathsUsefulToolsListingMembers", "Group members", 380, 360)
+  -- - / + shrinks it to the title bar (saved); the X closes it until Premade Groups is opened again
+  local sb = CreateFrame("Button", nil, membersWin, "UIPanelButtonTemplate")
+  sb:SetSize(22, 20)
+  sb:SetPoint("TOPRIGHT", -30, -6)
+  sb:SetText("-")
+  local function fit()
+    local shrunk = ns.db.membersShrunk
+    membersWin.scroll:SetShown(not shrunk)
+    membersWin:SetHeight(shrunk and 34 or 360)
+    sb:SetText(shrunk and "+" or "-")
+  end
+  sb:SetScript("OnClick", function() ns.db.membersShrunk = not ns.db.membersShrunk fit() end)
+  membersWin.fit = fit
+  if membersWin.closeBtn then membersWin.closeBtn:HookScript("OnClick", function() ns.db.membersClosed = true end) end
+  -- first time: next to the Group Finder; after that the window's saved place is used
+  membersWin:HookScript("OnShow", function(self)
+    local saved = Tool.db and Tool.db.windowPos and Tool.db.windowPos["SeviathsUsefulToolsListingMembers"]
+    if not saved and PVEFrame then
+      self:ClearAllPoints()
+      self:SetPoint("TOPLEFT", PVEFrame, "TOPRIGHT", 4, -260)
+      local l, t = self:GetLeft(), self:GetTop()
+      if l and t then self:ClearAllPoints() self:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", l, t) end
+    end
+    fit()
+  end)
+end
+
+ns.MembersText = MembersText
+
+-- the rows of a listing for a list: the leader and every player; hovering a row shows that player's tooltip lines
+function ns:ListingMemberRows(resultID)
+  local S = AddonSocial()
+  local r = ns:Analyze(resultID)
+  local items = {}
+  if not r then return items end
+  local function row(label, fullName)
+    local short = S and S.OneLine and fullName and S.OneLine(fullName)
+    items[#items + 1] = {
+      text = label .. (short and ("  |cffb0b0b0" .. short:gsub("^[^:]*:%s*", "") .. "|r") or ""),
+      buttons = {},
+      tip = function(tt)
+        tt:AddLine(label)
+        if S and S.AddByName and fullName then S.AddByName(tt, fullName) else tt:AddLine("|cff808080The game gives no name for this player.|r") end
+      end,
+    }
+  end
+  if r.leader then row("|cffffd100Leader|r " .. tostring(r.leader), r.leader) end
+  for i = 1, math.min(r.info and r.info.numMembers or 0, 40) do
+    local okP, pinfo = pcall(C_LFGList.GetSearchResultPlayerInfo, resultID, i)
+    local full = okP and PlayerFromInfo(pinfo) or nil
+    local role, class = MemberInfo(resultID, i)
+    local col = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+    local hex = col and col.colorStr and ("|c" .. col.colorStr) or "|cffffffff"
+    if not (full and ns.FullName(full) == r.leader) then
+      row(hex .. (full or class or "?") .. "|r" .. (role and ("  " .. role:lower()) or ""), full)
+    end
+  end
+  return items
+end
+
+local function ShowMembers(resultID)
+  if not ns.db or ns.db.annotate == false then return end
+  -- the big section: the "My Group" tab of the Dungeons & Raids window shows the selected group's members
+  ns.membersResult = resultID
+  -- the players of the selected group are noted as soon as it is selected (the tab does not need to be open)
+  do
+    local ra = ns:Analyze(resultID)
+    for i = 1, math.min(ra and ra.info and ra.info.numMembers or 0, 40) do
+      local okP, pinfo = pcall(C_LFGList.GetSearchResultPlayerInfo, resultID, i)
+      if okP then pcall(PlayerFromInfo, pinfo) end
+    end
+  end
+  local okA, an = pcall(ns.Analyze, ns, resultID)
+  ns.membersKind = okA and an and an.kind or nil   -- the section of the selected group: each section's Listed tab shows its own
+  if ns.UI and ns.UI.RefreshListed then pcall(ns.UI.RefreshListed, ns.UI) end
+  -- the separate window is optional (ns.db.membersWindow = true)
+  if not ns.db.membersWindow then return end
+  if ns.db.membersClosed then return end
+  BuildMembersWindow()
+  if not membersWin then return end
+  membersShown = resultID
+  membersWin:SetContent(MembersText(resultID))
+  if not membersWin:IsShown() then membersWin:Show() end
+  membersWin.fit()
+end
+
+ns:RequestHook(SELECT_FN, function(_, resultID)
+  if type(resultID) ~= "number" then return end
+  C_Timer.After(0, function() pcall(ShowMembers, resultID) end)
+end)
+
+-- the window follows the Group Finder: closed with it, and the X is forgotten when Premade Groups opens again
+local membersTick = 0
+C_Timer.NewTicker(4, function()
+  -- the section follows answers that arrive later from the players' addons
+  if ns.membersResult and ns.UI and ns.UI.RefreshListed then pcall(ns.UI.RefreshListed, ns.UI) end
+end)
+C_Timer.NewTicker(1, function()
+  if not membersWin then return end
+  local up = PVEFrame and PVEFrame.IsShown and PVEFrame:IsShown()
+  if up then
+    -- every few seconds: answers from the players' addons arrive after the window opened
+    membersTick = membersTick + 1
+    if membersTick % 4 == 0 and membersShown and membersWin:IsShown() and not ns.db.membersShrunk then
+      pcall(function() membersWin:SetContent(MembersText(membersShown)) end)
+    end
+  elseif membersWin:IsShown() then
+    membersWin:Hide()
+    ns.db.membersClosed = false
+  end
 end)

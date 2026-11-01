@@ -1,0 +1,109 @@
+"""Bakes the collected data, pushes it to the data repo, and makes the CurseForge zip.
+
+    python tools/update_data.py            bake + push the data to GitHub (PetalsOfIron/Data-wow) + build the zip
+    python tools/update_data.py --no-zip   bake + push only
+
+1. tools/bake_collected.py writes the collected folder from your saved data (and keeps what earlier bakes had).
+2. The collected folder is copied to the clone of the data repo (C:/Users/<you>/Projects/Data-wow), committed and pushed.
+3. The addon folder is copied to C:/Users/<you>/Projects/sut-curse-release/SeviathsUsefulTools (without .git, .github, .gitignore, tools and
+   backup files) and zipped next to it: that zip is the one file to upload to CurseForge.
+Run it after a play session, after the game is closed or after /reload (the game writes the saved data then).
+"""
+import os
+import shutil
+import subprocess
+import sys
+import zipfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ADDON = os.path.abspath(os.path.join(HERE, ".."))
+HOME = os.path.expanduser("~")
+DATA_REPO = os.path.join(HOME, "Projects", "Data-wow")
+CURSE = os.path.join(HOME, "Projects", "sut-curse-release")
+SKIP_DIRS = {".git", ".github", "tools"}
+SKIP_FILES = {".gitignore", ".gitattributes"}
+
+
+def run(*args, cwd=None):
+    r = subprocess.run(args, cwd=cwd, capture_output=True, text=True)
+    return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def version():
+    for line in open(os.path.join(ADDON, "SeviathsUsefulTools.toc"), encoding="utf-8"):
+        if line.startswith("## Version:"):
+            return line.split(":", 1)[1].strip()
+    return "x"
+
+
+def sync_toc():
+    """The .toc lists every file of the collected folder (the game loads only what is listed)."""
+    toc = os.path.join(ADDON, "SeviathsUsefulTools.toc")
+    raw = open(toc, "rb").read().decode("utf-8")
+    nl = chr(13) + chr(10) if chr(13) + chr(10) in raw else chr(10)
+    keep = [l for l in raw.split(nl) if not l.startswith("collected" + chr(92))]
+    names = sorted(f for f in os.listdir(os.path.join(ADDON, "collected")) if f.endswith(".lua"))
+    at = next(i for i, l in enumerate(keep) if l.strip() == "CollectedImport.lua")
+    keep[at:at] = ["collected" + chr(92) + n for n in names]
+    open(toc, "wb").write(nl.join(keep).encode("utf-8"))
+    print("toc: %d collected files" % len(names))
+
+
+def push_data():
+    if not os.path.isdir(os.path.join(DATA_REPO, ".git")):
+        sys.exit("clone https://github.com/PetalsOfIron/Data-wow.git to " + DATA_REPO + " first")
+    dst = os.path.join(DATA_REPO, "collected")
+    shutil.rmtree(dst, ignore_errors=True)
+    shutil.copytree(os.path.join(ADDON, "collected"), dst)
+    run("git", "add", "-A", cwd=DATA_REPO)
+    code, out = run("git", "diff", "--cached", "--quiet", cwd=DATA_REPO)
+    if code == 0:
+        print("data repo: nothing new")
+        return
+    msg = "Collected data update\n\nCo-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
+    print(run("git", "commit", "-q", "-m", msg, cwd=DATA_REPO)[1])
+    print(run("git", "push", "origin", "main", cwd=DATA_REPO)[1] or "data repo: pushed")
+
+
+def build_zip():
+    target = os.path.join(CURSE, "SeviathsUsefulTools")
+    shutil.rmtree(target, ignore_errors=True)
+    os.makedirs(CURSE, exist_ok=True)
+
+    def ignore(folder, names):
+        out = []
+        for n in names:
+            p = os.path.join(folder, n)
+            if os.path.isdir(p) and n in SKIP_DIRS and folder == ADDON:
+                out.append(n)
+            elif os.path.isfile(p) and (n in SKIP_FILES or n.endswith(".bak")):
+                out.append(n)
+        return out
+
+    shutil.copytree(ADDON, target, ignore=ignore)
+    zpath = os.path.join(CURSE, "SeviathsUsefulTools-%s.zip" % version())
+    if os.path.exists(zpath):
+        os.remove(zpath)
+    with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
+        for root, _, files in os.walk(target):
+            for f in files:
+                full = os.path.join(root, f)
+                z.write(full, os.path.relpath(full, CURSE))
+    print("zip: %s (%.1f MB)" % (zpath, os.path.getsize(zpath) / 1e6))
+    # only the zip goes to the folder you upload from (older zips there are replaced)
+    out = os.path.join(HOME, "Downloads", "curse")
+    os.makedirs(out, exist_ok=True)
+    for old in os.listdir(out):
+        if old.lower().endswith(".zip") and old.startswith("SeviathsUsefulTools"):
+            os.remove(os.path.join(out, old))
+    shutil.copy2(zpath, out)
+    print("copied to " + out)
+
+
+if __name__ == "__main__":
+    print(run(sys.executable, os.path.join(HERE, "bake_collected.py"))[1].splitlines()[-1])
+    print(run(sys.executable, os.path.join(HERE, "bake_gold.py"))[1])
+    sync_toc()
+    push_data()
+    if "--no-zip" not in sys.argv:
+        build_zip()

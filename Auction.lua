@@ -191,10 +191,24 @@ local function processReplicate()
             SFP.db.scanLog = nil   -- a fast scan does not use sections
             scanning, fastRunning = false, false
             -- the sections are scanned too, after the fast scan (switch: Settings, "Also scan the sections")
-            if SFP.db.autoSections ~= false and ahOpen then
-                C_Timer.After(1.5, function()
-                    if ahOpen and not scanning and SFP.StartCategoryScan then SFP:StartCategoryScan() end
-                end)
+            if SFP.db.autoSections ~= false then
+                -- tried again for up to 30 seconds: the window flag or a still-finishing step must not stop the second scan
+                local tries = 0
+                local function startSections()
+                    tries = tries + 1
+                    local open = ahOpen or (_G.AuctionHouseFrame and _G.AuctionHouseFrame:IsShown())
+                    if not open then SFP:Print("The sections were not read after the fast scan: the auction house window is closed.") return end
+                    if scanning then
+                        if tries < 20 then C_Timer.After(1.5, startSections)
+                        else SFP:Print("The sections were not read after the fast scan: another scan was still running.") end
+                        return
+                    end
+                    SFP:Print("Now reading the sections (second scan)...")
+                    if not (SFP.StartCategoryScan and SFP:StartCategoryScan()) then
+                        SFP:Print("The section scan could not start (the game gave no category list or refused the search).")
+                    end
+                end
+                C_Timer.After(1.5, startSections)
             end
             lastFastDone = GetTime()
             markScanned()
@@ -230,7 +244,12 @@ function SFP:TryFullScan(auto)
     local LIMIT = 15 * 60 + 15
     local since = SFP.db and SFP.db.lastReplicate and (time() - SFP.db.lastReplicate) or math.huge
     if since < LIMIT then
-        if not auto then return false end   -- the Scan prices button reads the sections instead
+        if not auto then
+            -- the Scan prices button reads the sections instead: said out loud, so it is clear why the big scan did not run
+            self:Print(("No fast scan now: the game allows one every 15 minutes for the whole account, the last one was %d min ago (%d min left). Reading the sections only - they price fewer items than the fast scan."):format(
+                math.floor(since / 60), math.ceil((LIMIT - since) / 60)))
+            return false
+        end
         local wait = LIMIT - since
         self:Print(("The game allows one fast scan every 15 minutes; the last request was %d min ago. The next one starts by itself in %d min while the auction house is open."):format(
             math.floor(since / 60), math.ceil(wait / 60)))
@@ -473,7 +492,15 @@ SFP.StopCategoryScan = function()
 end
 
 SFP.CategoryScanEvent = function(event)
-    if catBusy and (event == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" or event == "AUCTION_HOUSE_BROWSE_RESULTS_ADDED") then catRead() end
+    if catBusy and (event == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" or event == "AUCTION_HOUSE_BROWSE_RESULTS_ADDED") then
+        -- an error while reading a section must not stop the whole scan: it is said once, the section is left and the scan goes on
+        local ok, err = pcall(catRead)
+        if not ok then
+            SFP:Print("Section scan error (the scan goes on with the next section): " .. tostring(err))
+            if catTimer then catTimer:Cancel() end
+            catTimer = C_Timer.NewTimer(1, function() catNext() end)
+        end
+    end
 end
 
 -- names of the auction items: saved as the game gives them (the game loads item names a moment after it is asked)

@@ -34,8 +34,21 @@ local SECTIONS = {
     { key = "social",   label = "Players & Party" },
     { key = "guild",    label = "Guild" },
     { key = "know",     label = "Learned data" },
+    { key = "guilds",   label = "Guild Directory" },
     { key = "settings", label = "Settings" },
 }
+
+-- "Guild Directory" and "Settings" stay the last two entries, whatever is added to the list above later
+do
+    local tail, head = {}, {}
+    for _, e in ipairs(SECTIONS) do
+        if e.key == "guilds" or e.key == "settings" then tail[#tail + 1] = e else head[#head + 1] = e end
+    end
+    table.sort(tail, function(a, b) return a.key == "guilds" and b.key == "settings" end)
+    for i = #SECTIONS, 1, -1 do SECTIONS[i] = nil end
+    for _, e in ipairs(head) do SECTIONS[#SECTIONS + 1] = e end
+    for _, e in ipairs(tail) do SECTIONS[#SECTIONS + 1] = e end
+end
 
 local function backdrop(f, r, g, b, a, br, bg_, bb, ba)
     f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
@@ -91,7 +104,7 @@ local function codex() return _G.SeviathsCodex end
 ---------------------------------------------------------------------------
 -- Sections
 ---------------------------------------------------------------------------
-local function countKeys(t) local n = 0 for _ in pairs(t or {}) do n = n + 1 end return n end
+local function countKeys(t) local n = 0 for _ in SeviathsAllPairs(t or {}) do n = n + 1 end return n end
 
 local function buildHome(pane)
     mkText(pane, CYHEX .. "SeviathsUsefulTools|r", 12, -10, 480, "GameFontNormalLarge")
@@ -970,6 +983,8 @@ local function buildGuild(pane)
     mkText(pane, "Find players with /who by level and class, whisper them your pitch and invite them when they say yes. Not in a guild? It helps you collect charter signatures.", 12, -34, 500, "GameFontHighlightSmall")
     mkButton(pane, "Open Guild Helper", 190, function() SFP:RunModule("SEVIATHSGUILDHELPER", "") end):SetPoint("TOPLEFT", 12, -90)
     mkButton(pane, "Scan next level range", 190, function() SFP:RunModule("SEVIATHSGUILDHELPER", "scan") end):SetPoint("TOPLEFT", 12, -120)
+    mkButton(pane, "Guild Directory", 190, function() SFP:ShowGuildDirectory() end,
+        "All the guilds the addon has seen, by realm, with their faction, Guild Master and officers"):SetPoint("TOPLEFT", 12, -150)
 end
 
 local function buildSettings(pane)
@@ -1139,8 +1154,10 @@ local function knowRebuild(pane)
             src[id] = { n = (cn or "?") .. ": " .. (nm or ("item " .. id)) }
         end
     else src = db.recipes end
-    for key, r in pairs(src) do
+    for key, r in SeviathsAllPairs(src) do
         local name = r.n or ""
+        -- items are grouped by their category (type and subtype, as the game names them): "Armor - Leather: Tailthrasher Bindings"
+        if know.mode == "item" then name = (r.t or "Other") .. ((r.st and r.st ~= "") and (" - " .. r.st) or "") .. ": " .. name end
         if q == "" or name:lower():find(q, 1, true) or tostring(key):find(q, 1, true) then
             list[#list + 1] = { key = key, name = name }
         end
@@ -1360,12 +1377,26 @@ local buildSocial = simplePage("Players & Party",
         end
     end)
 
+---------------------------------------------------------------------------
+-- Guild Directory: the guilds the addon has seen, by realm, with the Guild Master and the officers to whisper
+---------------------------------------------------------------------------
+local FACTION_HEX = { Alliance = "ff4a8cff", Horde = "ffff4a4a" }
+
+local buildGuilds = simplePage("Guild Directory",
+    "A window of its own with a button for every realm (Argent Dawn, Kazzak, Silvermoon ...). Pick a realm to see all the guilds the addon knows on it, "
+    .. "each with its faction, its Guild Master and its officers, and click Whisper to write to one. It knows what it has seen: guilds on the nameplates "
+    .. "of players around you, your own guild's whole roster, and the guild masters and officers who have this addon.",
+    function(pane, y)
+        mkButton(pane, "Open the Guild Directory", 220, function() SFP:ShowGuildDirectory() end):SetPoint("TOPLEFT", 12, y)
+        return function() end
+    end)
+
 local BUILDERS = {
     home = buildHome, farm = buildFarm, alerts = buildAlerts, killed = buildKilled, route = buildRoute, session = buildSession,
     next = buildNext, weekly = buildWeekly, deals = buildDeals, shop = buildShop, collect = buildCollect, share = buildShare,
     delve = buildDelve, keys = buildKeys, ach = buildAch, zone = buildZone, decor = buildDecor, alts = buildAlts,
     guides = buildGuides, groups = buildGroups, guild = buildGuild, know = buildKnow, settings = buildSettings,
-    gems = buildGems, social = buildSocial,
+    gems = buildGems, social = buildSocial, guilds = buildGuilds,
 }
 
 ---------------------------------------------------------------------------
@@ -1391,6 +1422,7 @@ function SFP:ShowMenuSection(key)
     if pane.refresh then SFP:Safe("refresh " .. key, pane.refresh) end
     -- the decor list opens next to the menu, on its right side
     if key == "decor" and SFP.ShowDecor then SFP:Safe("decor window", SFP.ShowDecor, SFP) end
+    if key == "guilds" and SFP.ShowGuildDirectory then SFP:Safe("guild directory", SFP.ShowGuildDirectory, SFP) end
 end
 
 function SFP:MenuFrame() return frame end

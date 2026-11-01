@@ -410,7 +410,7 @@ local function LoadQuests()
     local db = ns.db
     db.quests = db.quests or {}
     -- everything already scanned shows up immediately
-    for id, q in pairs(db.quests) do
+    for id, q in SeviathsAllPairs(db.quests) do
         AddQuest(id, q)
         ns:Yield()
     end
@@ -494,7 +494,7 @@ local function IndexLoot()
     local build = select(4, GetBuildInfo())
     -- same patch as last time: load the saved loot list instantly
     if db.loot and db.lootBuild == build then
-        for id, r in pairs(db.loot) do
+        for id, r in SeviathsAllPairs(db.loot) do
             local item = ns:Add({
                 cat = "item", id = id, name = r.n, icon = r.i, group = r.g, sub = r.s,
                 link = r.l, itemID = id, wh = "item=" .. id, tags = r.t,
@@ -591,7 +591,7 @@ end
 local function AddRare(key, r)
     local _, contName = ContinentOf(r.m)
     ns:Add({
-        cat = "boss", id = "rare:" .. key, name = r.n,
+        cat = "rare", id = "rare:" .. key, name = r.n,
         group = "Rares — " .. (contName or "Other"),
         icon = "Interface\\Icons\\Achievement_Boss_Archaedas",
         sub = ("Rare — %s"):format(ns:MapName(r.m)),
@@ -644,11 +644,22 @@ end
 -- 11) Every other item: recorded when you see it (bags, bank, tooltips,
 -- vendors, Auction House) so any item you hover becomes searchable.
 ------------------------------------------------------------------------
+-- the group of an item: its expansion (as the game gives it, when the item is loaded, or as saved with it), else its kind
+function ns:ItemGroupFor(id, fallback, savedExp)
+    local expID = savedExp
+    if expID == nil then
+        local ok, a = pcall(function() return select(15, C_Item.GetItemInfo(id)) end)
+        if ok and type(a) == "number" then expID = a end
+    end
+    local name = expID and _G["EXPANSION_NAME" .. expID]
+    return name or fallback or "Other"
+end
+
 local function AddSeenItem(id, rec)
     if ns:Get("item:" .. id) then return end
     ns:Add({
         cat = "item", id = id, name = rec.n,
-        group = "Seen items — " .. (rec.t or "Other"),
+        group = ns:ItemGroupFor(id, rec.t, rec.x),
         icon = C_Item.GetItemIconByID(id),
         sub = rec.t or "", itemID = id, wh = "item=" .. id,
     })
@@ -704,7 +715,7 @@ if TooltipDataProcessor and Enum.TooltipDataType then
 end
 
 local function IndexSeenItems()
-    for id, rec in pairs((ns.db and ns.db.items) or {}) do
+    for id, rec in SeviathsAllPairs((ns.db and ns.db.items) or {}) do
         AddSeenItem(id, rec)
         ns:Yield()
     end
@@ -733,10 +744,10 @@ ns.INDEXERS = {
     { name = "Finding delves",                fn = function() if ns.IndexDelves then ns:IndexDelves() end end },
     { name = "Loading gold farms",            fn = function() if ns.LoadFarms then ns:LoadFarms() end end },
     { name = "Ranking grinding spots",        fn = function() if ns.LoadGrind then ns:LoadGrind() end end },
-    { name = "Reading your collection history", fn = function() if ns.LoadHistory then ns:LoadHistory() end end },
     { name = "Loading hunter pets",           fn = function() if ns.LoadBeasts then ns:LoadBeasts() end end },
     { name = "Loading monsters",              fn = function() if ns.LoadMonsters then ns:LoadMonsters() end end },
     { name = "Reading your items",            fn = IndexSeenItems },
+    { name = "Loading collected data",        fn = function() if ns.LoadCollected then ns:LoadCollected() end end },
     { name = "Reading materials",             fn = function() if ns.IndexMaterials then ns:IndexMaterials() end end },
     { name = "Loading saved quests",          fn = LoadQuests },
     { name = "Reading the mount journal",     fn = IndexMounts },

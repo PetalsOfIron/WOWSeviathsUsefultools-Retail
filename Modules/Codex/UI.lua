@@ -226,6 +226,11 @@ local function DetailText(e)
     local t = ""
     local c = e.cat
     if e.bodyFn then return e.bodyFn(e) end
+    -- towns, nodes and NPCs from the collected data: their text, and where they are
+    if (c == "town" or c == "node" or (c == "npc" and not e.vendorKey)) and e.body then
+        local where = e.map and (ns.CYAN .. "Where|r" .. "\n" .. ns:Coords(e.map) .. "\n\n") or ""
+        return where .. e.body
+    end
     if c == "delve" then
         if e.body then return e.body end
         if not e.map and ns.DelveGuideSpot then
@@ -239,7 +244,7 @@ local function DetailText(e)
         end
         return general .. "\n\n|cff888888No specific guide for this delve yet (older expansion) — the general rules above apply.|r"
     end
-    if c == "creature" and e.vendorKey and ns.VendorText then
+    if (c == "creature" or c == "npc") and e.vendorKey and ns.VendorText then
         return ns:VendorText(e)
     end
     if c == "material" and ns.MaterialText then
@@ -295,7 +300,7 @@ local function DetailText(e)
         if e.map then info[#info + 1] = "Entrance: " .. ns:Coords(e.map) end
         t = t .. section("Info", table.concat(info, "\n"))
         t = t .. section("Bosses & mechanics", ns:InstanceMechanics(e))
-    elseif c == "boss" and e.rare then
+    elseif c == "rare" then
         t = t .. section("Location", ns:Coords(e.map))
         t = t .. section("Mechanics", "Blizzard doesn't give addons a rare's abilities, so they can't be listed here. Rares usually hit harder than normal enemies and many have a cast you should interrupt or a frontal to sidestep. Use the Wowhead link for player notes.")
     elseif c == "boss" then
@@ -346,10 +351,70 @@ local function DetailText(e)
         t = t .. section("Info", e.sub)
         t = t .. section("Pieces", ns:SetItems(e))
     end
+    -- items: where your own loot of it came from (collected by the addon when you loot), with the spot
+    if c == "item" then
+        local S = _G.SeviathsUsefulTools
+        local rec = S and S.db and S.db.itemFrom and S.db.itemFrom[e.itemID or tonumber(e.id) or 0]
+        if rec and rec.src then
+            local lines = {}
+            for key, src in pairs(rec.src) do
+                local kind, id = key:match("^(%a+):(%d+)$")
+                local nm
+                if kind == "npc" then
+                    id = tonumber(id)
+                    nm = (S.db.killPos and S.db.killPos[id] and S.db.killPos[id].n) or (S.db.npcPos and S.db.npcPos[id] and S.db.npcPos[id].n)
+                end
+                lines[#lines + 1] = (nm or key) .. " x" .. (src.c or 1) .. ((src.m and src.x) and (", " .. ns:Coords({ m = src.m, x = src.x, y = src.y })) or "")
+            end
+            table.sort(lines)
+            if #lines > 0 then t = t .. section("You looted it from", table.concat(lines, "\n")) end
+        end
+    end
+    -- quests: where you accepted and where you turned the quest in (collected by the addon as you do them)
+    if c == "quest" then
+        local S = _G.SeviathsUsefulTools
+        local lib = S and S.Social and S.Social.Config and S.Social.Config().lib
+        local rec = lib and lib.quest and lib.quest[tonumber(e.id) or e.questID or 0]
+        if rec then
+            local parts = {}
+            if rec.map and rec.x then parts[#parts + 1] = "Taken from: " .. (rec.giverName and (rec.giverName .. ", ") or "") .. ns:Coords({ m = rec.map, x = rec.x, y = rec.y }) end
+            if rec.doneMap and rec.doneX then parts[#parts + 1] = "Turned in to: " .. (rec.turnName and (rec.turnName .. ", ") or "") .. ns:Coords({ m = rec.doneMap, x = rec.doneX, y = rec.doneY }) end
+            if #parts > 0 then t = t .. section("Where you did it", table.concat(parts, "\n")) end
+        end
+    end
+    -- the places you have been to: collected by the addon when you enter a dungeon or a raid (every expansion, old ones too)
+    if c == "dungeon" or c == "raid" or c == "entrance" then
+        local S = _G.SeviathsUsefulTools
+        local lib = S and S.Social and S.Social.Config and S.Social.Config().lib
+        local kind = (c == "raid" or (c == "entrance" and e.isRaid)) and "raid" or "dungeon"
+        local seen = lib and lib[kind]
+        if seen and e.name then
+            local want, hit = e.name:lower(), nil
+            -- by ID first (the Adventure Guide ID or the instance ID saved when you entered), then by name
+            for _, rec in pairs(seen) do
+                if (rec.jid and rec.jid == tonumber(e.id)) or (rec.id and e.instanceID and rec.id == e.instanceID) then hit = rec break end
+            end
+            if not hit then
+                for en, rec in pairs(seen) do
+                    local el = en:lower()
+                    if el:find(want, 1, true) or want:find(el, 1, true) then hit = rec break end
+                end
+            end
+            if hit then
+                local diffs = {}
+                for d in pairs(hit.diffs or {}) do diffs[#diffs + 1] = d end
+                table.sort(diffs)
+                t = t .. section("You have been here", ("Entered %d time%s%s%s"):format(hit.n or 1, (hit.n or 1) == 1 and "" or "s",
+                    hit.t and (", last " .. date("%Y-%m-%d", hit.t)) or "", #diffs > 0 and ("\nDifficulties: " .. table.concat(diffs, ", ")) or ""))
+            else
+                t = t .. section("You have been here", "|cff888888Not entered yet. The addon notes it when you walk in.|r")
+            end
+        end
+    end
     -- what your own collections already say (transmog, mounts, pets), also from before the addon was installed
     do
         local S = _G.SeviathsUsefulTools
-        if S and S.HistoryFor and (c == "boss" or c == "creature") then
+        if S and S.HistoryFor and (c == "boss" or c == "creature" or c == "rare") then
             local past = S:HistoryFor(e.name)
             if past then t = t .. section("Your collection", S:HistoryText(past)) end
         elseif S and S.db and S.db.history and c == "item" then
@@ -397,6 +462,8 @@ function ns:ShowEntry(key, noHistory)
     if not okText then
         text = "|cffff6060This page hit an error:|r " .. tostring(text) .. "\n\n|cff888888Please send this line to the Codex author.|r"
     end
+    -- what was collected in the game about the same creature (kills, drops, where seen) goes on the page that already exists
+    if e.seenData and e.seenData ~= "" then text = (text or "") .. "\n\n" .. ns.CYAN .. "Details|r\n" .. e.seenData end
     detail.body:SetText(text or "")
 
     -- buttons
