@@ -322,3 +322,78 @@ function ns:QuestWhere(e)
     end
     return table.concat(lines, "\n")
 end
+
+------------------------------------------------------------------------
+-- World quests: where they are, recorded when they show up on the map you look at (or the zone you are in), without having to take them
+------------------------------------------------------------------------
+local wqSeen = {}   -- [mapID] = number of world quests already recorded for that map this session
+local function RecordWorldQuests(mapID)
+    if not (ns.db and mapID and C_TaskQuest and C_TaskQuest.GetQuestsOnMap) then return end
+    local okQ, list = pcall(C_TaskQuest.GetQuestsOnMap, mapID)
+    if not okQ or type(list) ~= "table" then return end
+    if wqSeen[mapID] == #list then return end
+    wqSeen[mapID] = #list
+    for _, q in ipairs(list) do
+        local qid = q.questId or q.questID
+        local x, y = q.x, q.y
+        if type(qid) == "number" and type(x) == "number" and type(y) == "number" and not secret(x) and not secret(y) then
+            local l = Loc(qid)
+            l.o = l.o or {}
+            local dup = false
+            for _, sp in ipairs(l.o) do
+                if sp.m == mapID and sp.x and sp.y and math.abs(sp.x - x) < 0.02 and math.abs(sp.y - y) < 0.02 then dup = true break end
+            end
+            if not dup and #l.o < 5 then
+                local area
+                if C_Map and C_Map.GetMapInfoAtPosition then
+                    local okA, info = pcall(C_Map.GetMapInfoAtPosition, mapID, x, y)
+                    if okA and type(info) == "table" and type(info.name) == "string" and info.name ~= "" then area = info.name end
+                end
+                l.o[#l.o + 1] = { m = mapID, x = x, y = y, a = area }
+                l.w = true   -- a world quest
+            end
+            -- the quest itself (title, objectives, kind) is saved too, when the game has it loaded (it is asked for first)
+            if not ns.db.quests[qid] then
+                if C_QuestLog.RequestLoadQuestByID then pcall(C_QuestLog.RequestLoadQuestByID, qid) end
+                C_Timer.After(2, function()
+                    if ns.db.quests[qid] then return end
+                    local r = ns.ReadQuestRaw and ns.ReadQuestRaw(qid)
+                    if r and r.t and r.t ~= "" then
+                        r.w = true
+                        ns.db.quests[qid] = r
+                    end
+                end)
+            end
+        end
+    end
+end
+
+local wqFrame = CreateFrame("Frame")
+for _, e in ipairs({ "PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA", "QUEST_LOG_UPDATE" }) do pcall(wqFrame.RegisterEvent, wqFrame, e) end
+local wqPending = false
+wqFrame:SetScript("OnEvent", function()
+    if wqPending then return end
+    wqPending = true
+    C_Timer.After(3, function()
+        wqPending = false
+        local m = C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")
+        if m then pcall(RecordWorldQuests, m) end
+    end)
+end)
+
+-- the world map: the world quests of the map you are looking at are recorded when it changes (opened, another zone clicked)
+local wqHooked = false
+local function hookWorldMap()
+    if wqHooked or not (_G.WorldMapFrame and WorldMapFrame.HookScript) then return end
+    wqHooked = true
+    local function onMap()
+        local m = WorldMapFrame.GetMapID and WorldMapFrame:GetMapID()
+        if m then C_Timer.After(0.5, function() pcall(RecordWorldQuests, m) end) end
+    end
+    WorldMapFrame:HookScript("OnShow", onMap)
+    if hooksecurefunc and WorldMapFrame.OnMapChanged then hooksecurefunc(WorldMapFrame, "OnMapChanged", onMap) end
+end
+hookWorldMap()
+local wqLoad = CreateFrame("Frame")
+wqLoad:RegisterEvent("ADDON_LOADED")
+wqLoad:SetScript("OnEvent", function(_, _, name) if name == "Blizzard_WorldMap" then hookWorldMap() end end)
