@@ -1930,6 +1930,10 @@ local function spotsOfGroup(zone, group)
     return list
 end
 
+SFP.FarmSpotsOf = function(mapID, group) return spotsOfGroup(SFP.zoneByMap[mapID], group) end
+SFP.MonsterLoot = monsterLoot
+SFP.AreaAt = areaAt
+
 function SFP.HasFarmLists(mapID)
     local zone = SFP.zoneByMap[mapID]
     return #spotsOfGroup(zone, "farm") > 0, #spotsOfGroup(zone, "rare") > 0
