@@ -1127,6 +1127,40 @@ local function mountEntries()
                 if nm and not vend[nm] then vend[nm] = { map = v.m, x = v.x, y = v.y } end
             end
         end
+        -- a cost text with the icons of what is paid: a currency or an item (an older record has only the names)
+        local function costIcons(text)
+            if type(text) ~= "string" or text:find("|T", 1, true) then return text end
+            local parts = {}
+            for part in text:gmatch("[^+]+") do
+                part = part:gsub("^%s+", ""):gsub("%s+$", "")
+                local amount, nm = part:match("^([%d,]+)%s+(.+)$")
+                local icon
+                if nm and C_Item and C_Item.GetItemInfoInstant then
+                    local ok, _, _, _, _, ic = pcall(C_Item.GetItemInfoInstant, nm)
+                    if ok and ic then icon = ic end
+                end
+                if icon then parts[#parts + 1] = amount .. " |T" .. icon .. ":14|t " .. nm else parts[#parts + 1] = part end
+            end
+            return table.concat(parts, " + ")
+        end
+        local vendorByMount = {}
+        local vitems = _G.SeviathsCodexDB and _G.SeviathsCodexDB.vendorItems
+        local vlist = _G.SeviathsCodexDB and _G.SeviathsCodexDB.vendors
+        if vitems and vlist and MJ.GetMountFromItem then
+            for itemId, keys in (SeviathsAllPairs or pairs)(vitems) do
+                local mid2 = type(itemId) == "number" and MJ.GetMountFromItem(itemId)
+                if mid2 and type(keys) == "table" then
+                    local l = vendorByMount[mid2]
+                    if not l then l = {}; vendorByMount[mid2] = l end
+                    for _, key in ipairs(keys) do
+                        local v = vlist[key]
+                        if type(v) == "table" and v.items then
+                            l[#l + 1] = { v = v, key = key, cost = costIcons(v.items[itemId]), item = itemId }
+                        end
+                    end
+                end
+            end
+        end
         for _, mid in ipairs(MJ.GetMountIDs()) do
             local name, _, icon, _, _, _, _, _, _, hide, collected = MJ.GetMountInfoByID(mid)
             if name then
@@ -1137,6 +1171,16 @@ local function mountEntries()
                     entries[#entries + 1] = e
                 end
                 e.mountName, e.icon, e.collected = name, icon, collected
+                for _, vv in ipairs(vendorByMount[mid] or {}) do
+                    local v = vv.v
+                    local costStr = (vv.cost and vv.cost ~= "?") and vv.cost or nil
+                    e.sources[#e.sources + 1] = {
+                        text = "Vendor: " .. tostring(v.n or tostring(vv.key):match("^(.-)@") or "?") .. (costStr and ("  |cffffd100" .. costStr .. "|r") or ""),
+                        map = v.m, x = v.x, y = v.y,
+                    }
+                    if costStr and not e.cost then e.cost = costStr end
+                    e.item = e.item or vv.item
+                end
                 local _, _, src = MJ.GetMountInfoExtraByID(mid)
                 src = plain(src or "")
                 e.sourceText = src
@@ -1156,6 +1200,24 @@ local function mountEntries()
                     e.sources[#e.sources + 1] = s
                 elseif src ~= "" and #e.sources == 0 then
                     e.sources[1] = { text = src:gsub("\n+", "  "):sub(1, 90) }
+                end
+                -- the guide's source text of this mount
+                if SFP.MountGuide then
+                    if not SFP._mountGuideLower then
+                        SFP._mountGuideLower = {}
+                        for gname, gsrc in pairs(SFP.MountGuide) do SFP._mountGuideLower[gname:lower()] = gsrc end
+                    end
+                    local gsrc = SFP._mountGuideLower[name:lower()]
+                    if not gsrc and e.item then gsrc = SFP._mountGuideLower[plain(iname(e.item)):lower()] end
+                    if gsrc then
+                        local cost = gsrc:match("for ([%d,]+%s*x?%s*[^,;/]+)$") or gsrc:match("^(%d+%s*x%s+.+)$")
+                        local gzone = gsrc:match(" %- ([^,]+),") or gsrc:match(" %- ([^,]+)$") or gsrc:match(" in ([%u][^,/]-)$")
+                        if gzone then gzone = gzone:gsub("^the ", ""):gsub("%s+$", "") end
+                        local gm = gzone and mapOfZone(gzone)
+                        local gs = { text = "Guide: " .. gsrc:sub(1, 110), zone = gzone, zoneMap = gm }
+                        e.sources[#e.sources + 1] = gs
+                        if cost then e.cost = e.cost or cost end
+                    end
                 end
                 -- a place where you added it: the most exact one
                 local here = SFP.db and SFP.db.mountSpots and SFP.db.mountSpots[name]
@@ -1192,7 +1254,10 @@ local function renderMounts(q)
         r.icon:SetTexture(e.item and SFP:ItemIcon(e.item) or e.icon or 134400)
         local chance = e.rarity < 100 and ("  |cff40ff40" .. (e.rarity >= 10 and string.format("%d", math.floor(e.rarity + 0.5)) or string.format("%.1f", e.rarity)) .. "%|r") or ""
         r.text:SetText((e.collected and "|cff40ff40" or "|cffffffff") .. nameOf(e) .. "|r" .. chance)
-        r.right:SetText(e.item and priceText(e.item) or "")
+        -- the price: the auction or vendor price, else what the guide says it costs (a token or currency, not only gold)
+        local costText = e.item and priceText(e.item) or ""
+        if costText == "" and e.cost then costText = "|cff808080cost|r " .. e.cost end
+        r.right:SetText(costText)
         r.item = e.item
         -- the name bar is a waypoint too: the first source with a place
         for _, s in ipairs(e.sources) do
