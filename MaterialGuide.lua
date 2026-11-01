@@ -1216,6 +1216,15 @@ local function renderBlocks(n, map, spots)
             (s.valueText or ""))
         p.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         p.click = function() goToMonster(map, s) end
+        if type(s.note) == "string" and s.note ~= "" then
+            n = n + 1
+            local nr = rowOf(list, n)
+            place(list, nr, n, 30)
+            nr.icon:SetTexture(nil)
+            nr.text:SetText("|cffaaaaaa" .. s.note .. "|r")
+            nr.hint = s.note
+            nr.hl:Hide()
+        end
         for _, d in ipairs(loot) do
             n = n + 1
             local l = rowOf(list, n)
@@ -1239,7 +1248,7 @@ local function renderBlocks(n, map, spots)
             local l = rowOf(list, n)
             place(list, l, n, 30)
             l.icon:SetTexture(nil)
-            l.text:SetText("|cff808080no loot recorded yet|r")
+            l.text:SetText("|cff808080" .. (s.note and "no collectible drop known - kill it and its loot is recorded" or "no loot recorded yet") .. "|r")
             l.hl:Hide()
         elseif kills < 1 then
             -- a monster of the farm guide that has no kill recorded: only the items it is listed for are known, not all it drops
