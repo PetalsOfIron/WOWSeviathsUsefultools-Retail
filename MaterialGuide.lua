@@ -1251,7 +1251,9 @@ local monsterIndex
 local function collectedMonsters(map, group)
     if not monsterIndex then
         monsterIndex = {}
+        local npcByName = {}
         for npcID, rec in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.npcs or {}) do
+            if type(rec) == "table" and rec.n and not npcByName[rec.n] then npcByName[rec.n] = npcID end
             -- a rare is listed as soon as it was seen or killed, with or without loot (the farm data does not have to know it yet)
             local isRare = type(rec) == "table" and (rec.c == "rare" or rec.c == "rareelite")
             if type(rec) == "table" and rec.n and type(rec.m) == "table" and (rec.d or rec.s or isRare) and not rec.boss then
@@ -1277,6 +1279,21 @@ local function collectedMonsters(map, group)
                             end
                         end
                     end
+                end
+            end
+        end
+        -- the rares seen on the map: the place, and the loot of the monster of that name when the addon has one
+        for _, r in (SeviathsAllPairs or pairs)(SFP.db and SFP.db.rareSeen or {}) do
+            if type(r) == "table" and r.n and r.m and r.x then
+                local byMap = monsterIndex[r.m]
+                if not byMap then byMap = { farm = {}, rare = {} }; monsterIndex[r.m] = byMap end
+                local dup = false
+                for _, s in ipairs(byMap.rare) do if s.name == r.n then dup = true break end end
+                if not dup then
+                    local npc = npcByName[r.n]
+                    local rec = npc and SFP.db.npcs[npc]
+                    byMap.rare[#byMap.rare + 1] = { name = r.n, npc = npc, hx = r.x, hy = r.y, items = {}, kills = rec and rec.k or 0, map = r.m,
+                        level = rec and (rec.lmax or rec.lmin), ctype = rec and rec.t }
                 end
             end
         end
@@ -1988,6 +2005,39 @@ do
             if win and win:IsShown() and mode == "pet" and win.refreshList then win.refreshList() end
         end)
     end)
+end
+
+-- the rares the game shows on the map (the skull icons): name and place are kept in db.rareSeen, so a rare seen on any map is in the Rares
+-- list with its place; its loot is matched by name from what the addon knows of it
+do
+    local lastRun = 0
+    local function recordRares()
+        if not (SFP.db and C_VignetteInfo and C_VignetteInfo.GetVignettes) then return end
+        if GetTime() - lastRun < 3 then return end
+        lastRun = GetTime()
+        local mapID = (WorldMapFrame and WorldMapFrame:IsShown() and WorldMapFrame:GetMapID()) or C_Map.GetBestMapForUnit("player")
+        if not mapID then return end
+        for _, guid in ipairs(C_VignetteInfo.GetVignettes() or {}) do
+            local info = C_VignetteInfo.GetVignetteInfo(guid)
+            local atlas = info and info.atlasName
+            local nm = info and info.name
+            if type(nm) == "string" and nm ~= "" and type(atlas) == "string"
+                and not (issecretvalue and (issecretvalue(nm) or issecretvalue(atlas))) and atlas:lower():find("kill", 1, true) then
+                local pos = C_VignetteInfo.GetVignettePosition(guid, mapID)
+                if pos then
+                    local x, y = pos:GetXY()
+                    if x and y and not (issecretvalue and (issecretvalue(x) or issecretvalue(y))) then
+                        SFP.db.rareSeen = SFP.db.rareSeen or {}
+                        SFP.db.rareSeen[nm .. "@" .. mapID] = { n = nm, m = mapID, x = math.floor(x * 10000) / 10000, y = math.floor(y * 10000) / 10000, t = time() }
+                    end
+                end
+            end
+        end
+    end
+    local vf = CreateFrame("Frame")
+    vf:RegisterEvent("VIGNETTES_UPDATED")
+    vf:SetScript("OnEvent", function() pcall(recordRares) end)
+    SFP:OnRefresh(function() pcall(recordRares) end)
 end
 
 local nameWait
