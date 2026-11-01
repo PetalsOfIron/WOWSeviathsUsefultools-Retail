@@ -116,19 +116,26 @@ local function zoneTexts(id, classID, subID, expID)
     end
     local drops0 = SFP.db and SFP.DropIndex and SFP:DropIndex()[id]
     local shownDrops = 0
-    for i = 1, math.min(40, #(drops0 or {})) do
-        if shownDrops >= 3 then break end
+    for i = 1, math.min(300, #(drops0 or {})) do
+        if shownDrops >= 15 then break end   -- every monster that gave it, with its name
         local d = drops0[i]
         local rec = (d[3] == "o") and SFP.db.objects[d[1]] or SFP.db.npcs[d[1]]
-        local map, spots = nil, nil
-        if rec and type(rec.m) == "table" then map, spots = next(rec.m) end
-        local spot1 = type(spots) == "table" and spots[1] or nil
         if rec and rec.n then
-            local place = map and placeName(map, spot1 and spot1[1], spot1 and spot1[2], spot1 and spot1[3]) or nil
+            -- every place it was seen at: one line per different place, one line when it is the same place seen again
+            local places, seenPlace = {}, {}
+            if type(rec.m) == "table" then
+                for mp, spots in pairs(rec.m) do
+                    for _, sp in ipairs(type(spots) == "table" and spots or {}) do
+                        local pn = placeName(mp, sp[1], sp[2], sp[3])
+                        if not seenPlace[pn] and #places < 4 then seenPlace[pn] = true; places[#places + 1] = pn end
+                    end
+                end
+            end
+            local where = #places > 0 and table.concat(places, "; ") or nil
             if d[3] == "o" then
-                if addSrc(("Picked up at: %s|cffffd100%s|r (node or object)"):format(place and (place .. " - ") or "", rec.n)) then shownDrops = shownDrops + 1 end
+                if addSrc(("Picked up at: %s|cffffd100%s|r (node or object)"):format(where and (where .. " - ") or "", rec.n)) then shownDrops = shownDrops + 1 end
             else
-                if addSrc(("%s: |cffffd100%s|r (monster)%s"):format(d[3] == "s" and "Skinned from" or "Dropped by", rec.n, place and (" - found at: " .. place) or "")) then shownDrops = shownDrops + 1 end
+                if addSrc(("%s: |cffffd100%s|r (monster)%s"):format(d[3] == "s" and "Skinned from" or "Dropped by", rec.n, where and (" - found at: " .. where) or "")) then shownDrops = shownDrops + 1 end
             end
         end
     end
