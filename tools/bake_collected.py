@@ -27,14 +27,14 @@ RETAIL = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 SHIP = {
     "SeviathsUsefulToolsDB": ["seenInfo", "inspected", "rioCache", "guildDir", "nameplateText", "npcs", "learned", "learnedDecor",
                               "vendorLearned", "itemZones", "hiddenSpots", "bestSpots", "objects", "towns", "npcPos", "killPos",
-                              "itemFrom", "playerIDs", "nameRealms", "nameRealm", "seenPlayers", "seenBuilds", "petPrices", "realmGroups", "knownItems", "itemExp", "itemIcon", "petSpots", "petInfo", "itemSpots", "mountStats", "instanceEntrances", "mountSpots", "rareSeen", "learnedCurios", "lib"],
+                              "itemFrom", "playerIDs", "nameRealms", "nameRealm", "seenPlayers", "seenBuilds", "petPrices", "realmGroups", "knownItems", "itemExp", "itemIcon", "petSpots", "petInfo", "itemSpots", "mountStats", "instanceEntrances", "mountSpots", "rareSeen", "itemTip", "learnedCurios", "lib"],
     "SeviathsCodexDB": ["quests", "loot", "matUses", "items", "qloc", "lootZones", "npcs", "vendors", "beasts", "vendorItems", "rares"],
     "SeviathsDungeonsRaidsDB": ["dungeon", "raid", "delve", "mplus", "quest"],
 }
 SKIP_FIELDS = {"noGuildT"}
 # the big tables are shipped as one short Lua string per record, decoded only when an entry is read (a table per record costs 5 to 10 times
 # more memory in the game than its text)
-PACK = {("SeviathsCodexDB", k) for k in ("quests", "loot", "matUses", "items")} | {("SeviathsUsefulToolsDB", k) for k in ("knownItems", "learnedDecor")}
+PACK = {("SeviathsCodexDB", k) for k in ("quests", "loot", "matUses", "items")} | {("SeviathsUsefulToolsDB", k) for k in ("knownItems", "learnedDecor", "itemTip")}
 BATCH = 40000   # constants per generated function (Lua allows 262143 per function)
 
 
