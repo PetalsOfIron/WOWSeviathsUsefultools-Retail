@@ -693,6 +693,13 @@ function SFP:ScanOwnedCurios()
     if not D then return 0, "The game has no delve interface (C_DelvesUI)." end
     local known = {}
     for _, cu in ipairs(self.CURIOS or {}) do known[cu[1]:lower()] = cu[1] end
+    -- a learned curio saved without its description (the spell text was not loaded yet) gets it now
+    for _, rec in pairs(self.db and self.db.learnedCurios or {}) do
+        if rec.spell and (rec.text == nil or rec.text == "") and C_Spell and C_Spell.GetSpellDescription then
+            local okD, t = pcall(C_Spell.GetSpellDescription, rec.spell)
+            if okD and type(t) == "string" and t ~= "" and not (issecretvalue and issecretvalue(t)) then rec.text = t end
+        end
+    end
     local configID
     for _, fname in ipairs({ "GetCompanionConfigID", "GetCurrentCompanionConfigID", "GetCompanionTraitConfigID" }) do
         if type(D[fname]) == "function" then
