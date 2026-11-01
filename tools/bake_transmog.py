@@ -1,7 +1,7 @@
 """Bakes the load-on-demand folder SeviathsUsefulTools_Transmog: every transmog item of Wowhead's list (tools/transmog_items.txt) with where it comes from.
 
-Source lines: id|name|quality|source type|source name|class|subclass|slot  (read in a browser from https://www.wowhead.com/transmog-items)
-Output: Transmog.lua with SeviathsTransmogBlocks[id // 500] = "id|name|quality|source|source name\n..." - the game reads one block per item looked at.
+Source lines: id|name|quality|source type|source name|class|subclass|slot|level|required level|classes  (read in a browser from https://www.wowhead.com/transmog-items)
+Output: Transmog.lua with SeviathsTransmogBlocks[id // 500] = "id|name|quality|source|source name|item class|subclass|slot|required level|classes\n..." - the game reads one block per item looked at.
 Run: python tools/bake_transmog.py
 """
 import os
@@ -17,7 +17,8 @@ for line in open(os.path.join(HERE, "transmog_items.txt"), encoding="utf8").read
     if len(p) < 5 or not p[0].isdigit():
         continue
     iid = int(p[0])
-    rec = "|".join([p[0], p[1].replace("\\", "").replace('"', "'"), p[2], p[3], p[4].replace("\\", "").replace('"', "'")])
+    p += [""] * (11 - len(p))
+    rec = "|".join([p[0], p[1].replace("\\", "").replace('"', "'"), p[2], p[3], p[4].replace("\\", "").replace('"', "'"), p[5], p[6], p[7], p[9], p[10]])
     blocks.setdefault(iid // BLOCK, []).append(rec)
 
 os.makedirs(OUT, exist_ok=True)

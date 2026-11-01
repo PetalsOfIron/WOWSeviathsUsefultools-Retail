@@ -81,6 +81,13 @@ local TSOURCE = {
     "Black Market", "Disenchanting", "Fishing", "Gathering", "Milling", "Mining", "Prospecting", "Pickpocketing", "Salvaging", "In-game shop",
 }
 
+local TCLASS = { "Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Death Knight", "Shaman", "Mage", "Warlock", "Monk", "Druid", "Demon Hunter", "Evoker" }
+local TARMOR = { [0] = "Miscellaneous", "Cloth", "Leather", "Mail", "Plate", "Cosmetic", "Shield", "Libram", "Idol", "Totem", "Sigil", "Relic", [-6] = "Cloak" }
+local TWEAPON = { [0] = "One-handed axe", "Two-handed axe", "Bow", "Gun", "One-handed mace", "Two-handed mace", "Polearm", "One-handed sword", "Two-handed sword",
+    "Warglaive", "Staff", [13] = "Fist weapon", [14] = "Miscellaneous", [15] = "Dagger", [16] = "Thrown", [17] = "Spear", [18] = "Crossbow", [19] = "Wand", [20] = "Fishing pole" }
+local TSLOT = { "Head", "Neck", "Shoulder", "Shirt", "Chest", "Waist", "Legs", "Feet", "Wrist", "Hands", "Finger", "Trinket", "One-hand", "Shield", "Ranged", "Back",
+    "Two-hand", "Bag", "Tabard", "Robe", "Main hand", "Off hand", "Held in off-hand", "Ammo", "Thrown", "Ranged" }
+
 -- { name, quality, source ("Drop", "Vendor" ...), source name (the quest, zone or achievement Wowhead names) } or nil
 function SFP:TransmogItem(id)
     if type(id) ~= "number" then return nil end
@@ -102,10 +109,20 @@ function SFP:TransmogItem(id)
         if not s then return nil end
         if s == 1 or text:sub(s - 1, s - 1) == "\n" then
             local e = text:find("\n", s, true) or (#text + 1)
-            local name, q, src, sname = text:sub(s + #key, e - 1):match("^(.-)|(%d+)|(%d+)|(.*)$")
+            local name, q, src, sname, ic, isub, slot, req, cls = text:sub(s + #key, e - 1):match("^(.-)|(%d+)|(%d+)|([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)|?([^|]*)$")
             if not name then return nil end
             local st = tonumber(src)
-            return { name = name, quality = tonumber(q), source = TSOURCE[st], sourceName = sname ~= "" and sname or nil }
+            local classes
+            if cls and cls ~= "" then
+                classes = {}
+                for c in cls:gmatch("%d+") do classes[#classes + 1] = TCLASS[tonumber(c)] end
+            end
+            ic, isub = tonumber(ic), tonumber(isub)
+            local kind = (ic == 4 and TARMOR[isub]) or (ic == 2 and TWEAPON[isub]) or nil
+            return {
+                name = name, quality = tonumber(q), source = TSOURCE[st], sourceName = sname ~= "" and sname or nil,
+                type = kind, slot = TSLOT[tonumber(slot) or 0], reqLevel = tonumber(req), classes = classes,
+            }
         end
         from = s + 1
     end
