@@ -200,6 +200,23 @@ local function recordItem(id)
     if type(expID) == "number" then it.x = expID end   -- the expansion of the item: the Codex groups items by it
     SFP.db.knownItems[id] = it
     SFP:StoreIcon(id)
+    -- the tooltip text (once per item): the lines the game shows, left and right text of each
+    if C_TooltipInfo and C_TooltipInfo.GetItemByID and not (SFP.db.itemTip and SFP.db.itemTip[id]) then
+        local okT, data = pcall(C_TooltipInfo.GetItemByID, id)
+        local lines = {}
+        for _, l in ipairs(okT and data and data.lines or {}) do
+            local left, right = l.leftText, l.rightText
+            if type(left) == "string" and not (issecretvalue and issecretvalue(left)) and left ~= "" then
+                if type(right) == "string" and not (issecretvalue and issecretvalue(right)) and right ~= "" then left = left .. "  " .. right end
+                lines[#lines + 1] = left
+                if #lines >= 30 then break end
+            end
+        end
+        if #lines > 0 then
+            SFP.db.itemTip = SFP.db.itemTip or {}
+            SFP.db.itemTip[id] = lines
+        end
+    end
     SFP:ClassifyItem(id)
 end
 SFP.RecordItem = recordItem
