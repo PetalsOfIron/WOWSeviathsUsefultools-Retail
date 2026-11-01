@@ -216,13 +216,13 @@ local function showMultiTip(h)
     tip:Show()
 end
 
-local function showSpotTip(h)
+local function showSpotTip(h, owner)
     if h.cluster then return showClusterTip(h) end
     if h.spawns and #h.spawns > 1 then return showMultiTip(h) end
     if h.instances then return showInstanceTip(h) end
     if h.spawn.gather then return showGatherTip(h) end
     local s = h.spawn
-    tip:SetOwner(UIParent, "ANCHOR_CURSOR_RIGHT", 18, 0)
+    if owner then tip:SetOwner(owner, "ANCHOR_RIGHT") else tip:SetOwner(UIParent, "ANCHOR_CURSOR_RIGHT", 18, 0) end
     tip:ClearLines()
     if h.continent then tip:AddLine(SFP:ZoneName(h.zoneID), 1, 1, 1) end
     local col = s.hunter and { r = 0.67, g = 0.83, b = 0.45 } or s.rare and { r = 1, g = 0.6, b = 0.2 }
@@ -311,6 +311,15 @@ local function showSpotTip(h)
     if s.rare then tip:AddLine("Rare spawn - respawn timer varies", 0.6, 0.6, 0.6) end
     tip:AddLine("Ctrl+Click on the map: waypoint here", 0.6, 0.6, 0.6)
     tip:Show()
+end
+
+-- the tooltip of a spot as the map shows it, on any frame (the rows of the Rares list use it)
+function SFP.ShowSpotTip(owner, s, mapID)
+    if not (tip and s) then return end
+    showSpotTip({ spawn = s, zoneID = mapID, zx = s.hx or 0, zy = s.hy or 0 }, owner)
+end
+function SFP.HideSpotTip()
+    if tip then tip:Hide() end
 end
 
 local hoverList = {}   -- spots on the current map, for hover detection
