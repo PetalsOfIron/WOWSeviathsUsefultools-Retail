@@ -700,6 +700,35 @@ function SFP:ScanOwnedCurios()
             if ok and type(id) == "number" and id > 0 then configID = id; report[#report + 1] = fname .. " = " .. id; break end
         end
     end
+    -- this game version has no "companion config" call: the config of the companion's trait tree is found from the tree itself
+    if not configID and C_Traits and C_Traits.GetConfigIDByTreeID then
+        local companionID
+        if type(D.GetCompanionInfoForActivePlayer) == "function" then
+            local okI, info = pcall(D.GetCompanionInfoForActivePlayer)
+            if okI then
+                if type(info) == "number" then companionID = info
+                elseif type(info) == "table" then companionID = info.companionID or info.id or info.creatureID end
+                report[#report + 1] = "companion info -> " .. tostring(type(info) == "table" and (info.companionID or info.id) or info)
+            end
+        end
+        local trees = {}
+        if type(D.GetTraitTreeForCompanion) == "function" then
+            if companionID then
+                local okT, tid = pcall(D.GetTraitTreeForCompanion, companionID)
+                if okT and type(tid) == "number" then trees[#trees + 1] = tid end
+            end
+            local okT2, tid2 = pcall(D.GetTraitTreeForCompanion)
+            if okT2 and type(tid2) == "number" then trees[#trees + 1] = tid2 end
+        end
+        for _, tid in ipairs(trees) do
+            local okC, cid = pcall(C_Traits.GetConfigIDByTreeID, tid)
+            if okC and type(cid) == "number" and cid > 0 then
+                configID = cid
+                report[#report + 1] = "trait tree " .. tid .. " -> config " .. cid
+                break
+            end
+        end
+    end
     local nodes, nodeType = {}, {}
     local E = Enum and Enum.CurioType
     if type(E) == "table" and type(D.GetCurioNodeForCompanion) == "function" then
