@@ -27,7 +27,7 @@ RETAIL = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 SHIP = {
     "SeviathsUsefulToolsDB": ["seenInfo", "inspected", "rioCache", "guildDir", "nameplateText", "npcs", "learned", "learnedDecor",
                               "vendorLearned", "itemZones", "hiddenSpots", "bestSpots", "objects", "towns", "npcPos", "killPos",
-                              "itemFrom", "playerIDs", "nameRealms", "nameRealm", "seenPlayers", "seenBuilds", "petPrices", "realmGroups", "knownItems", "learnedCurios", "lib"],
+                              "itemFrom", "playerIDs", "nameRealms", "nameRealm", "seenPlayers", "seenBuilds", "petPrices", "realmGroups", "knownItems", "itemExp", "learnedCurios", "lib"],
     "SeviathsCodexDB": ["quests", "loot", "matUses", "items", "qloc", "lootZones", "npcs", "vendors", "beasts", "vendorItems", "rares"],
     "SeviathsDungeonsRaidsDB": ["dungeon", "raid", "delve", "mplus", "quest"],
 }
