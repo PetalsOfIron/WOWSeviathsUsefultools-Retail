@@ -164,13 +164,15 @@ local function scanOne(qid)
                 target.m, target.x, target.y = m, x, y
                 if area then target.a = area end
             end
-            if target and killed then target.kill = true; target.use = nil end   -- progress came from a kill here
+            -- a spot can have both: monsters killed here (names) and objects used here (unames)
+            if target and killed then target.kill = true end   -- progress came from a kill here
             if target and oname and not killed then target.use = true end   -- from an object or node (a pool, a chest): "Pick up at"
             if target and oname then
-                target.names = target.names or {}
+                local key = killed and "names" or "unames"
+                target[key] = target[key] or {}
                 local have = false
-                for _, nm in ipairs(target.names) do if nm == oname then have = true break end end
-                if not have and #target.names < 8 then target.names[#target.names + 1] = oname end
+                for _, nm in ipairs(target[key]) do if nm == oname then have = true break end end
+                if not have and #target[key] < 8 then target[key][#target[key] + 1] = oname end
             end
         end
     end

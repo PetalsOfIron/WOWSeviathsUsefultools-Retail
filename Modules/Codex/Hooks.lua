@@ -262,7 +262,18 @@ local function QuestHoverTip(owner, questID, append)
                 -- a spot where progress came from a kill says "Kill at", whatever the objective's own words are
                 -- two kinds of monster objective: just kill them ("Monster at") and an item the monsters drop ("Monster item at", e.g. Lumpy Fish Guts)
                 local spotLabel = (p.kill and (objIsItem and "Monster item at" or "Monster at")) or (p.use and "Pick up at") or objLabel
-                lines[#lines + 1] = ((shown == 1 or spotLabel ~= lastLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
+                if p.kill and p.use then
+                    -- monsters killed and objects used at the same place: a line for each
+                    local un = {}
+                    for _, n in ipairs(type(p.unames) == "table" and p.unames or {}) do
+                        if not (n:find("|c", 1, true) or n:find("Seviath", 1, true)) then un[#un + 1] = n end
+                    end
+                    lines[#lines + 1] = ((shown == 1 or lastLabel ~= spotLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
+                    lines[#lines + 1] = "Use at: " .. text .. (#un > 0 and (" - " .. table.concat(un, ", ")) or "")
+                    spotLabel = "Use at"
+                else
+                    lines[#lines + 1] = ((shown == 1 or spotLabel ~= lastLabel) and (spotLabel .. ": ") or "also: ") .. text .. nm
+                end
                 lastLabel = spotLabel
                     added = true
                 end
