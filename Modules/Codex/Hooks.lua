@@ -237,7 +237,11 @@ local function QuestHoverTip(owner, questID, append)
             local seenPlace = {}
             local shown = 0
             local lastLabel
-            for _, p in ipairs(ql.o) do
+            -- places where you really did something come first; the spot of a world quest's map icon is shown only when there is none
+            local real = {}
+            for _, p in ipairs(ql.o) do if not p.icon then real[#real + 1] = p end end
+            local spotsToShow = #real > 0 and real or ql.o
+            for _, p in ipairs(spotsToShow) do
                 local text = placeText(p)
                 local area = p.a or areaName(p) or text
                 if not seenPlace[area] and shown < 5 then
