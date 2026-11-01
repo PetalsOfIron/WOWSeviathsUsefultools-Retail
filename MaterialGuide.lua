@@ -1116,6 +1116,15 @@ local function renderBlocks(n, map, spots)
             l.icon:SetTexture(nil)
             l.text:SetText("|cff808080no loot recorded yet|r")
             l.hl:Hide()
+        elseif kills < 1 then
+            -- a monster of the farm guide that has no kill recorded: only the items it is listed for are known, not all it drops
+            n = n + 1
+            local l = rowOf(list, n)
+            place(list, l, n, 30)
+            l.icon:SetTexture(nil)
+            l.text:SetText("|cff808080from the farm guide: only what it is farmed for. Kill it and everything it drops is recorded.|r")
+            l:EnableMouse(false)
+            l.hl:Hide()
         end
         n = spacer(n)
     end
