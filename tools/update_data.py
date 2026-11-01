@@ -87,6 +87,58 @@ def push_data():
     print(run("git", "push", "origin", "main", cwd=DATA_REPO)[1] or "data repo: pushed")
 
 
+BACKUP_REPO = os.path.join(HOME, "Projects", "backupwowseviath")
+MEMORY = os.path.join(HOME, ".claude", "projects", "C--Users-SaphiresSilver-Projects-seviathstudio", "memory")
+
+
+def backup_repo():
+    """Copies everything needed to rebuild the workflow to the backup repo (PetalsOfIron/backupwowseviath) and pushes it: the tools,
+    the PC scripts, the recovery notes and Claude's memory notes. The player's saved game data is added only when that repo is private
+    (it holds character names, gold and settings)."""
+    if not os.path.isdir(os.path.join(BACKUP_REPO, ".git")):
+        print("backup repo: not cloned, skipped")
+        return
+    def copy_tree(src, dst):
+        shutil.rmtree(dst, ignore_errors=True)
+        if os.path.isdir(src):
+            shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.bak"))
+    copy_tree(HERE, os.path.join(BACKUP_REPO, "tools"))
+    copy_tree(MEMORY, os.path.join(BACKUP_REPO, "claude-memory"))
+    scripts = os.path.join(BACKUP_REPO, "pc-scripts")
+    os.makedirs(scripts, exist_ok=True)
+    for src in (os.path.join(HOME, "Desktop", "Install auto update (run once).bat"), os.path.join(HOME, "Desktop", "Start WoW with data update.bat"),
+                os.path.join(os.environ.get("APPDATA", ""), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "SeviathsUsefulTools data update.vbs")):
+        if os.path.exists(src):
+            shutil.copy2(src, scripts)
+    shutil.copy2(os.path.join(HERE, "README-FOR-CLAUDE.md"), os.path.join(BACKUP_REPO, "README-FOR-CLAUDE.md"))
+    # the saved game data: only when the backup repo is private
+    private = False
+    try:
+        import json
+        import urllib.request
+        with urllib.request.urlopen("https://api.github.com/repos/PetalsOfIron/backupwowseviath", timeout=20) as r:
+            private = json.loads(r.read().decode("utf-8")).get("private") is True
+    except Exception:
+        private = False   # not readable without a login means private or unreachable: not copied to be safe
+    saved_dir = os.path.join(BACKUP_REPO, "saved")
+    if private:
+        found = glob.glob(os.path.join(os.path.abspath(os.path.join(HERE, "..", "..", "..", "..")), "WTF", "Account", "*", "SavedVariables", "SeviathsUsefulTools.lua"))
+        if found:
+            os.makedirs(saved_dir, exist_ok=True)
+            shutil.copy2(found[0], os.path.join(saved_dir, "SeviathsUsefulTools.lua"))
+    else:
+        shutil.rmtree(saved_dir, ignore_errors=True)
+    run("git", "add", "-A", cwd=BACKUP_REPO)
+    code, _ = run("git", "diff", "--cached", "--quiet", cwd=BACKUP_REPO)
+    if code == 0:
+        print("backup repo: nothing new")
+        return
+    msg = "Backup" + chr(10) + chr(10) + "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
+    run("git", "-c", "user.name=santamadaraneilande-ctrl", "-c", "user.email=santamadaraneilande@gmail.com", "commit", "-q", "-m", msg, cwd=BACKUP_REPO)
+    print(run("git", "push", "origin", "main", cwd=BACKUP_REPO)[1] or "backup repo: pushed")
+    print("backup repo: saved game data " + ("included (repo is private)" if private else "NOT included (repo is public)"))
+
+
 GITDIR = os.path.join(HOME, "Projects", "sut-retail-gitdir")   # the addon's git folder is kept outside the addon folder
 
 
@@ -150,5 +202,9 @@ if __name__ == "__main__":
         sys.exit("the data did not load in the check: nothing was pushed")
     push_data()
     push_addon()
+    try:
+        backup_repo()
+    except Exception as e:
+        print("backup repo failed:", e)
     if "--no-zip" not in sys.argv:
         build_zip()
