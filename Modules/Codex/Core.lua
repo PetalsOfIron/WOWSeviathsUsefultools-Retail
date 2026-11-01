@@ -93,6 +93,26 @@ function ns:Get(key) return self.entries[key] end
 
 -- Takes the entries marked lazy (the item and quest pages built from the collected data) out of the Codex again, so a closed Codex holds
 -- almost nothing; they are made again the next time it opens.
+-- Everything the Codex read from the game is taken out when the window is closed (the written guide pages stay): a closed Codex holds
+-- nothing. The next time a section is opened it reads again what that section needs.
+function ns:UnloadAll()
+    self.jobs = {}
+    self.status = ""
+    for _, c in ipairs(self.CATEGORIES) do
+        if not self.TEXTCAT[c.key] then
+            local list = self.byCat[c.key]
+            if list then
+                for _, e in ipairs(list) do self.entries[e.key] = nil end
+            end
+            self.byCat[c.key] = {}
+            self.groups[c.key] = {}
+            groupSeen[c.key] = {}
+        end
+    end
+    for _, step in ipairs(self.INDEXERS or {}) do step.queued = false end
+    self.dirty = true
+end
+
 function ns:UnloadLazy(cats, onlyGroup)
     for _, cat in ipairs(cats) do
         local list = self.byCat[cat]

@@ -895,6 +895,7 @@ local function CreateWindow()
             if frame:IsShown() then return end
             ns:UnloadAllLazy("item")
             ns:UnloadAllLazy("quest")
+            ns:UnloadAll()
             state.selected = nil
             state.history = {}
             state.flat = {}   -- the rows still pointed at the removed pages
