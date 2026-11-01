@@ -317,6 +317,18 @@ if _G.QuestMapLogTitleButton_OnEnter then
     end)
 end
 
+-- the rewards tooltip of a world quest (tracker, map): the game writes it with these functions, which are given the quest; our lines are
+-- added after it has been written, whatever frame it belongs to
+for _, fname in ipairs({ "GameTooltip_AddQuestRewardsToTooltip", "QuestUtils_AddQuestRewardsToTooltip" }) do
+    if _G[fname] and hooksecurefunc then
+        pcall(hooksecurefunc, fname, function(tt, questID)
+            if tt == GameTooltip and type(questID) == "number" and GameTooltip:GetOwner() then
+                QuestHoverTip(GameTooltip:GetOwner(), questID, true)
+            end
+        end)
+    end
+end
+
 -- objective tracker blocks (the quest list on the right of the screen)
 local function HookTrackerBlock(block)
     if type(block) ~= "table" or block.SeviathsQuestTip or not block.HookScript then return end
