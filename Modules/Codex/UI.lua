@@ -463,6 +463,18 @@ function ns:ShowEntry(key, noHistory)
         text = "|cffff6060This page hit an error:|r " .. tostring(text) .. "\n\n|cff888888Please send this line to the Codex author.|r"
     end
     -- what was collected in the game about the same creature (kills, drops, where seen) goes on the page that already exists
+    -- battle pets: the cheapest auction price of this species, from the scans (this realm's, else any scanned realm's)
+    if e.cat == "pet" and type(e.id) == "number" then
+        local S = _G.SeviathsUsefulTools
+        local all = S and S.db and S.db.petPrices
+        local price = all and S.RealmKey and all[S:RealmKey()] and all[S:RealmKey()][e.id]
+        if not price and all then
+            for _, byRealm in pairs(all) do
+                if byRealm[e.id] and (not price or byRealm[e.id] < price) then price = byRealm[e.id] end
+            end
+        end
+        if price then text = (text or "") .. "\n\n" .. ns.CYAN .. "Auction price|r\n" .. S:FormatPrice(price) end
+    end
     if e.seenData and e.seenData ~= "" then text = (text or "") .. "\n\n" .. ns.CYAN .. "Details|r\n" .. e.seenData end
     detail.body:SetText(text or "")
 
