@@ -201,7 +201,16 @@ local function QuestHoverTip(owner, questID)
         if okO and type(objs) == "table" then
             for _, o in ipairs(objs) do
                 if not o.finished then
-                    objLabel = (o.type == "item" and "Pick up at") or (o.type == "monster" and "Kill at") or (o.type == "object" and "Use at") or "Objective at"
+                    -- the words come from what the objective says, not only from its type (the game calls many tasks "monster")
+                    local txt = tostring(o.text or ""):lower()
+                    local kill = txt:find("slain", 1, true) or txt:find("killed", 1, true) or txt:find("defeated", 1, true)
+                        or txt:find("kill ", 1, true) or txt:find("destroyed", 1, true)
+                    local pick = txt:find("collect", 1, true) or txt:find("gather", 1, true) or txt:find("pick", 1, true)
+                        or txt:find("loot", 1, true) or txt:find("retriev", 1, true) or txt:find("recover", 1, true)
+                    if kill then objLabel = "Kill at"
+                    elseif o.type == "item" or pick then objLabel = "Pick up at"
+                    elseif o.type == "object" then objLabel = "Use at"
+                    else objLabel = "Objective at" end
                     break
                 end
             end
