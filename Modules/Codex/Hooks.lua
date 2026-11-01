@@ -225,7 +225,16 @@ if TooltipDataProcessor and Enum.TooltipDataType then
     TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tt, data)
         if tt ~= GameTooltip or not data or not data.id or InCombatLockdown() then return end
         if ns.db and ns.db.hideHint then return end
-        tt:AddLine("|cff33e6ffAlt+click: open in Codex|r")
+        -- added a moment later, after every other addon block (prices, Seviaths lines): it is the last line of the tooltip
+        local wantId = data.id
+        C_Timer.After(0, function()
+            if not (tt:IsShown() and tt == GameTooltip) then return end
+            local ok, now = pcall(function() local d = tt:GetTooltipData() return d and d.id end)
+            if ok and now == wantId then
+                tt:AddLine("|cff33e6ffAlt+click: open in Codex|r")
+                tt:Show()
+            end
+        end)
     end)
 end
 
