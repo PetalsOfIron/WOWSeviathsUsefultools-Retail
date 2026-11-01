@@ -156,11 +156,12 @@ end)
 ------------------------------------------------------------------------
 local hoverOwner
 -- our block is written once per tooltip: the flag is cleared when the tooltip is cleared for the next one
-pcall(function() GameTooltip:HookScript("OnTooltipCleared", function(tt) tt.SeviathsQuestBlock = nil end) end)
+local questBlockShown = false
+pcall(function() GameTooltip:HookScript("OnTooltipCleared", function() questBlockShown = false end) end)
 local function QuestHoverTip(owner, questID, append)
     if not owner or type(questID) ~= "number" or questID <= 0 then return end
     -- append = the tooltip on screen belongs to a part of the quest line (a world quest's reward icon): our lines go below it
-    if GameTooltip.SeviathsQuestBlock and GameTooltip:IsShown() and (append or GameTooltip:GetOwner() == owner) then return end
+    if questBlockShown and GameTooltip:IsShown() and (append or GameTooltip:GetOwner() == owner) then return end
     if ns.db and ns.db.hideHint then return end
     pcall(function()
         local e = { id = questID, worldQuest = C_QuestLog.IsWorldQuest and C_QuestLog.IsWorldQuest(questID) or nil }
@@ -293,7 +294,7 @@ local function QuestHoverTip(owner, questID, append)
         for _, l in ipairs(lines) do GameTooltip:AddLine(l, 1, 1, 1, true) end
         GameTooltip:AddLine("|cff33e6ffAlt+click: open in Codex|r")
         GameTooltip:Show()
-        GameTooltip.SeviathsQuestBlock = true
+        questBlockShown = true
         hoverOwner = owner
     end)
 end
@@ -315,7 +316,9 @@ refreshFrame:SetScript("OnEvent", function()
         local onEnter = owner.GetScript and owner:GetScript("OnEnter")
         if onEnter then
             GameTooltip:Hide()
-            pcall(onEnter, owner)   -- the owner builds its tooltip again
+            -- the owner builds its tooltip again: run through securecallfunction, so that our (tainted) code does not taint Blizzard's own
+            -- handler and what it sets (a tainted tracker block makes a click on its header fail with ADDON_ACTION_BLOCKED)
+            pcall(securecallfunction or function(fn, ...) return fn(...) end, onEnter, owner)
             -- (the hook on the owner's OnEnter adds our lines; they are not added a second time here)
         end
     end)
@@ -340,10 +343,12 @@ for _, fname in ipairs({ "GameTooltip_AddQuestRewardsToTooltip", "QuestUtils_Add
     end
 end
 
+local hookedBlocks = setmetatable({}, { __mode = "k" })
 -- objective tracker blocks (the quest list on the right of the screen)
 local function HookTrackerBlock(block)
-    if type(block) ~= "table" or block.SeviathsQuestTip or not block.HookScript then return end
-    block.SeviathsQuestTip = true
+    -- no field is written on Blizzard's block (a weak table remembers the hooked blocks instead)
+    if type(block) ~= "table" or hookedBlocks[block] or not block.HookScript then return end
+    hookedBlocks[block] = true
     block:HookScript("OnEnter", function(self)
         local qid = self.id or self.questID
         QuestHoverTip(self, qid)
