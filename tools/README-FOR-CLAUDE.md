@@ -66,6 +66,29 @@ WoW Lua is **5.1**: no `goto`, no `//`, no bit operators. A Lua 5.3 checker (fen
 - Fast auction scan: the game allows one request per account every ~15 minutes; the timer under the scan bar shows it. After it the section
   scan follows. `/sfp fastscan`, `/sfp sections` are for testing.
 
+## How to run things (commands)
+All commands run from the addon folder `D:\wow\World of Warcraft\_retail_\Interface\AddOns\SeviathsUsefulTools`.
+- Everything in one go (bake, check, push both repos, build the zip): `python tools/update_data.py`
+  (`--no-zip` skips the zip). Needs Python 3 (`C:\Python315\python.exe` was used), git logged in to GitHub, and for the load check
+  `node` with the `fengari` package in `%TEMP%\lchk\node_modules` (`npm install fengari` there; without it the check is skipped).
+- Only the data: `python tools/bake_collected.py` (optionally extra older saved files as arguments), prices: `python tools/bake_gold.py`.
+- Syntax check of the addon: `node %TEMP%\lchk\chk3.js "<addon dir>"` (the checker parses every `.lua` with fengari; recreate it if gone).
+- Optional, need the user's Blizzard API client (he declined): `bake_connected_realms.py`, `bake_prices_api.py`, `bake_players.py`.
+- In the game: `/sfp mem` (memory), `/sfp mem detail`, `/sfp fastscan`, `/sfp sections`, `/sfp near`, `/sfp stats`, `/sfp rio`, `/codex`.
+
+## Rebuilding the whole process on a new PC (data saves for CurseForge)
+1. Install WoW, Python 3, git, Node.js. Log in to GitHub as `santamadaraneilande-ctrl` (the owner of the `PetalsOfIron` repos has push rights).
+2. Get the addon: clone the addon repo, make the addon folder `...\_retail_\Interface\AddOns\SeviathsUsefulTools` from its files, but keep the
+   git folder outside it (see Repositories). Clone `Data-wow` to `C:\Users\<user>\Projects\Data-wow`.
+3. `update_data.py` creates `Projects\sut-curse-release` and `Downloads\curse` and fills them with the zip.
+4. Set `GITDIR`, `DATA_REPO`, the Python path in `tools/auto_update.ps1` and the WoW path in the scripts if the paths differ
+   (they are constants at the top of `update_data.py` and `auto_update.ps1`).
+5. Start the watcher: put a `.vbs` with `CreateObject("WScript.Shell").Run "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File ""<path>\tools\auto_update.ps1""", 0, False`
+   into `shell:startup` (a scheduled task needs admin). Log in to the game and `/reload`; about 40 seconds later `update_data.py` runs.
+6. The collected data survives a PC loss only through the `collected/` folder in the repos: restore it by cloning them. The saved file in `WTF`
+   is not in git; the user's older backups are in `Projects\sut-savedvars-backup` (lost with the PC unless copied elsewhere).
+7. Upload `Downloads\curse\SeviathsUsefulTools-<version>.zip` to the CurseForge project by hand.
+
 ## Open items (at the time of writing)
 - The curio scan: the user should press "Scan my account's curios" in the Delve planner and send the report (nothing learned yet).
 - US/KR/TW prices and connected realms for KR/TW/Oceanic/Brazil are not shipped.
