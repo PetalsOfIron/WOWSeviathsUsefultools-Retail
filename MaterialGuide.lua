@@ -209,8 +209,162 @@ local function addItem(n, mapID, id, withZone)
     return n
 end
 
+---------------------------------------------------------------------------
+-- Gathering reagents: every ore and herb (and what your own gathering found), with where to gather it. The exact spots your own
+-- gathering recorded come first (the area name and the coordinates), then the zones where the item spawns with the number of nodes.
+---------------------------------------------------------------------------
+local GATHER_SECTIONS = {
+    { key = "ore",  title = "Mining",      color = "|cffffb366" },
+    { key = "herb", title = "Herbalism",   color = "|cff4dff8c" },
+    { key = "other", title = "Other gathering", color = "|cffa335ee" },
+}
+
+-- the exact spots recorded from your own gathering (and the shipped ones): [item] = { { map, x, y, area, name } }
+local function learnedGatherSpots()
+    local out = {}
+    local objects = SFP.db and SFP.db.objects
+    if not objects then return out end
+    local walk = SeviathsAllPairs or pairs
+    for _, rec in walk(objects) do
+        if type(rec) == "table" and rec.d and rec.m and SFP:ObjectKind(rec) then
+            for id in pairs(rec.d) do
+                local info = SFP.Items[id]
+                local k = SFP.ClassifyItem and SFP:ClassifyItem(id) or (info and info.kind)
+                if k == "ore" or k == "herb" or k == "element" or k == "enchant" then
+                    local l = out[id]
+                    if not l then l = {}; out[id] = l end
+                    for map, pts in pairs(rec.m) do
+                        for _, p in ipairs(pts) do
+                            l[#l + 1] = { map = map, x = p[1], y = p[2], area = p[3], name = rec.n }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return out
+end
+
+local function gatherItems()
+    local ids, seen = {}, {}
+    for _, g in ipairs(SFP.Gather or {}) do
+        if not seen[g.item] then seen[g.item] = true; ids[#ids + 1] = g.item end
+    end
+    for id in pairs(SFP.GatherZones or {}) do
+        if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+    end
+    for id in pairs(learnedGatherSpots()) do
+        if not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+    end
+    return ids
+end
+
+local function gatherKind(id)
+    local k = SFP.Items[id] and SFP.Items[id].kind
+    if k == "ore" or k == "herb" then return k end
+    return "other"
+end
+
+local function openSpot(map, x, y, label)
+    if WorldMapFrame:GetMapID() ~= map then WorldMapFrame:SetMapID(map) end
+    if x and C_Map.CanSetUserWaypointOnMap and C_Map.CanSetUserWaypointOnMap(map) then
+        C_Map.SetUserWaypoint(UiMapPoint.CreateFromCoordinates(map, x, y))
+        if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then C_SuperTrack.SetSuperTrackedUserWaypoint(true) end
+        SFP:Print(string.format("Waypoint set: %s, %s %.1f, %.1f", tostring(label), SFP:ZoneName(map), x * 100, y * 100))
+    end
+end
+
+local learnedCache
+local function addGatherItem(n, id, withKind)
+    n = n + 1
+    local r = rowOf(list, n)
+    place(list, r, n, 8)
+    r.icon:SetTexture(SFP:ItemIcon(id))
+    r.text:SetText(SFP:ItemName(id))
+    local price = SFP:GetPrice(id)
+    r.right:SetText(price and SFP:FormatPrice(price) or "")
+    r.item = id
+    -- exact spots from gathering, nearest to one area name once each
+    local seenSpot = {}
+    local shown = 0
+    for _, s in ipairs(learnedCache and learnedCache[id] or {}) do
+        local key = s.map .. "|" .. tostring(s.area or (math.floor(s.x * 100) .. "," .. math.floor(s.y * 100)))
+        if not seenSpot[key] and shown < 12 then
+            seenSpot[key] = true
+            shown = shown + 1
+            n = n + 1
+            local m = rowOf(list, n)
+            place(list, m, n, 30)
+            m.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
+            m.text:SetText("|cff00e5ff" .. (s.area and (s.area .. " - ") or "") .. SFP:ZoneName(s.map) .. "|r  |cff808080" ..
+                string.format("%.1f, %.1f", s.x * 100, s.y * 100) .. "|r")
+            m.right:SetText("|cff808080exact spot|r")
+            m.hint = "A spot where gathering was recorded. Click: set a waypoint there and open the map"
+            m.click = function() openSpot(s.map, s.x, s.y, tostring(s.name or SFP:ItemName(id))) end
+        end
+    end
+    -- the zones it spawns in, most nodes first
+    local zones = {}
+    for map, count in pairs(SFP.GatherZones and SFP.GatherZones[id] or {}) do zones[#zones + 1] = { map = map, count = count } end
+    table.sort(zones, function(a, c) return a.count > c.count end)
+    for i, z in ipairs(zones) do
+        if i > 8 then break end
+        n = n + 1
+        local m = rowOf(list, n)
+        place(list, m, n, 30)
+        m.icon:SetTexture(nil)
+        m.text:SetText("|cffffffff" .. SFP:ZoneName(z.map) .. "|r")
+        m.right:SetText("|cffffd100" .. z.count .. " nodes|r  |cff808080click: waypoint|r")
+        m.hint = "Click: open the map of " .. SFP:ZoneName(z.map) .. " with a waypoint on the best spot there"
+        m.click = function()
+            local x, y
+            for _, g in ipairs(SFP.Gather or {}) do
+                if g.item == id and g.map == z.map and g.pts then
+                    local px, py = g.pts:match("([%d%.]+),([%d%.]+)")
+                    if px then x, y = tonumber(px) / 100, tonumber(py) / 100 end
+                    break
+                end
+            end
+            openSpot(z.map, x, y, SFP:ItemName(id))
+        end
+    end
+    if shown == 0 and #zones == 0 then
+        n = n + 1
+        local m = rowOf(list, n)
+        place(list, m, n, 30)
+        m.icon:SetTexture(nil)
+        m.text:SetText("|cff808080no gathering spot recorded yet|r")
+        m.hl:Hide()
+    end
+    return n
+end
+
+local function renderGather()
+    local n = 0
+    win.title:SetText("|cff33e6ffGathering reagents|r")
+    learnedCache = learnedGatherSpots()
+    local ids = gatherItems()
+    for _, sec in ipairs(GATHER_SECTIONS) do
+        local mine = {}
+        for _, id in ipairs(ids) do if gatherKind(id) == sec.key then mine[#mine + 1] = id end end
+        table.sort(mine, function(a, c) return SFP:ItemName(a):gsub("|c%x%x%x%x%x%x%x%x", "") < SFP:ItemName(c):gsub("|c%x%x%x%x%x%x%x%x", "") end)
+        if #mine > 0 then
+            n = n + 1
+            local h = rowOf(list, n)
+            place(list, h, n, 0)
+            h.icon:SetTexture(nil)
+            h.text:SetText(sec.color .. sec.title .. "|r  |cff808080" .. #mine .. "|r")
+            h.bg:SetColorTexture(1, 1, 1, 0.06)
+            h.hl:Hide()
+            for _, id in ipairs(mine) do n = addGatherItem(n, id) end
+        end
+    end
+    finish(list, n)
+end
+
 local function renderZone()
     local n = 0
+    if selected == "gather" then return renderGather() end
     if not selected then
         finish(list, 0)
         win.title:SetText("Pick a zone on the left, or search for a material")
@@ -256,6 +410,11 @@ local function renderSearch(q)
             end
         end
     end
+    learnedCache = learnedGatherSpots()
+    for _, id in ipairs(gatherItems()) do
+        local nm = (SFP:ItemName(id) or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):lower()
+        if nm:find(ql, 1, true) and n < 600 then n = addGatherItem(n, id) end
+    end
     if n == 0 then
         n = 1
         local h = rowOf(list, 1)
@@ -277,7 +436,20 @@ end
 -- the tree of expansions and zones
 ---------------------------------------------------------------------------
 local function renderTree()
-    local n = 0
+    local n = 1
+    do
+        local g = rowOf(tree, 1)
+        place(tree, g, 1, 0)
+        g.icon:SetTexture("Interface\\Icons\\Trade_Mining")
+        g.text:SetText((selected == "gather" and "|cff33e6ff" or "|cffffffff") .. "Gathering reagents|r")
+        g.bg:SetColorTexture(0, 0.9, 1, selected == "gather" and 0.15 or 0.06)
+        g.click = function()
+            selected = "gather"
+            search:SetText("")
+            renderTree()
+            renderList()
+        end
+    end
     for _, exp in ipairs(SFP.Expansions) do
         if #zonesOf(exp) > 0 then
             n = n + 1
@@ -379,6 +551,86 @@ local function build()
     end)
 end
 
+---------------------------------------------------------------------------
+-- A line of the zone's materials below the world map, at the right: the most valuable things to farm in the zone on view, as icons.
+-- Hover: price and the monsters that drop it; click: the Material search opens on that zone.
+---------------------------------------------------------------------------
+local strip
+local STRIP_MAX = 14
+
+local function openGuideAt(map)
+    if not win then build() end
+    selected = map
+    search:SetText("")
+    win:Show()
+    renderTree()
+    renderList()
+end
+
+local function refreshStrip()
+    if not WorldMapFrame or not WorldMapFrame:IsShown() then if strip then strip:Hide() end return end
+    local map = WorldMapFrame:GetMapID()
+    local ids = map and zoneItems(map) or {}
+    if not map or #ids == 0 then if strip then strip:Hide() end return end
+    if not strip then
+        strip = CreateFrame("Frame", "SeviathsUsefulToolsMaterialStrip", WorldMapFrame, "BackdropTemplate")
+        strip:SetFrameStrata("HIGH")
+        strip:SetHeight(30)
+        strip:SetPoint("TOPRIGHT", WorldMapFrame.ScrollContainer, "BOTTOMRIGHT", -4, -2)
+        strip:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+        strip:SetBackdropColor(0.02, 0.03, 0.05, 0.85)
+        strip:SetBackdropBorderColor(0, 0.9, 1, 0.7)
+        strip.label = strip:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        strip.label:SetPoint("LEFT", 8, 0)
+        strip.btns = {}
+    end
+    table.sort(ids, function(a, c)
+        local pa, pc = SFP:GetPrice(a) or 0, SFP:GetPrice(c) or 0
+        if pa ~= pc then return pa > pc end
+        return a < c
+    end)
+    strip.label:SetText("|c" .. SFP.CYAN_HEX .. "Farm here|r")
+    local count = math.min(#ids, STRIP_MAX)
+    for i = 1, count do
+        local id = ids[i]
+        local bt = strip.btns[i]
+        if not bt then
+            bt = CreateFrame("Button", nil, strip)
+            bt:SetSize(24, 24)
+            bt.icon = bt:CreateTexture(nil, "ARTWORK")
+            bt.icon:SetAllPoints()
+            bt.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+            bt:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+            bt:SetScript("OnEnter", function(self)
+                local t = SFP.Tip()
+                t:SetOwner(self, "ANCHOR_TOP")
+                t:SetItemByID(self.item)
+                local price = SFP:GetPrice(self.item)
+                if price then t:AddLine("Auction price: " .. SFP:FormatPrice(price), 1, 1, 1) end
+                local mons = monstersFor(self.map, self.item)
+                for k, sp in ipairs(mons) do
+                    if k > 6 then t:AddLine("+" .. (#mons - 6) .. " more", 0.6, 0.6, 0.6) break end
+                    local pct = sp.drop and sp.drop[self.item]
+                    t:AddLine("|cff00e5ff" .. tostring(sp.name) .. "|r" .. (pct and ("  " .. pct .. "%") or ""), 1, 1, 1)
+                end
+                t:AddLine("Click: open the Material search on this zone", 0, 0.9, 1)
+                t:Show()
+            end)
+            bt:SetScript("OnLeave", function() SFP.Tip():Hide() end)
+            bt:SetScript("OnClick", function(self) openGuideAt(self.map) end)
+            strip.btns[i] = bt
+        end
+        bt.item, bt.map = id, map
+        bt.icon:SetTexture(SFP:ItemIcon(id))
+        bt:ClearAllPoints()
+        bt:SetPoint("RIGHT", strip, "RIGHT", -4 - (count - i) * 27, 0)
+        bt:Show()
+    end
+    for i = count + 1, #strip.btns do strip.btns[i]:Hide() end
+    strip:SetWidth(70 + count * 27)
+    strip:Show()
+end
+
 SFP:OnLogin(function()
     if not WorldMapFrame or not WorldMapFrame.ScrollContainer then return end
     local sc = WorldMapFrame.ScrollContainer
@@ -399,4 +651,7 @@ SFP:OnLogin(function()
     end)
     button:SetScript("OnLeave", function() SFP.Tip():Hide() end)
     WorldMapFrame:HookScript("OnHide", function() if win then win:Hide() end end)
+    SFP:OnRefresh(function() pcall(refreshStrip) end)
+    WorldMapFrame:HookScript("OnShow", function() pcall(refreshStrip) end)
+    WorldMapFrame:HookScript("OnHide", function() if strip then strip:Hide() end end)
 end)
