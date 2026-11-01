@@ -63,6 +63,19 @@ local function ScanLog()
         end
         if info and info.questID and not info.isHeader then
             local qid = info.questID
+            -- a saved objective spot without an area name gets it when you stand near it (the minimap's zone text, "Zeb'Alar Lumbermill")
+            local ql0 = ns.db.qloc and ns.db.qloc[qid]
+            if ql0 and ql0.o then
+                local m0, x0, y0 = PlayerSpot()
+                if m0 then
+                    for _, sp in ipairs(ql0.o) do
+                        if not sp.a and sp.m == m0 and sp.x and sp.y and math.abs(sp.x - x0) < 0.025 and math.abs(sp.y - y0) < 0.025 then
+                            local okZ, zt = pcall(GetMinimapZoneText)
+                            if okZ and type(zt) == "string" and not secret(zt) and zt ~= "" then sp.a = zt end
+                        end
+                    end
+                end
+            end
             -- progress went up here -> remember this spot as an objective area
             local prog = ObjectiveProgress(qid)
             if prog and lastProgress[qid] and prog > lastProgress[qid] then
