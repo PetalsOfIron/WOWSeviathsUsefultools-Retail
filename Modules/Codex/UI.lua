@@ -119,20 +119,63 @@ local function BuildFlat()
             table.sort(groups)
         end
         if ns.TEXTCAT[cat] or cat == "mats" or cat == "delve" then table.sort(groups) end
+        -- a group name with " > " is a path (Classic > Crafting > Herbalism): the parts are sections inside sections, each opened on its own
+        local nested = false
+        for _, g in ipairs(groups) do if g:find(" > ", 1, true) then nested = true break end end
+        if nested then table.sort(groups) end
         local small = #ns.byCat[cat] < 80 and not lz
+        local prevParts = {}
+        local pathCount = {}   -- entries under each path prefix
+        local function split(name)
+            local parts = {}
+            for part in (name .. " > "):gmatch("(.-) > ") do parts[#parts + 1] = part end
+            return parts
+        end
+        if nested then
+            for _, gname in ipairs(groups) do
+                local n = #(byGroup[gname] or {}) + (lz and ns:LazyPending(cat, gname) or 0)
+                local prefix = ""
+                for _, part in ipairs(split(gname)) do
+                    prefix = prefix == "" and part or (prefix .. " > " .. part)
+                    pathCount[prefix] = (pathCount[prefix] or 0) + n
+                end
+            end
+        end
         for _, gname in ipairs(groups) do
             local list = byGroup[gname] or {}
             local pending = lz and ns:LazyPending(cat, gname) or 0
             if #list + pending > 0 then
-                local ck = cat .. "\001" .. gname
-                local collapsed = state.collapsed[ck]
-                if collapsed == nil then collapsed = not small end
-                flat[#flat + 1] = { header = true, label = gname, count = #list + pending, ckey = ck, collapsed = collapsed, lazyCat = lz and cat or nil, lazyGroup = gname }
-                if not collapsed and pending > 0 then ns:BuildLazyGroup(cat, gname) end
-                if not collapsed then
-                    sortEntries(cat, list)
-                    for _, e in ipairs(list) do flat[#flat + 1] = { entry = e } end
+                local parts = nested and split(gname) or { gname }
+                local depth = #parts
+                -- the headers of the path parts that changed since the last group; a closed part hides everything below it
+                local open = true
+                local prefix = ""
+                for i = 1, depth - 1 do
+                    prefix = prefix == "" and parts[i] or (prefix .. " > " .. parts[i])
+                    if open then
+                        local ck = cat .. "\001" .. prefix
+                        local collapsed = state.collapsed[ck]
+                        if collapsed == nil then collapsed = true end
+                        local same = true
+                        for j = 1, i do if prevParts[j] ~= parts[j] then same = false end end
+                        if not same then
+                            flat[#flat + 1] = { header = true, label = parts[i], count = pathCount[prefix], ckey = ck, collapsed = collapsed, indent = i - 1 }
+                        end
+                        if collapsed then open = false end
+                    end
                 end
+                if open then
+                    local ck = cat .. "\001" .. gname
+                    local collapsed = state.collapsed[ck]
+                    if collapsed == nil then collapsed = not small end
+                    flat[#flat + 1] = { header = true, label = parts[depth], count = #list + pending, ckey = ck, collapsed = collapsed, lazyCat = lz and cat or nil, lazyGroup = gname, indent = depth - 1 }
+                    if not collapsed and pending > 0 then ns:BuildLazyGroup(cat, gname) end
+                    if not collapsed then
+                        sortEntries(cat, list)
+                        for _, e in ipairs(list) do flat[#flat + 1] = { entry = e, indent = depth - 1 } end
+                    end
+                end
+                prevParts = parts
             end
         end
     end
@@ -162,7 +205,7 @@ local function UpdateList()
             if item.header then
                 row.icon:Hide()
                 row.check:Hide()
-                row.text:SetPoint("LEFT", 6, 0)
+                row.text:SetPoint("LEFT", 6 + (item.indent or 0) * 14, 0)
                 local arrow = item.static and "" or (item.collapsed and "+ " or "– ")
                 row.text:SetText(CYAN .. arrow .. item.label .. "|r" .. (item.count and ("  |cff888888(" .. item.count .. ")|r") or ""))
                 row.bg:SetColorTexture(0.1, 0.3, 0.36, 0.45)
@@ -170,7 +213,9 @@ local function UpdateList()
                 local e = item.entry
                 row.icon:Show()
                 row.icon:SetTexture(e.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                row.text:SetPoint("LEFT", 26, 0)
+                row.text:SetPoint("LEFT", 26 + (item.indent or 0) * 14, 0)
+                row.icon:ClearAllPoints()
+                row.icon:SetPoint("LEFT", 4 + (item.indent or 0) * 14, 0)
                 local name = e.name
                 if e.collected == false then name = "|cff9a9a9a" .. name .. "|r" end
                 if item.showCat then name = name .. "  |cff5fa8b8" .. catName(e.cat) .. "|r" end
@@ -402,7 +447,12 @@ local function DetailText(e)
         local S = _G.SeviathsUsefulTools
         local tm = S and S.TransmogItem and S:TransmogItem(e.itemID or tonumber(e.id) or 0)
         if tm and tm.source then
-            t = t .. section("Transmog", tm.source .. (tm.sourceName and (": " .. tm.sourceName) or ""))
+            local info = {}
+            info[#info + 1] = tm.source .. (tm.sourceName and (": " .. tm.sourceName) or "")
+            if tm.type or tm.slot then info[#info + 1] = (tm.type or "") .. ((tm.type and tm.slot) and " " or "") .. (tm.slot and tm.slot:lower() or "") end
+            info[#info + 1] = "For: " .. (tm.classes and table.concat(tm.classes, ", ") or "all classes")
+            if tm.reqLevel and tm.reqLevel > 1 then info[#info + 1] = "Requires level " .. tm.reqLevel end
+            t = t .. section("Transmog", table.concat(info, "\n"))
         end
     end
     -- quests: where you accepted and where you turned the quest in (collected by the addon as you do them)

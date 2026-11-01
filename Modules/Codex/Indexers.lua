@@ -652,7 +652,17 @@ function ns:ItemGroupFor(id, fallback, savedExp)
         if ok and type(a) == "number" then expID = a end
     end
     local name = expID and _G["EXPANSION_NAME" .. expID]
-    return name or fallback or "Other"
+    -- sections inside sections: expansion > type > subtype (Classic > Trade Goods > Herb); the UI opens each part on its own
+    local kind = fallback
+    local ok, itype, isub = pcall(C_Item.GetItemInfoInstant, id)
+    if ok and type(itype) == "string" and not (issecretvalue and issecretvalue(itype)) then
+        kind = itype
+        if type(isub) == "string" and isub ~= "" and isub ~= itype then kind = itype .. " > " .. isub end
+    elseif kind then
+        kind = kind:gsub(" %- ", " > ")
+    end
+    if name and kind then return name .. " > " .. kind end
+    return name or kind or "Other"
 end
 
 local function AddSeenItem(id, rec)
