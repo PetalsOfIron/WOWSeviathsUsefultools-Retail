@@ -715,7 +715,7 @@ local function mapOfZone(name)
             end
         end
     end
-    return zoneIndex[name]
+    return zoneIndex[name] or zoneIndex[(name:gsub("^The ", ""))] or zoneIndex["The " .. name]
 end
 
 local function petSpots(entries)
@@ -732,6 +732,21 @@ local function petSpots(entries)
         if zn then
             e.zoneName = zn
             e.zoneMap = mapOfZone(zn)
+        end
+        -- a wild pet: the zones where it is caught (Data/WildPets.lua, from Wowhead); the first one the game knows is where the map opens
+        local wild = SFP.WildPets and SFP.WildPets[e.name]
+        if wild then
+            local names = {}
+            for z in wild:gmatch("[^;]+") do
+                z = z:gsub("^%s+", ""):gsub("%s+$", "")
+                names[#names + 1] = z
+                if not e.zoneMap then
+                    local m = mapOfZone(z)
+                    if m then e.zoneMap = m; e.zoneName = e.zoneName or z end
+                end
+            end
+            e.wildZones = names
+            if not e.zoneName and names[1] then e.zoneName = names[1] end
         end
     end
     if next(need) == nil then return end
@@ -857,12 +872,22 @@ local function renderPets(q)
         place(list, r, n, 8)
         r.icon:SetTexture(e.icon)
         local where = (e.who and (e.who .. (e.zoneName and " - " or "")) or "") .. (e.zoneName or "")
+        if e.wildZones and #e.wildZones > 1 and not e.who then
+            where = table.concat(e.wildZones, ", ", 1, math.min(#e.wildZones, 3)) .. (#e.wildZones > 3 and (" +" .. (#e.wildZones - 3)) or "")
+        end
         r.text:SetText(e.name .. "  |cff808080" .. (_G["BATTLE_PET_NAME_" .. tostring(e.petType)] or "") .. "|r" ..
             (where ~= "" and ("  |cffffd100" .. where .. "|r") or ""))
-        r.right:SetText((e.map and "|cffff3030WAYPOINT|r   " or "") ..
+        r.right:SetText(((e.map or e.zoneMap) and "|cffff3030WAYPOINT|r   " or "") ..
             (e.price and SFP:FormatPrice(e.price) or "|cff808080no price yet|r"))
         r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cff33e6ffClick: waypoint at the place and open the map there|r" or "")
-        if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end end
+        if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end
+        elseif e.zoneMap then
+            -- no exact spot known: the waypoint opens the map of the zone
+            r.click = function()
+                WorldMapFrame:SetMapID(e.zoneMap)
+                SFP:Print(string.format("%s: no exact spot known, the map of %s is open.", e.name, SFP:ZoneName(e.zoneMap)))
+            end
+        end
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing found|r") end
     finish(list, n)
