@@ -135,8 +135,8 @@ local function processReplicate()
         while i < n and (not debugprofilestop or debugprofilestop() - t0 < 5) do
             local name, _, count, _, _, _, _, _, _, buyout, _, _, _, _, _, _, itemID = C_AuctionHouse.GetReplicateItemInfo(i)
             i = i + 1
-            -- gray items are ignored by the scan: their auction prices mean nothing (the vendor price is their value)
-            if itemID and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0 then itemID = nil end
+            -- a gray item is collected (id, name, icon) but its auction price is ignored: the vendor price is what it is worth
+            local grey = itemID and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0
             -- every item seen at the auction house is kept: its ID (with the item class) and its name
             if itemID and SFP.db and not seenIDs[itemID] then
                 seenIDs[itemID] = true
@@ -160,7 +160,7 @@ local function processReplicate()
                 local species = okL and type(link) == "string" and not (issecretvalue and issecretvalue(link)) and tonumber(link:match("battlepet:(%d+)"))
                 if species and (not petBest[species] or buyout < petBest[species]) then petBest[species] = buyout end
             end
-            if itemID and buyout and buyout > 0 then
+            if itemID and not grey and buyout and buyout > 0 then
                 local cur = allBest[itemID]
                 if not cur then allBest[itemID] = buyout; allCount = allCount + 1 elseif buyout < cur then allBest[itemID] = buyout end
                 if isProductID(itemID) then
@@ -178,7 +178,7 @@ local function processReplicate()
                     end
                 end
             end
-            if itemID and buyout and buyout > 0 and (SFP.trackedIDs[itemID] or isCraftID(itemID)) then
+            if itemID and not grey and buyout and buyout > 0 and (SFP.trackedIDs[itemID] or isCraftID(itemID)) then
                 -- retail lists stackable goods (commodities) per unit already, and every other auction is a single item,
                 -- so the buyout is the price of one. (C_AuctionHouse.GetItemCommodityStatus wants an item in your bags,
                 -- not an item ID, and made the whole scan fail.)
