@@ -112,6 +112,7 @@ Guides.lua
 Scanner.lua
 WorldMap.lua
 MapMenu.lua
+MaterialGuide.lua
 Minimap.lua
 Browser.lua
 About.lua
