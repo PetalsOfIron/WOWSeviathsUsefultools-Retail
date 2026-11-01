@@ -232,8 +232,8 @@ local function QuestHoverTip(owner, questID, append)
                     local pick = txt:find("collect", 1, true) or txt:find("gather", 1, true) or txt:find("pick", 1, true)
                         or txt:find("loot", 1, true) or txt:find("retriev", 1, true) or txt:find("recover", 1, true)
                     if kill then objLabel = "Monster at"
-                    elseif o.type == "item" or pick then objLabel = "Pick up at"
-                    elseif o.type == "object" then objLabel = "Use at"
+                    elseif o.type == "item" or pick then objLabel = "Collect at"   -- picked up, dropped by monsters, taken from objects: one name for all
+                    elseif o.type == "object" then objLabel = "Collect at"
                     else objLabel = "Objective at" end
                     break
                 end
@@ -286,7 +286,7 @@ local function QuestHoverTip(owner, questID, append)
                     end
                 -- a spot where progress came from a kill says "Kill at", whatever the objective's own words are
                 -- two kinds of monster objective: just kill them ("Monster at") and an item the monsters drop ("Monster item at", e.g. Lumpy Fish Guts)
-                local spotLabel = (p.kill and (objIsItem and "Monster item at" or "Monster at")) or (p.use and "Pick up at") or objLabel
+                local spotLabel = (p.kill and (objIsItem and "Collect at" or "Monster at")) or (p.use and "Collect at") or objLabel
                 if p.kill and p.use then
                     -- monsters killed and objects used at the same place: a line for each
                     local un = {}
@@ -294,8 +294,8 @@ local function QuestHoverTip(owner, questID, append)
                         if not (n:find("|c", 1, true) or n:find("Seviath", 1, true)) then un[#un + 1] = n end
                     end
                     lines[#lines + 1] = (spotLabel .. ": ") .. text .. nm
-                    lines[#lines + 1] = "Use at: " .. text .. (#un > 0 and (" - " .. table.concat(un, ", ")) or "")
-                    spotLabel = "Use at"
+                    lines[#lines + 1] = "Collect at: " .. text .. (#un > 0 and (" - " .. table.concat(un, ", ")) or "")
+                    spotLabel = "Collect at"
                 else
                     lines[#lines + 1] = (spotLabel .. ": ") .. text .. nm
                 end
