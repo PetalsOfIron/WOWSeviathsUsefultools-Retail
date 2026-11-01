@@ -502,7 +502,8 @@ end
 
 local function placePin(p, x, y, outer, outerAlpha, inner, h)
     local s0 = h.spawn
-    if s0 and not (s0.rare or s0.hunter or s0.gather) then   -- farm spots and special materials return placeFarmPin(p, x, y, h) end
+    -- farm spots and special materials
+    if s0 and not (s0.rare or s0.hunter or s0.gather) then return placeFarmPin(p, x, y, h) end
     local c = spotColor(h.spawn)
     local w, hh = spawnLayer:GetWidth(), spawnLayer:GetHeight()
     local minPx = 7 / canvasScale() -- never smaller than ~7 screen pixels
@@ -1258,6 +1259,14 @@ local function gatherHere(mapID)
             end
         end
     end
+    -- the special materials of the zone (rare hides, lure beasts, special cloth): the monsters that drop them
+    local zone = SFP.zoneByMap[mapID]
+    for _, sp in ipairs(zone and zone.spawns or {}) do
+        if sp.special and sp.items and sp.items[1] and not seen[sp.items[1]] then
+            seen[sp.items[1]] = true
+            rows[#rows + 1] = { item = sp.items[1], kind = "special", here = sp.points and #sp.points or 0, best = mapID, how = "from " .. tostring(sp.name) }
+        end
+    end
     table.sort(rows, function(a, b)
         if a.kind ~= b.kind then return a.kind == "ore" end
         if a.here ~= b.here then return a.here > b.here end
@@ -1351,7 +1360,8 @@ local function spotEntries(zone)
     local by = {}
     if not SFP._bestDone then markBest() end
     for _, s in ipairs(zone.spawns or {}) do
-        if s.points and s._best ~= false then
+        -- ores, herbs and special materials are listed in the Mining & Herbalism list, not here
+        if s.points and s._best ~= false and not s.gather and not s.special then
             local g = spotGroup(s)
             by[g] = by[g] or {}
             by[g][#by[g] + 1] = s
