@@ -23,7 +23,11 @@ DATA_REPO = os.path.join(HOME, "Projects", "Data-wow")
 CURSE = os.path.join(HOME, "Projects", "sut-curse-release")
 # the monsters and gray items are a second addon folder (load on demand), next to this one in Interface/AddOns
 LOD_DIR = os.path.join(os.path.dirname(ADDON), "SeviathsUsefulTools_Monsters")
-TMOG_DIR = os.path.join(os.path.dirname(ADDON), "SeviathsUsefulTools_Transmog")
+ADDONS_DIR = os.path.dirname(ADDON)
+
+
+def tmog_dirs():
+    return sorted(d for d in os.listdir(ADDONS_DIR) if d.startswith("SeviathsUsefulTools_Transmog") and os.path.isdir(os.path.join(ADDONS_DIR, d)))
 SKIP_DIRS = {".git", ".github", "tools"}
 SKIP_FILES = {".gitignore", ".gitattributes"}
 
@@ -81,10 +85,10 @@ def push_data():
         dst2 = os.path.join(DATA_REPO, "monsters")
         shutil.rmtree(dst2, ignore_errors=True)
         shutil.copytree(LOD_DIR, dst2)
-    if os.path.isdir(TMOG_DIR):
-        dst3 = os.path.join(DATA_REPO, "transmog")
-        shutil.rmtree(dst3, ignore_errors=True)
-        shutil.copytree(TMOG_DIR, dst3)
+    dst3 = os.path.join(DATA_REPO, "transmog")
+    shutil.rmtree(dst3, ignore_errors=True)
+    for d in tmog_dirs():
+        shutil.copytree(os.path.join(ADDONS_DIR, d), os.path.join(dst3, d))
     readme = os.path.join(HERE, "README-FOR-CLAUDE.md")   # the recovery notes also live in the data repo (outside the addon zip)
     if os.path.exists(readme):
         shutil.copy2(readme, os.path.join(DATA_REPO, "README-FOR-CLAUDE.md"))
@@ -191,15 +195,17 @@ def build_zip():
     shutil.rmtree(lod_target, ignore_errors=True)
     if os.path.isdir(LOD_DIR):
         shutil.copytree(LOD_DIR, lod_target, ignore=ignore, dirs_exist_ok=True)
-    tmog_target = os.path.join(CURSE, "SeviathsUsefulTools_Transmog")
-    shutil.rmtree(tmog_target, ignore_errors=True)
-    if os.path.isdir(TMOG_DIR):
-        shutil.copytree(TMOG_DIR, tmog_target, ignore=ignore, dirs_exist_ok=True)
+    tmog_targets = []
+    for d in tmog_dirs():
+        tt = os.path.join(CURSE, d)
+        shutil.rmtree(tt, ignore_errors=True)
+        shutil.copytree(os.path.join(ADDONS_DIR, d), tt, ignore=ignore, dirs_exist_ok=True)
+        tmog_targets.append(tt)
     zpath = os.path.join(CURSE, "SeviathsUsefulTools-%s.zip" % version())
     if os.path.exists(zpath):
         os.remove(zpath)
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
-        for folder in (target, lod_target, tmog_target):
+        for folder in [target, lod_target] + tmog_targets:
             for root, _, files in os.walk(folder):
                 for f in files:
                     full = os.path.join(root, f)
@@ -240,6 +246,7 @@ if __name__ == "__main__":
     _lock = take_lock()
     import atexit
     atexit.register(lambda: os.path.exists(_lock) and os.remove(_lock))
+    print(run(sys.executable, os.path.join(HERE, "bake_transmog.py"))[1].strip())   # the transmog folders, from tools/transmog_items.txt
     print(run(sys.executable, os.path.join(HERE, "bake_collected.py"))[1].splitlines()[-1])
     print(run(sys.executable, os.path.join(HERE, "bake_gold.py"))[1])
     sync_toc()
