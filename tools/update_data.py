@@ -27,7 +27,7 @@ ADDONS_DIR = os.path.dirname(ADDON)
 
 
 def tmog_dirs():
-    return sorted(d for d in os.listdir(ADDONS_DIR) if d.startswith(("SeviathsUsefulTools_Transmog", "SeviathsUsefulTools_Drops")) and os.path.isdir(os.path.join(ADDONS_DIR, d)))
+    return sorted(d for d in os.listdir(ADDONS_DIR) if d.startswith(("SeviathsUsefulTools_Transmog", "SeviathsUsefulTools_Drops", "SeviathsUsefulTools_Items")) and os.path.isdir(os.path.join(ADDONS_DIR, d)))
 SKIP_DIRS = {".git", ".github", "tools"}
 SKIP_FILES = {".gitignore", ".gitattributes"}
 
@@ -246,6 +246,7 @@ if __name__ == "__main__":
     _lock = take_lock()
     import atexit
     atexit.register(lambda: os.path.exists(_lock) and os.remove(_lock))
+    print(run(sys.executable, os.path.join(HERE, "bake_items.py"))[1].strip())   # the other items of the Wowhead lists
     print(run(sys.executable, os.path.join(HERE, "bake_drops.py"))[1].strip())   # the monster drops, from tools/items_sources.txt
     print(run(sys.executable, os.path.join(HERE, "bake_transmog.py"))[1].strip())   # the transmog folders, from tools/transmog_items.txt
     print(run(sys.executable, os.path.join(HERE, "bake_collected.py"))[1].splitlines()[-1])

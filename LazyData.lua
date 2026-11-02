@@ -212,3 +212,57 @@ function SFP:WowheadDrops(npcID)
 end
 
 function SFP:FreeDropCache() dropCache = {} end
+
+---------------------------------------------------------------------------
+-- Items of Wowhead's lists that are not transmog (SeviathsUsefulTools_Items1, 2 ...): id, name, quality, item class and subclass, level, the list
+-- (c = Classic, w = Warlords of Draenor, m = Midnight, t = other). Read only while the Codex lists items.
+---------------------------------------------------------------------------
+local itemLoaded = {}
+local ITAG = { c = 0, w = 5, m = 12 }   -- the expansion number of the list the item was found in (the game's EXPANSION_NAME numbering)
+local function loadItemPart(folder)
+    local s = itemLoaded[folder]
+    if s == nil then
+        s = false
+        if C_AddOns and C_AddOns.LoadAddOn then
+            if C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(folder) then s = true
+            else s = C_AddOns.LoadAddOn(folder) and true or false end
+        end
+        itemLoaded[folder] = s
+    end
+    return s
+end
+
+-- every folder; returns the table of blocks or nil
+function SFP:ItemBlocks()
+    local any
+    for _, part in ipairs(SFP.ItemParts or {}) do
+        if loadItemPart(part[3]) then any = true end
+    end
+    return any and _G.SeviathsItemBlocks or nil
+end
+
+-- one line "id|name|quality|class|subclass|level|required level|list" as a table
+function SFP.ItemParseLine(line)
+    local id, name, q, ic, isub, lvl, req, tag = line:match("^(%d+)|(.-)|(%d*)|(%-?%d*)|(%-?%d*)|(%d*)|(%d*)|(.*)$")
+    if not id then return nil end
+    return { id = tonumber(id), name = name, quality = tonumber(q), class = tonumber(ic), sub = tonumber(isub), level = tonumber(lvl),
+        reqLevel = tonumber(req), exp = ITAG[tag] }
+end
+
+function SFP:ShippedItem(id)
+    if type(id) ~= "number" then return nil end
+    local blocks = self:ItemBlocks()
+    local text = blocks and blocks[math.floor(id / 500)]
+    if not text then return nil end
+    local key = id .. "|"
+    local from = 1
+    while true do
+        local s = text:find(key, from, true)
+        if not s then return nil end
+        if s == 1 or text:sub(s - 1, s - 1) == "\n" then
+            local e = text:find("\n", s, true) or (#text + 1)
+            return SFP.ItemParseLine(text:sub(s, e - 1))
+        end
+        from = s + 1
+    end
+end

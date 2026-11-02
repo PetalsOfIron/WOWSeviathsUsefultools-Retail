@@ -81,7 +81,28 @@ scanners.item = function(done)
             if not list then list = {}; lz.groups[g] = list end
             list[#list + 1] = id
         end
-    end, done)
+    end, function()
+        -- then the items of Wowhead's lists (materials, consumables, containers ...) that the player has no record of: Expansion > Type > Subtype
+        local blocks = SFP and SFP.ItemBlocks and SFP:ItemBlocks()
+        if not blocks then if done then done() end return end
+        local keys = {}
+        for k in pairs(blocks) do keys[#keys + 1] = k end
+        local db = SFP.db
+        budgetLoop(#keys, 6, function(n)
+            for line in blocks[keys[n]]:gmatch("[^\n]+") do
+                local r = SFP.ItemParseLine(line)
+                if r and not (db and db.knownItems and db.knownItems[r.id]) and not ns:Get("item:" .. r.id) then
+                    local exp = r.exp and _G["EXPANSION_NAME" .. r.exp] or "Other expansions"
+                    local cn = (r.class and GetItemClassInfo and GetItemClassInfo(r.class)) or "Other"
+                    local sn = (r.class and r.sub and GetItemSubClassInfo and GetItemSubClassInfo(r.class, r.sub)) or nil
+                    local g2 = exp .. " > " .. cn .. ((sn and sn ~= "" and sn ~= cn) and (" > " .. sn) or "")
+                    local list = lz.groups[g2]
+                    if not list then list = {}; lz.groups[g2] = list end
+                    list[#list + 1] = r.id
+                end
+            end
+        end, done)
+    end)
 end
 
 -- every transmog item, grouped Source > Type > Slot > Quality (the group is a path: the Codex opens each part on its own)
@@ -153,6 +174,17 @@ makers.item = function(id)
             local cn = GetItemClassInfo and GetItemClassInfo(cls) or "Other"
             ns:Add({ cat = "item", id = id, name = name, group = ns:ItemGroupFor(id, cn), icon = C_Item.GetItemIconByID(id),
                 itemID = id, wh = "item=" .. id, sub = cn, lazy = true })
+        elseif not name and not ns:Get("item:" .. id) then
+            -- an item of Wowhead's lists
+            local r = SFP.ShippedItem and SFP:ShippedItem(id)
+            if r then
+                local exp = r.exp and _G["EXPANSION_NAME" .. r.exp] or "Other expansions"
+                local cn = (r.class and GetItemClassInfo and GetItemClassInfo(r.class)) or "Other"
+                local sn = (r.class and r.sub and GetItemSubClassInfo and GetItemSubClassInfo(r.class, r.sub)) or nil
+                ns:Add({ cat = "item", id = id, name = r.name, itemID = id, wh = "item=" .. id, lazy = true, icon = C_Item.GetItemIconByID(id),
+                    group = exp .. " > " .. cn .. ((sn and sn ~= "" and sn ~= cn) and (" > " .. sn) or ""),
+                    sub = cn .. ((sn and sn ~= "" and sn ~= cn) and (" - " .. sn) or "") .. ((r.level and r.level > 1) and ("  item level " .. r.level) or "") })
+            end
         end
     end
 end

@@ -12,5 +12,5 @@ SFP.TransmogParts = {
     { 318, 369, "SeviathsUsefulTools_Transmog7" },
     { 370, 429, "SeviathsUsefulTools_Transmog8" },
     { 430, 488, "SeviathsUsefulTools_Transmog9" },
-    { 489, 519, "SeviathsUsefulTools_Transmog10" },
+    { 489, 576, "SeviathsUsefulTools_Transmog10" },
 }
