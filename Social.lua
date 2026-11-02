@@ -92,11 +92,29 @@ function S.RecordChar()
     c.chars[name .. "-" .. realm] = rec
 end
 
+-- Every character has its own counters (the activities, the week's numbers, the unique dungeons ...): S.Char() is the table of the character that is
+-- playing. The first character that logs in after the counters were made per character takes what the account had counted so far.
+function S.Char()
+    local c = S.Config()
+    local key = (S.CharKey and S.CharKey()) or "?"
+    c.cc = c.cc or {}
+    local t = c.cc[key]
+    if not t then
+        t = {}
+        c.cc[key] = t
+        if not c.ccSeeded then
+            c.ccSeeded = true
+            t.act, t.wk, t.wku, t.rweeks, t.tot = c.act, c.wk, c.wku, c.rweeks, c.tot
+        end
+    end
+    return t
+end
+
 -- what the player DOES: activities are counted per day and kept for 28 days; the play style follows these counts
 -- (raid bosses, Mythic+ keys, delves, new collectibles, achievements earned, PvP matches, daily quests, looting, gold by source)
 local DAY, WINDOW_DAYS = 86400, 28
 function S.Act(name, n)
-    local c = S.Config()
+    local c = S.Char()
     c.act = c.act or {}
     local day = math.floor(time() / DAY)
     local d = c.act[day]
@@ -110,7 +128,7 @@ end
 
 -- on how many of the last days (of 28) the player did this at all
 function S.ActDays(...)
-    local c = S.Config()
+    local c = S.Char()
     local day = math.floor(time() / DAY)
     local n = 0
     for k, d in pairs(c.act or {}) do
@@ -132,7 +150,7 @@ local function weekFromDay()
 end
 
 function S.ActWeekSum(name)
-    local c = S.Config()
+    local c = S.Char()
     local from, sum = weekFromDay(), 0
     for day, d in pairs(c.act or {}) do
         if day >= from then sum = sum + (d[name] or 0) end
@@ -141,7 +159,7 @@ function S.ActWeekSum(name)
 end
 
 function S.ActWeekDays(...)
-    local c = S.Config()
+    local c = S.Char()
     local from, n = weekFromDay(), 0
     for k, d in pairs(c.act or {}) do
         if k >= from then
@@ -154,7 +172,7 @@ function S.ActWeekDays(...)
 end
 
 function S.ActSum(name)
-    local c = S.Config()
+    local c = S.Char()
     local sum, day = 0, math.floor(time() / DAY)
     for k, d in pairs(c.act or {}) do
         if k >= day - WINDOW_DAYS then sum = sum + (d[name] or 0) end
@@ -174,7 +192,7 @@ local ACT_OF = { dungeon = "mythic", raid = "raid", delve = "delve" }
 local function actThisWeek(name)
     local key, w = ACT_OF[name], weekStart()
     if not (key and w) then return 0 end
-    local c = S.Config()
+    local c = S.Char()
     local sum, from = 0, math.floor(w / DAY)
     for day, d in pairs(c.act or {}) do
         if day >= from then sum = sum + (d[key] or 0) end
@@ -183,14 +201,14 @@ local function actThisWeek(name)
 end
 
 function S.WeekGet(name)
-    local c = S.Config()
+    local c = S.Char()
     local w = weekStart()
     local own = (c.wk and w and c.wk.t == w) and (c.wk[name] or 0) or 0
     return math.max(own, actThisWeek(name))
 end
 
 function S.WeekAdd(name)
-    local c = S.Config()
+    local c = S.Char()
     local w = weekStart()
     if not w then return end
     if not (c.wk and c.wk.t == w) then c.wk = { t = w } end   -- a new week: counted from zero
@@ -211,7 +229,7 @@ end
 
 -- the weeks in a row (counting back from this week, or from last week when this one has no raid yet) with at least one raid boss
 function S.RaidStreak()
-    local c = S.Config()
+    local c = S.Char()
     local w = weekStart()
     if not (w and c.rweeks) then return 0 end
     local WEEK = 7 * 86400
@@ -228,7 +246,7 @@ end
 -- the dungeons, delves and raid bosses done this week, each ONCE: doing the same one again changes nothing. This is what the play style counts.
 function S.UniqueAdd(kind, name)
     if type(name) ~= "string" or name == "" or secret(name) then return end
-    local c = S.Config()
+    local c = S.Char()
     local w = weekStart()
     if not w then return end
     if not (c.wku and c.wku.t == w) then c.wku = { t = w } end
@@ -237,7 +255,7 @@ function S.UniqueAdd(kind, name)
 end
 
 function S.UniqueWeek(kind)
-    local c = S.Config()
+    local c = S.Char()
     local w = weekStart()
     local t = (c.wku and w and c.wku.t == w) and c.wku[kind]
     local n = 0
@@ -247,7 +265,7 @@ end
 
 -- gold made this week from monster drops and the auction house (copper): starts from zero at every weekly reset
 function S.WeekGoldAdd(copper)
-    local c = S.Config()
+    local c = S.Char()
     local w = weekStart()
     if not w then return end
     if not (c.wk and c.wk.t == w) then c.wk = { t = w } end
@@ -255,7 +273,7 @@ function S.WeekGoldAdd(copper)
 end
 
 function S.WeekGoldGet()
-    local c = S.Config()
+    local c = S.Char()
     local w = weekStart()
     return (c.wk and w and c.wk.t == w) and math.floor((c.wk.gold or 0) / 10000) or 0
 end
@@ -342,10 +360,38 @@ end
 
 function S.TotalGet(name)
     local c = S.Config()
-    local own = (c.tot and c.tot[name]) or 0
+    local own = (S.Char().tot and S.Char().tot[name]) or 0
     local sum = 0
     for _, v in pairs((c.stat and c.stat[name]) or {}) do sum = sum + v end
     return math.max(own, sum)   -- the game's number already holds the ones counted here
+end
+
+-- What THIS character has done: the dungeons entered and the delves finished, each once, by name (c.mine[character] = { dungeon = { name = true }, delve = { ... } }).
+-- Every character has its own counters. The first character that logs in after the counters were made per character starts with what the
+-- account had collected so far; the others start from nothing.
+function S.CharKey()
+    local okN, n = pcall(UnitName, "player")
+    local realm = GetNormalizedRealmName and GetNormalizedRealmName() or ""
+    if not okN or type(n) ~= "string" or secret(n) then return nil end
+    return n .. "-" .. realm
+end
+
+function S.MineDone()
+    local c = S.Config()
+    local key = S.CharKey() or "?"
+    c.mine = c.mine or {}
+    local m = c.mine[key]
+    if not m then
+        m = { dungeon = {}, delve = {} }
+        c.mine[key] = m
+        if not c.mineSeeded then
+            c.mineSeeded = true
+            for n in pairs((c.lib and c.lib.dungeon) or {}) do m.dungeon[tostring(n):lower()] = true end
+            for n in pairs((c.lib and c.lib.delve) or {}) do m.delve[tostring(n):lower()] = true end
+            for n in pairs((c.done and c.done.delve) or {}) do m.delve[tostring(n):lower()] = true end
+        end
+    end
+    return m
 end
 
 -- The instances you enter are collected (all your characters): raids, dungeons and delves, with how often and on which difficulty.
@@ -363,6 +409,7 @@ function S.NoteInstance()
         rec = { id = instID, n = 0, diffs = {}, first = time() }
         c.lib[kind][name] = rec
     end
+    if kind == "dungeon" or kind == "delve" then S.MineDone()[kind][name:lower()] = true end   -- this character's own list
     -- a reload inside the same instance is not a new visit
     if not (rec.t and time() - rec.t < 120) then rec.n = rec.n + 1 end
     rec.t = time()
@@ -434,7 +481,8 @@ end
 function S.Progress()
     local out = { delve = { 0, 0 }, key = { 0, 0 }, raid = { 0, 0 }, dun = { 0, 0 } }
     local cx = SFP_Module and select(2, SFP_Module("Codex"))
-    local done = (S.Config().done and S.Config().done.delve) or {}
+    local mineDone = S.MineDone()   -- this character's own list
+    local done = mineDone.delve
     -- every delve: the Codex list plus the delves the game's group finder lists (a delve missing from our list is not lost)
     local dr = SFP_Module and select(2, SFP_Module("DungeonsRaids"))
     local names = {}
@@ -460,10 +508,7 @@ function S.Progress()
         end
     end
     -- a delve entered and recorded in the library (a visit) is a delve done: the completion event does not always fire
-    local libDone = {}
-    for n, r in pairs((S.Config().lib and S.Config().lib.delve) or {}) do
-        if type(r) == "table" and (r.n or 0) > 0 then libDone[tostring(n):lower()] = true end
-    end
+    local libDone = {}   -- (the visits are in this character's list now)
     -- each finished delve (by any record of it) is matched to ONE delve of the list - the exact name first, else a name that contains it - and the
     -- number done is the number of DIFFERENT delves matched: one delve done many times, or under two spellings, counts once
     local matched = {}
@@ -493,7 +538,7 @@ function S.Progress()
     -- dungeons: this expansion's dungeons (Adventure Guide) and the ones you have entered (collected when you walk in)
     if dr and dr.PlaceTier and dr.db and dr.db.dungeon and GetServerExpansionLevel then
         if dr.LoadEJPlaces then pcall(dr.LoadEJPlaces, dr, "dungeon") end
-        local cur, entered = GetServerExpansionLevel() + 1, (S.Config().lib and S.Config().lib.dungeon) or {}
+        local cur, entered = GetServerExpansionLevel() + 1, mineDone.dungeon
         local list = {}
         for name in pairs(dr.db.dungeon.known or {}) do
             if dr:PlaceTier("dungeon", name) == cur then list[#list + 1] = name:lower() end
@@ -555,11 +600,13 @@ function S.MarkDelveDone()
     c.done = c.done or {}
     c.done.delve = c.done.delve or {}
     local l = name:lower()
+    local mine = S.MineDone().delve
     for _, e in ipairs((cx and cx.DELVE_LIST) or {}) do
         local dn = e[1]:lower()
-        if l:find(dn, 1, true) or dn:find(l, 1, true) then c.done.delve[dn] = true return end
+        if l:find(dn, 1, true) or dn:find(l, 1, true) then c.done.delve[dn] = true; mine[dn] = true return end
     end
     c.done.delve[l] = true
+    mine[l] = true
 end
 
 -- small counters for the automatic play style (farm sessions started, auction scans, ...)
