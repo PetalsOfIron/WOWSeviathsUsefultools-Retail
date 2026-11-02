@@ -173,8 +173,33 @@ local function nodesOf(map)
             end
         end
     end
-    byMapNodes[map] = list
-    return list
+    -- nodes of the same kind close together are one place: their loot is put together (other ores or herbs gathered from the same spot)
+    local merged = {}
+    for _, n in ipairs(list) do
+        local into
+        for _, m in ipairs(merged) do
+            if m.kind == n.kind and math.abs(m.x - n.x) < 0.004 and math.abs(m.y - n.y) < 0.004 then into = m break end
+        end
+        if not into then
+            into = { id = n.id, x = n.x, y = n.y, kind = n.kind, rec = { n = n.rec.n, k = 0, d = {}, q = {}, ids = {} } }
+            merged[#merged + 1] = into
+        end
+        local r, t = n.rec, into.rec
+        if not t.ids[n.id] then
+            t.ids[n.id] = true
+            t.k = t.k + (r.k or 0)
+            for item, c in pairs(r.d) do t.d[item] = (t.d[item] or 0) + c end
+            for item, qr in pairs(r.q or {}) do
+                local e = t.q[item]
+                if type(qr) == "table" then
+                    if not e then t.q[item] = { min = qr.min, max = qr.max }
+                    else e.min = math.min(e.min or qr.min, qr.min or e.min); e.max = math.max(e.max or qr.max, qr.max or e.max) end
+                end
+            end
+        end
+    end
+    byMapNodes[map] = merged
+    return merged
 end
 
 local npins, nused = {}, 0
