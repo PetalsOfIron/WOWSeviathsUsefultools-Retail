@@ -141,6 +141,16 @@ SlashCmdList["SEVIATHSTREASURES"] = function()
         total, loot, tre, why.quest, why.gather, why.qitem, why.nomap))
     SFP:Print(("treasures on the map shown (%s): %d; boxes on the map: %d; layer: %s; show treasures: %s"):format(
         tostring(map), onMap, used, layer and "yes" or "NO", tostring(SFP.db and SFP.db.showTreasures ~= false)))
+    local c = canvas()
+    if c then SFP:Print(("canvas %.0f x %.0f, scale %.2f, level %d, strata %s; layer level %d, shown %s"):format(c:GetWidth() or 0, c:GetHeight() or 0, canvasScale(),
+        c:GetFrameLevel() or 0, tostring(c:GetFrameStrata()), layer and layer:GetFrameLevel() or -1, tostring(layer and layer:IsShown()))) end
+    local p = pins[1]
+    if p then
+        local pt, rel, rp, x, y = p:GetPoint()
+        SFP:Print(("box 1: %s at %.1f, %.1f of %s; size %.1f; shown %s, visible %s, alpha %.2f, level %d, mouse %s; place %.3f, %.3f"):format(
+            tostring(p.rec and p.rec.n), x or 0, y or 0, tostring(rp), p:GetWidth() or 0, tostring(p:IsShown()), tostring(p:IsVisible()), p:GetEffectiveAlpha() or 0,
+            p:GetFrameLevel() or 0, tostring(p:IsMouseEnabled()), byMap[map] and byMap[map][1] and byMap[map][1].x or -1, byMap[map] and byMap[map][1] and byMap[map][1].y or -1))
+    end
 end
 
 SFP:OnLogin(function()
