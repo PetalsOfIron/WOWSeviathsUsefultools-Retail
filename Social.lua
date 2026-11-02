@@ -31,7 +31,7 @@ local AUTO_LABEL = { raider = "Hardcore raider", mythic = "Hardcore Mythic+ play
     achiever = "Achievement hunter", pvp = "PvP player", dailies = "Daily quest player", farmer = "Gold farmer",
     gold = "Gold grinder", ["gold:loot"] = "Gold grinder (farming)", ["gold:daily"] = "Gold grinder (daily quests)",
     ["gold:trade"] = "Gold grinder (auction house)", housing = "Housing fan",
-    alliance = "Alliance player", horde = "Horde player", altaholic = "Alt collector", casual = "Casual" }
+    alliance = "Alliance player", horde = "Horde player", altaholic = "Alt collector", casual = "Casual", hardcore = "Hardcore" }
 local STYLE_LABEL = { relaxed = "Relaxed", learning = "Learning", social = "Social", speed = "Fast runs and farming" }
 
 -- what a player can say they dislike in a group (the number is what is sent)
@@ -665,6 +665,10 @@ function S.AutoStyles(p)
         elseif (p.nHorde or 0) / total >= 0.6 then out[#out + 1] = "horde" end
     end
     if (p.nChars or 0) >= 8 then out[#out + 1] = "altaholic" end
+    -- hardcore: heroic or mythic raids and Mythic+ keys of +5 and up this week; casual: only easy content (normal and raid finder raids, delves,
+    -- normal and heroic dungeons, keys +0 to +4), never the hard kind
+    if (a.hardcore or 0) >= 3 then out[#out + 1] = "hardcore"
+    elseif (a.easy or 0) > 0 then out[#out + 1] = "casual" end
     if #out == 0 then out[1] = "casual" end
     return out
 end
@@ -715,7 +719,7 @@ function S.MyProfile()
     local st = c.stats or {}
     -- what the player did this week (the play style is decided from this)
     p.act = {}
-    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan",
+    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan", "easy", "hardcore",
         "g_loot", "g_daily", "g_quest", "g_trade", "g_other" }) do
         p.act[k] = S.ActWeekSum(k)
     end
@@ -2266,19 +2270,27 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
     elseif event == "BOSS_KILL" then
         SFP:Safe("note boss", S.NoteBoss, a1, a2)
         local _, itype = IsInInstance()
-        if itype == "raid" then S.Act("raid"); S.WeekAdd("raid"); C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
+        if itype == "raid" then
+            -- heroic and mythic raids are hardcore, normal and raid finder are easy content
+            local okD, _, _, diff = pcall(GetInstanceInfo)
+            if okD and (diff == 15 or diff == 16) then S.Act("hardcore") else S.Act("easy") end
+            S.Act("raid"); S.WeekAdd("raid"); C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
         elseif itype == "party" then S.Act("dungeon") end
     elseif event == "CHALLENGE_MODE_COMPLETED" then
         S.Act("mythic"); S.WeekAdd("dungeon")
+        -- keys from +5 up are hardcore, +0 to +4 are easy content
+        local okK, _, keyLevel = pcall(C_ChallengeMode.GetCompletionInfo)
+        if okK and type(keyLevel) == "number" and not secret(keyLevel) and keyLevel >= 5 then S.Act("hardcore") else S.Act("easy") end
         C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
     elseif event == "LFG_COMPLETION_REWARD" then
-        S.Act("dungeon"); S.WeekAdd("dungeon")
+        S.Act("dungeon"); S.WeekAdd("dungeon"); S.Act("easy")
         C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
     elseif event == "SCENARIO_COMPLETED" then
         -- a delve is a scenario: finishing it counts as a delve done this week
         local okI, inInst, itype = pcall(IsInInstance)
         if okI and inInst and itype == "scenario" then
             S.WeekAdd("delve")
+            S.Act("easy")   -- delves count as easy content
             S.MarkDelveDone()
             C_Timer.After(8, function() SFP:Safe("delve statistic", S.ReadDelveStat) end)
             C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
