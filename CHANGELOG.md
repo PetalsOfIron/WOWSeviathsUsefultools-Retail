@@ -10,6 +10,7 @@
 - New Item search button next to Material search: the same window and lists, with every item the monsters of a zone drop except the crafting reagents. Material search lists all the crafting reagents.
 - The group makeup window no longer opens by itself when you enter a dungeon; in a group of 5 or more a Group makeup button at the top left of the screen opens it.
 - Dungeon and raid bosses: what you pick up from a boss is recorded even when the game hides what was looted (filed under the boss killed), shown on the boss page in the Codex; the spot tooltips (Rares, Farm spots) list Wowhead's drops of dungeon monsters and bosses too.
+- Material search, Item search, Rares and Farm spots update by themselves when you kill a monster or pick something up.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
