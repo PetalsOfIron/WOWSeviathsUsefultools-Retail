@@ -672,10 +672,18 @@ function S.AutoStyles(p)
         elseif (p.nHorde or 0) / total >= 0.6 then out[#out + 1] = "horde" end
     end
     if (p.nChars or 0) >= 8 then out[#out + 1] = "altaholic" end
-    -- hardcore: heroic or mythic raids and Mythic+ keys of +5 and up this week; casual: only easy content (normal and raid finder raids, delves,
+    -- hardcore: heroic or mythic raids and Mythic+ keys of +5 and up this week; casual: anything that is not hardcore (quests, normal and raid finder raids, delves,
     -- normal and heroic dungeons, keys +0 to +4), never the hard kind
-    if (a.hardcore or 0) >= 3 then out[#out + 1] = "hardcore"
-    elseif (a.easy or 0) > 0 then out[#out + 1] = "casual" end
+    if (a.hardcore or 0) >= 3 then
+        out[#out + 1] = "hardcore"
+    else
+        -- casual: anyone who plays this week and does nothing hardcore - quests, normal content, anything that is not hardcore
+        local did = 0
+        for _, k in ipairs({ "quest", "daily", "easy", "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "loot", "session" }) do
+            did = did + (a[k] or 0)
+        end
+        if did > 0 then out[#out + 1] = "casual" end
+    end
     if #out == 0 then out[1] = "casual" end
     return out
 end
@@ -726,7 +734,7 @@ function S.MyProfile()
     local st = c.stats or {}
     -- what the player did this week (the play style is decided from this)
     p.act = {}
-    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan", "easy", "hardcore",
+    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan", "easy", "hardcore", "quest",
         "g_loot", "g_daily", "g_quest", "g_trade", "g_other" }) do
         p.act[k] = S.ActWeekSum(k)
     end
@@ -2131,6 +2139,7 @@ local function noteMoney()
 end
 
 local function questTurnedIn(questID)
+    S.Act("quest")   -- any quest handed in counts as playing (the casual tag)
     ctx.questT = GetTime()
     ctx.questDaily = false
     if questID and C_QuestLog then
