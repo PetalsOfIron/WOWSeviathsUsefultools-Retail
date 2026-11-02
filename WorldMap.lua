@@ -1924,6 +1924,7 @@ local function addSpotDrops(t, s)
     local function itemLine(id, q)
         local price = SFP:GetPrice(id)
         local chance = SFP.ChanceText(q, kills)
+        if chance == "" and q and q > 0 and kills >= 1 then chance = string.format("%d%%", math.min(100, math.floor(q * 100 / kills + 0.5))) end
         local per = ((q and q > 0 and kills >= 1) and ("  |cff808080x" .. q .. "|r") or "") .. (chance ~= "" and ("  " .. chance) or "")
         t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. per, (SFP.PriceText and SFP.PriceText(id)) or (price and SFP:FormatPrice(price)) or "", 1, 1, 1, 1, 1, 1)
     end
