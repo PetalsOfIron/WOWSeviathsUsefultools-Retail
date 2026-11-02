@@ -18,16 +18,26 @@ local factionButtons = {}
 local regionButtons = {}
 
 -- US or EU: the region of the player at first (the realm lists below show the realms of the region picked)
+local EU_LOCALES = { enGB = true, deDE = true, frFR = true, esES = true, itIT = true, ruRU = true, ptPT = true }
 local function ownRegion()
     local r = GetCurrentRegion and GetCurrentRegion()
-    return r == 3 and "eu" or "us"
+    if r == 3 then return "eu" end
+    -- the game's region number is not always the region of the account: a European client language says it too
+    local loc = GetLocale and GetLocale()
+    if r ~= 1 and loc and EU_LOCALES[loc] then return "eu" end
+    local own = GetNormalizedRealmName and GetNormalizedRealmName()
+    local v = own and SFP.RealmRegion and SFP.RealmRegion[own]
+    if v == "eu" or v == "us" then return v end   -- a realm only one region has
+    return (r == 1 or not loc or not EU_LOCALES[loc]) and "us" or "eu"
 end
 
--- does a realm belong to the region picked? A realm name that exists in both regions is in both; a realm the data does not know is in the player's own
+-- does a realm belong to the region picked? A realm name that exists in both regions belongs to the player's own region (the guilds collected
+-- here come from the player's own scans), a realm the data does not know too
 local function inRegion(realm)
+    local picked = state.region or ownRegion()
     local v = SFP.RealmRegion and SFP.RealmRegion[realm]
-    if not v then return (state.region or ownRegion()) == ownRegion() end
-    return v == "both" or v == (state.region or ownRegion())
+    if v == "us" or v == "eu" then return v == picked end
+    return picked == ownRegion()
 end
 
 -- the faction of a guild: saved with it, or from the shipped guild data; nil while nothing says
