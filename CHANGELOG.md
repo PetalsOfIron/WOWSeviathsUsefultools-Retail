@@ -7,7 +7,7 @@
 - Gray items: 6,400 now (names and icons of the ones you have not picked up yet too).
 - Monsters: the items Wowhead lists for a monster (2,700 monsters) show with its loot on the map, in Rares and Farm spots, and on the Codex monster page.
 - Mount search: mounts of every expansion from Classic to Midnight with source, cost (gold, a currency or an item, with its icon) and a waypoint where the guide names the exact place.
-- New Item search button next to Material search: the same window and lists, with every item the monsters of a zone drop (gear, bags, pets, materials ...). Material search lists all the crafting reagents.
+- New Item search button next to Material search: the same window and lists, with every item the monsters of a zone drop except the crafting reagents. Material search lists all the crafting reagents.
 - The group makeup window no longer opens by itself when you enter a dungeon; in a group of 5 or more a Group makeup button at the top left of the screen opens it.
 - Dungeon and raid bosses: what you pick up from a boss is recorded even when the game hides what was looted (filed under the boss killed), shown on the boss page in the Codex; the spot tooltips (Rares, Farm spots) list Wowhead's drops of dungeon monsters and bosses too.
 ### Load

@@ -245,11 +245,11 @@ local function isCraftingReagent(id)
     return c
 end
 
--- Material search lists the crafting reagents, Item search every item (gray items are in neither: they stay in the data and in the loot table of
+-- Material search lists the crafting reagents, Item search every other item (gray items are in neither: they stay in the data and in the loot table of
 -- a monster you hover)
 local function isReagent(id)
     if id == nil or isGray(id) then return false end
-    if itemMode then return true end
+    if itemMode then return not isCraftingReagent(id) end   -- the materials moved to Material search
     return isCraftingReagent(id)
 end
 
@@ -2104,7 +2104,7 @@ local function refreshRow()
         makeButton("coll", "Collectables", "Mounts of the dungeons and raids here, and the hunter pets of the zone", function() openOnly("coll") end)
         makeButton("rares", "Rares", "The rare monsters of this zone with a waypoint each", function() openMode("rare") end)
         makeButton("search", "Material search", "Every zone from Classic to Midnight: the crafting reagents you can farm there and which monsters drop them. Click a monster for a waypoint.", openGuide)
-        makeButton("items", "Item search", "Every zone from Classic to Midnight: all the items the monsters there drop (gear, bags, pets, materials ...) and which monsters drop them. Click a monster for a waypoint.", openItems)
+        makeButton("items", "Item search", "Every zone from Classic to Midnight: all the items the monsters there drop except the crafting reagents (those are in Material search) and which monsters drop them. Click a monster for a waypoint.", openItems)
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
         makeButton("pet", "Battle pets", "Every battle pet with its auction price - search by name, or pick a family", function() openMode("pet") end)
