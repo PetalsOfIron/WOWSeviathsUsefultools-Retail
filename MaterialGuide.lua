@@ -1601,7 +1601,8 @@ local function renderBlocks(n, map, spots, compact)
             local per = (kills >= 1 and d.q > 0) and (d.q / kills) or nil
             local perText = per and (per >= 10 and string.format("%d", math.floor(per + 0.5)) or string.format("%.1f", per)) or nil
             if d.q > 0 then
-                l.text:SetText(iname(d.id) .. "  |cff808080x" .. d.q .. "|r")
+                local chance = SFP.ChanceText(d.q, kills)
+                l.text:SetText(iname(d.id) .. "  |cff808080x" .. d.q .. "|r" .. (chance ~= "" and ("  |cff40ff40" .. chance .. "|r") or ""))
             end
             l.right:SetText((perText and ("|cffffd100" .. perText .. " per kill|r   ") or "") .. priceText(d.id))
             -- the materials are plain text here: no highlight, no tooltip, nothing under the mouse
