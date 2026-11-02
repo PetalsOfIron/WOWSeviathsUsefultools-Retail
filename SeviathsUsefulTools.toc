@@ -94,7 +94,9 @@ collected\tools.nameplateText.5.lua
 collected\tools.npcMaps.lua
 collected\tools.npcPos.lua
 collected\tools.objects.lua
+collected\tools.petInfo.lua
 collected\tools.petPrices.lua
+collected\tools.petSpots.lua
 collected\tools.playerIDs.lua
 collected\tools.rareSeen.lua
 collected\tools.realmGroups.lua
