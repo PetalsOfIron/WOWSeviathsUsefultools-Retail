@@ -185,6 +185,14 @@ function SFP:ClassifyItem(id)
     return kind
 end
 
+-- a quest item (class "Quest", or one the loot window marked as a quest item): never part of a monster's loot table
+function SFP.IsQuestLoot(id)
+    if type(id) ~= "number" then return false end
+    if SFP.db and SFP.db.questLoot and SFP.db.questLoot[id] then return true end
+    local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, id)
+    return ok and classID == 12
+end
+
 local function recordItem(id)
     if not id or not SFP.db then return end
     local name, _, q, ilvl, minLvl, itype, subtype, _, equip, _, price, classID, subID, bind, expID = C_Item.GetItemInfo(id)
@@ -425,6 +433,8 @@ local function onLoot()
         if link and issecretvalue and issecretvalue(link) then link = nil end
         local itemID = link and tonumber(link:match("item:(%d+)"))
         if itemID then
+            local okQ, _, _, _, _, _, _, isQuest = pcall(GetLootSlotInfo, slot)
+            if okQ and isQuest == true then SFP.db.questLoot = SFP.db.questLoot or {}; SFP.db.questLoot[itemID] = true end
             recordItem(itemID)
             -- a mount looted: a drop for the boss (just killed in an instance) or the monster it came from
             if isMountItem(itemID) then
@@ -500,7 +510,7 @@ local function onLoot()
                     if skin then rec.sk = (rec.sk or 0) + 1 else rec.k = (rec.k or 0) + 1; if SFP.NoteKill then SFP:NoteKill(id) end; SFP:RareKillTry(id) end
                     if map then addPoint(rec, map, px, py) end
                 end
-                if itemID then
+                if itemID and not SFP.IsQuestLoot(itemID) then
                     local tbl
                     if skin then rec.s = rec.s or {}; tbl = rec.s else rec.d = rec.d or {}; tbl = rec.d end
                     tbl[itemID] = (tbl[itemID] or 0) + (qty or 1)
@@ -999,7 +1009,7 @@ local function unitTip(tt, data)
         end
     end
     local list = {}
-    for itemID, c in pairs(rec and rec.d or {}) do list[#list + 1] = { itemID, c } end
+    for itemID, c in pairs(rec and rec.d or {}) do if not SFP.IsQuestLoot(itemID) then list[#list + 1] = { itemID, c } end end
     table.sort(list, function(a, b) return a[2] > b[2] end)
     local kills = max(1, rec and rec.k or 1)
     local shownIds = {}
@@ -1017,7 +1027,7 @@ local function unitTip(tt, data)
         if listed then
             local extra = 0
             for _, itemID in ipairs(listed) do
-                if not shownIds[itemID] and not (rec and rec.d and rec.d[itemID]) then
+                if not shownIds[itemID] and not (rec and rec.d and rec.d[itemID]) and not SFP.IsQuestLoot(itemID) then
                     extra = extra + 1
                     if extra > 8 then tt:AddLine("|cff808080+ more|r") break end
                     tt:AddDoubleLine("|T" .. SFP:ItemIcon(itemID) .. ":12|t " .. SFP:ItemName(itemID), "|cff808080listed|r", 1, 1, 1, 0.7, 0.7, 0.7)
