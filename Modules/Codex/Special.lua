@@ -169,6 +169,29 @@ end
 
 function ns:LoadMonsters()
     for key, b in pairs((self.db and self.db.npcs) or {}) do AddMonster(key, b) end
+    -- and every monster the addon ships (with a place), not only the ones you have met: read from the load-on-demand data
+    local S = _G.SeviathsUsefulTools
+    if S and S.LoadMonsterData and S:LoadMonsterData() then
+        local C = _G.SeviathsUsefulToolsCollected
+        local packed = C and C.packed and C.packed.SeviathsUsefulToolsDB
+        for id in pairs((packed and packed.npcs) or {}) do
+            if type(id) == "number" and not ns:Get("creature:npc:" .. id) then
+                local rec = S:ShippedNpcRecord(id)
+                if type(rec) == "table" and type(rec.n) == "string" and not rec.n:find("^NPC ") and type(rec.m) == "table" then
+                    local map, pts = next(rec.m)
+                    local p = type(pts) == "table" and pts[1]
+                    if map and p and p[1] and p[2] then
+                        local lv = rec.lmin and rec.lmax and (rec.lmin == rec.lmax and rec.lmin or (rec.lmin .. "-" .. rec.lmax)) or nil
+                        AddMonster(id, {
+                            n = rec.n, m = map, x = p[1], y = p[2], l = lv,
+                            r = (rec.c == "rare" and "rare") or (rec.c == "rareelite" and "rare elite") or (rec.c == "elite" and "elite") or (rec.c == "worldboss" and "world boss") or nil,
+                        })
+                    end
+                end
+                ns:Yield()
+            end
+        end
+    end
 end
 
 local function RecordMouseover()
