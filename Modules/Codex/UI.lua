@@ -449,6 +449,27 @@ local function DetailText(e)
         local S = _G.SeviathsUsefulTools
         local list = e.npcID and S and S.WowheadDrops and S:WowheadDrops(e.npcID)
         if not list and c == "boss" and S and S.WowheadDropsByName then list = S:WowheadDropsByName(e.name) end
+        -- what you picked up from this boss yourself (filed by the boss killed, for dungeons and raids)
+        if c == "boss" and S and S.db and S.db.bossLoot then
+            local mine = {}
+            for _, bosses in pairs(S.db.bossLoot) do
+                local rec = type(bosses) == "table" and bosses[e.name]
+                if type(rec) == "table" and rec.d then
+                    for id, n in pairs(rec.d) do mine[id] = (mine[id] or 0) + n end
+                end
+            end
+            local ids = {}
+            for id in pairs(mine) do ids[#ids + 1] = id end
+            table.sort(ids)
+            if #ids > 0 then
+                local lines = {}
+                for _, id in ipairs(ids) do
+                    local nm = C_Item.GetItemNameByID(id) or ("item " .. id)
+                    lines[#lines + 1] = "• " .. nm .. "  x" .. mine[id]
+                end
+                t = t .. section("You picked up", table.concat(lines, "\n"))
+            end
+        end
         if list and #list > 0 then
             local lines = {}
             for i = 1, math.min(#list, 40) do

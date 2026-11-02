@@ -1539,6 +1539,9 @@ local function spotRow(i)
         end
         for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
         for _, id in ipairs(s.items or {}) do if not drops[id] then drops[id] = 0 end end
+        -- the items Wowhead lists for this monster (dungeon monsters and bosses too)
+        local listed = s.npc and SFP.WowheadDrops and SFP:WowheadDrops(s.npc)
+        if listed then for _, id in ipairs(listed) do if not drops[id] then drops[id] = 0 end end end
         local order = {}
         for id in pairs(drops) do order[#order + 1] = id end
         table.sort(order, function(a, c2)
@@ -1905,6 +1908,9 @@ local function addSpotDrops(t, s)
         end
     end
     for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
+    -- the items Wowhead lists for this monster (dungeon monsters and bosses too)
+    local listed = s.npc and SFP.WowheadDrops and SFP:WowheadDrops(s.npc)
+    if listed then for _, id in ipairs(listed) do if drops[id] == nil then drops[id] = 0 end end end
     -- what the guides list for it (collectibles and farm items): known, but not its whole loot
     local guide = {}
     for _, id in ipairs(s.items or {}) do if not drops[id] or drops[id] == 0 then guide[#guide + 1] = id; drops[id] = nil end end

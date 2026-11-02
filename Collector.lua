@@ -423,6 +423,15 @@ local function onLoot()
         for i = 1, #sources, 2 do
             local guid, qty = sources[i], sources[i + 1] or 1
             local kind, id = guidInfo(guid)
+            if not kind and itemID and IsInInstance and IsInInstance() and lastBoss and GetTime() - lastBoss.t < 900 then
+                SFP.db.bossLoot = SFP.db.bossLoot or {}
+                local inst = SFP.db.bossLoot[lastBoss.inst]
+                if not inst then inst = {}; SFP.db.bossLoot[lastBoss.inst] = inst end
+                local boss = inst[lastBoss.boss]
+                if not boss then boss = { k = 0, d = {} }; inst[lastBoss.boss] = boss end
+                boss.d[itemID] = (boss.d[itemID] or 0) + (qty or 1)
+                if lastBoss.counted ~= true then lastBoss.counted = true; boss.k = boss.k + 1 end
+            end
             if kind == "npc" then
                 local name = (safeGUID("target") == guid) and UnitName("target") or nil
                 if not name and C_TooltipInfo and C_TooltipInfo.GetHyperlink then
