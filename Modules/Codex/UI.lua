@@ -445,9 +445,10 @@ local function DetailText(e)
         end
     end
     -- a monster: the items Wowhead lists for it (gear, bags, pets, materials ...), read only for this monster
-    if (c == "creature" or c == "boss" or c == "rare") and e.npcID then
+    if c == "creature" or c == "boss" or c == "rare" then
         local S = _G.SeviathsUsefulTools
-        local list = S and S.WowheadDrops and S:WowheadDrops(e.npcID)
+        local list = e.npcID and S and S.WowheadDrops and S:WowheadDrops(e.npcID)
+        if not list and c == "boss" and S and S.WowheadDropsByName then list = S:WowheadDropsByName(e.name) end
         if list and #list > 0 then
             local lines = {}
             for i = 1, math.min(#list, 40) do

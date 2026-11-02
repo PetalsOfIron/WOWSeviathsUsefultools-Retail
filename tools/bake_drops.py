@@ -19,6 +19,7 @@ BS = chr(92)
 NL = BS + "n"
 
 npc_items = {}
+npc_names = {}
 n_items = 0
 src = os.path.join(HERE, "items_sources.txt")
 for line in open(src, encoding="utf8").read().splitlines():
@@ -33,10 +34,12 @@ for line in open(src, encoding="utf8").read().splitlines():
         f = part.split(":")
         if len(f) >= 2 and f[0] == "1" and f[1].isdigit():
             npc_items.setdefault(int(f[1]), set()).add(int(p[0]))
+            if len(f) >= 4 and f[3].strip():
+                npc_names.setdefault(int(f[1]), f[3].strip())
 
 blocks = {}
 for npc, items in npc_items.items():
-    blocks.setdefault(npc // BLOCK, []).append("%d|%s" % (npc, ",".join(str(i) for i in sorted(items))))
+    blocks.setdefault(npc // BLOCK, []).append("%d|%s|%s" % (npc, npc_names.get(npc, "").replace('"', "'").replace(BS, ""), ",".join(str(i) for i in sorted(items))))
 
 for old in os.listdir(ADDONS):
     if old.startswith("SeviathsUsefulTools_Drops"):
