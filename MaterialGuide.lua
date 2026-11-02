@@ -220,21 +220,37 @@ local function isGray(id)
     return false
 end
 
+-- a crafting reagent: trade goods, anything the game flags as a crafting reagent, and what the addon knows as a material
+local function isCraftingReagent(id)
+    local c = reagentCache[id]
+    if c ~= nil then return c end
+    c = false
+    if C_Item and C_Item.GetItemInfoInstant then
+        local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, id)
+        if ok and classID == 7 then c = true end   -- trade goods
+    end
+    if not c and C_Item and C_Item.GetItemInfo then
+        local ok, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, crafting = pcall(C_Item.GetItemInfo, id)
+        if ok and crafting == true then c = true end   -- the game's own crafting reagent flag
+    end
+    if not c then
+        local rec = SFP.db and SFP.db.knownItems and SFP.db.knownItems[id]
+        if type(rec) == "table" and rec.c == 7 then c = true end
+    end
+    if not c then
+        local info = SFP.Items and SFP.Items[id]
+        if info and info.kind == "mat" then c = true end
+    end
+    reagentCache[id] = c
+    return c
+end
+
+-- Material search lists the crafting reagents, Item search the other items (gray items are in neither: they stay in the data and in the loot table of
+-- a monster you hover)
 local function isReagent(id)
     if id == nil or isGray(id) then return false end
-    if itemMode then return true end
-    local c = reagentCache[id]
-    if c == nil then
-        c = false
-        if C_Item and C_Item.GetItemInfoInstant then
-            local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, id)
-            if ok and classID == 7 then c = true end   -- trade goods: the crafting reagents
-        end
-        local info = SFP.Items and SFP.Items[id]
-        if not c and info and info.kind == "mat" then c = true end
-        reagentCache[id] = c
-    end
-    return c
+    if itemMode then return not isCraftingReagent(id) end
+    return isCraftingReagent(id)
 end
 
 local function ownMaps()
