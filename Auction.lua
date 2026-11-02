@@ -620,6 +620,11 @@ function SFP:StartScan(force, noFull, auto)
     step()
 end
 
+local function spanText(s)
+    if s >= 3600 then return ("%.1f h"):format(s / 3600) end
+    return math.max(1, math.floor(s / 60)) .. " min"
+end
+
 local f = CreateFrame("Frame")
 pcall(f.RegisterEvent, f, "AUCTION_HOUSE_SHOW")
 pcall(f.RegisterEvent, f, "AUCTION_HOUSE_CLOSED")
@@ -636,9 +641,9 @@ f:SetScript("OnEvent", function(_, event, arg1)
     end
     if event == "AUCTION_HOUSE_SHOW" then
         ahOpen = true
-        -- a scan starts by itself when the auction house opens and the last scan is an hour old or more (not at every open);
-        -- if the window stays open, the next one starts when the hour is over
-        local RESCAN = 3600
+        -- a scan starts by itself when the auction house opens and the last scan is a day old or more (not at every open);
+        -- if the window stays open, the next one starts when the day is over
+        local RESCAN = 86400
         local age = time() - SFP:LastScan()
         local stale = SFP:LastScan() == 0 or age >= RESCAN
         local resume = qIndex > 0 and qIndex < #queue
@@ -658,8 +663,8 @@ f:SetScript("OnEvent", function(_, event, arg1)
         else
             -- say why nothing starts, so a silent chat never looks like a broken scan
             local wait = math.max(1, math.ceil((RESCAN - age) / 60))
-            SFP:Print(("Auction prices are fresh (scanned %d min ago). The next automatic scan starts in about %d min if the auction house stays open, or when you open it after that. Press Scan prices to scan now."):format(
-                math.floor(age / 60), wait))
+            SFP:Print(("Auction prices are fresh (scanned %s ago). The next automatic scan starts in about %s if the auction house stays open, or when you open it after that. Press Scan prices to scan now."):format(
+                spanText(age), spanText(RESCAN - age)))
         end
     elseif event == "REPLICATE_ITEM_LIST_UPDATE" then
         if fullWaiting then
