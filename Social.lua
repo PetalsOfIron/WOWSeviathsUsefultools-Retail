@@ -464,14 +464,19 @@ function S.Progress()
     for n, r in pairs((S.Config().lib and S.Config().lib.delve) or {}) do
         if type(r) == "table" and (r.n or 0) > 0 then libDone[tostring(n):lower()] = true end
     end
-    for l in pairs(names) do
-        out.delve[2] = out.delve[2] + 1
-        local isDone = done[l] or libDone[l]
-        if not isDone then
-            for ld in pairs(libDone) do if ld:find(l, 1, true) or l:find(ld, 1, true) then isDone = true break end end
+    -- each finished delve (by any record of it) is matched to ONE delve of the list - the exact name first, else a name that contains it - and the
+    -- number done is the number of DIFFERENT delves matched: one delve done many times, or under two spellings, counts once
+    local matched = {}
+    local function matchOne(key)
+        if names[key] then return key end
+        for l in pairs(names) do
+            if l:find(key, 1, true) or key:find(l, 1, true) then return l end
         end
-        if isDone then out.delve[1] = out.delve[1] + 1 end
     end
+    for key in pairs(done) do local l = matchOne(key); if l then matched[l] = true end end
+    for key in pairs(libDone) do local l = matchOne(key); if l then matched[l] = true end end
+    for _ in pairs(names) do out.delve[2] = out.delve[2] + 1 end
+    for _ in pairs(matched) do out.delve[1] = out.delve[1] + 1 end
     if C_ChallengeMode and C_ChallengeMode.GetMapTable and C_MythicPlus and C_MythicPlus.GetSeasonBestForMap then
         local ok, maps = pcall(C_ChallengeMode.GetMapTable)
         if ok and type(maps) == "table" then
@@ -489,16 +494,23 @@ function S.Progress()
     if dr and dr.PlaceTier and dr.db and dr.db.dungeon and GetServerExpansionLevel then
         if dr.LoadEJPlaces then pcall(dr.LoadEJPlaces, dr, "dungeon") end
         local cur, entered = GetServerExpansionLevel() + 1, (S.Config().lib and S.Config().lib.dungeon) or {}
+        local list = {}
         for name in pairs(dr.db.dungeon.known or {}) do
-            if dr:PlaceTier("dungeon", name) == cur then
-                out.dun[2] = out.dun[2] + 1
-                local l = name:lower()
-                for en in pairs(entered) do
-                    local el = en:lower()
-                    if el:find(l, 1, true) or l:find(el, 1, true) then out.dun[1] = out.dun[1] + 1 break end
-                end
-            end
+            if dr:PlaceTier("dungeon", name) == cur then list[#list + 1] = name:lower() end
         end
+        out.dun[2] = #list
+        -- each dungeon you entered is matched to ONE dungeon of the list; the number done is the number of different dungeons matched
+        local matched = {}
+        for en in pairs(entered) do
+            local el = tostring(en):lower()
+            local hit
+            for _, l in ipairs(list) do if l == el then hit = l break end end
+            if not hit then
+                for _, l in ipairs(list) do if l:find(el, 1, true) or el:find(l, 1, true) then hit = l break end end
+            end
+            if hit then matched[hit] = true end
+        end
+        for _ in pairs(matched) do out.dun[1] = out.dun[1] + 1 end
     end
     if dr and dr.GetBosses and dr.ResolveInstance and dr.PlaceTier and dr.GetMyKills and dr.db and dr.db.raid and GetServerExpansionLevel then
         local cur = GetServerExpansionLevel() + 1
