@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3
+### World map
+- The Farm spots entry is gone from the points menu (the Farm spots button has its own list).
+### Items and monsters
+- Farm spots and Rares lists show all the loot of each monster again, with the chance of each item like the monster tooltip ("33% 1/3 chance", a plain percentage until 3 kills).
+- Every monster you killed is listed in Farm spots and Rares, also ones with no drop recorded and trivial or low-level ones.
+- The lists update with your new kills: they are made again a moment after a loot window closes, also while the window is closed.
+
 ## 2.2
 ### World map
 - Herb and ore nodes: the addon records the kind of node and the smallest and largest amount of each pickup. The nodes you have gathered show on the map as small icons; hover one to see what it gave, with the amounts. The Herb nodes and Mining nodes switches of the points menu show or hide them.
@@ -8,7 +16,6 @@
 - A treasure box leaves the map for the character that opened the chest and stays for your other characters. The first character to log in with this version gets all the chests recorded so far as opened.
 - A chest that respawns comes back to the map after the time it took to respawn the last time you opened it (one day until it has been opened twice).
 ### Items and monsters
-- Farm spots and Rares lists show all the loot of each monster again, and every monster you killed is listed, also ones with no drop recorded and trivial or low-level ones.
 - Quest items are no longer part of a monster's loot table (tooltip, map and lists) and are not recorded as drops any more.
 ### Other
 - The automatic auction house scan when you open it runs once a day instead of once an hour.
