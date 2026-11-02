@@ -13,8 +13,22 @@ local GUILDS_PER_PAGE = 14   -- guilds per page of the list: after every 14 ther
 
 local win, list, realmButtons, pager = nil, nil, {}, nil
 local rioText = {}   -- "Name-Realm" -> { text, t }: what Raider.IO said about a leader, kept for 2 minutes (the lookups are not cheap)
-local state = { realm = nil, faction = nil, search = "", page = 1, gpage = 1 }
+local state = { realm = nil, faction = nil, region = nil, search = "", page = 1, gpage = 1 }
 local factionButtons = {}
+local regionButtons = {}
+
+-- US or EU: the region of the player at first (the realm lists below show the realms of the region picked)
+local function ownRegion()
+    local r = GetCurrentRegion and GetCurrentRegion()
+    return r == 3 and "eu" or "us"
+end
+
+-- does a realm belong to the region picked? A realm name that exists in both regions is in both; a realm the data does not know is in the player's own
+local function inRegion(realm)
+    local v = SFP.RealmRegion and SFP.RealmRegion[realm]
+    if not v then return (state.region or ownRegion()) == ownRegion() end
+    return v == "both" or v == (state.region or ownRegion())
+end
 
 -- the faction of a guild: saved with it, or from the shipped guild data; nil while nothing says
 local function factionOfGuild(realm, name, g)
@@ -47,7 +61,9 @@ local function realms()
     if not state.faction then state.faction = UnitFactionGroup and UnitFactionGroup("player") or "Horde" end
     for realm, guilds in pairs((SFP.db and SFP.db.guildDir) or {}) do
         local n = 0
-        for name, g in pairs(guilds) do if matchesFaction(realm, name, g) then n = n + 1 end end
+        if inRegion(realm) then
+            for name, g in pairs(guilds) do if matchesFaction(realm, name, g) then n = n + 1 end end
+        end
         if n > 0 then out[#out + 1] = { realm = realm, n = n } end
     end
     table.sort(out, function(a, b)
@@ -229,6 +245,7 @@ local function refresh()
             b:SetShown(f ~= "Unknown" or (counts.Unknown or 0) > 0)
         end
     end
+    for key, b in pairs(regionButtons) do b:SetEnabled((state.region or ownRegion()) ~= key) end   -- the region shown is the pressed one
     if #rl == 0 then
         for _, b in ipairs(realmButtons) do b:Hide() end
         pager.text:SetText("")
@@ -244,7 +261,7 @@ local function refresh()
     local pages = math.max(1, math.ceil(#rl / PAGE))
     state.page = math.min(math.max(state.page, 1), pages)
     local first = (state.page - 1) * PAGE
-    local x, y = 14, -72
+    local x, y = 14, -98
     for i = 1, PAGE do
         local r = rl[first + i]
         local b = realmButtons[i]
@@ -319,6 +336,15 @@ local function build()
     bigButton("Alliance", 14, 500)
     bigButton("Horde", 518, 500)
     bigButton("Unknown", 1022, 214)
+    -- US and EU, above the realm buttons: the realms below are the ones of the region picked
+    for i, def in ipairs({ { "us", "US" }, { "eu", "EU" } }) do
+        local b = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
+        b:SetSize(70, 22)
+        b:SetPoint("TOPLEFT", 14 + (i - 1) * 74, -68)
+        b:SetText(def[2])
+        b:SetScript("OnClick", function() state.region = def[1]; state.realm = nil; state.page = 1; state.gpage = 1; refresh() end)
+        regionButtons[def[1]] = b
+    end
     -- the row below the realm buttons: pagers and search
     pager = {}
     pager.prev = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")

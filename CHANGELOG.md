@@ -12,6 +12,7 @@
 - Dungeon and raid bosses: what you pick up from a boss is recorded even when the game hides what was looted (filed under the boss killed), shown on the boss page in the Codex; the spot tooltips (Rares, Farm spots) list Wowhead's drops of dungeon monsters and bosses too.
 - Material search, Item search, Rares and Farm spots update by themselves when you kill a monster or pick something up.
 - The Mining & Herbalism button below the map is gone: Material search opens on the zone you are in, and its Mining & Herbalism tab has the same list. The Mount search updates when you collect a mount.
+- Guild Directory: US and EU buttons above the realm buttons pick the region (your own at first); a realm name that exists in both regions is in both.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
