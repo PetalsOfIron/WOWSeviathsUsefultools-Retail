@@ -14,7 +14,7 @@
 ### Play style (profile tooltip)
 - Decided week by week and starting again at every weekly reset. A style needs a lot of the same activity on several days (for example 14 dungeons or delves a week; a raid every week for 4 weeks in a row makes a raid player); only dungeons and delves, nothing else, counts too.
 - Gold grinder: 60,000 gold in a week from monster drops and the auction house; quest and vendor gold does not count.
-- Casual (normal and raid finder raids, delves, normal and heroic dungeons, keys +0 to +4) and Hardcore (heroic and mythic raids, keys +5 and up) can sit next to the other styles.
+- Casual (anyone who plays and does nothing hardcore: quests, normal and raid finder raids, delves, normal and heroic dungeons, keys +0 to +4) and Hardcore (heroic and mythic raids, keys +5 and up) can sit next to the other styles.
 
 ## 2.0
 ### World map
