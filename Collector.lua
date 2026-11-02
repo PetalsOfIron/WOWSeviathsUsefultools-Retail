@@ -797,6 +797,52 @@ end
 
 -- true when our lines are already in this tooltip (hooks can fire more than once)
 local hasOurLines   -- defined below
+-- What an item is for, in a few words: the item's own "Use:" line from the game's tooltip, else what it is (a battle pet, a mount, a toy). It is read once and
+-- kept with the other item data (db.itemUse), so it is known from then on; nil when the game does not say.
+function SFP:ItemUseText(id)
+    if type(id) ~= "number" or not self.db then return nil end
+    self.db.itemUse = self.db.itemUse or {}
+    local kept = self.db.itemUse[id]
+    if kept ~= nil then return kept ~= false and kept or nil end
+    local text
+    if C_PetJournal and C_PetJournal.GetPetInfoByItemID then
+        local ok, name = pcall(C_PetJournal.GetPetInfoByItemID, id)
+        if ok and name then text = "Battle pet: teaches you to summon this companion" end
+    end
+    if not text and C_MountJournal and C_MountJournal.GetMountFromItem then
+        local ok, mid = pcall(C_MountJournal.GetMountFromItem, id)
+        if ok and mid then text = "Mount" end
+    end
+    if not text and C_ToyBox and C_ToyBox.GetToyInfo then
+        local ok, tid = pcall(C_ToyBox.GetToyInfo, id)
+        if ok and tid then text = "Toy" end
+    end
+    if not text and C_TooltipInfo and C_TooltipInfo.GetItemByID then
+        local ok, data = pcall(C_TooltipInfo.GetItemByID, id)
+        if ok and type(data) == "table" and type(data.lines) == "table" then
+            for _, line in ipairs(data.lines) do
+                local lt = line and line.leftText
+                if type(lt) == "string" and not (issecretvalue and issecretvalue(lt)) then
+                    local use = lt:match("^Use:%s*(.+)$") or lt:match("^Teaches%s+(.+)$")
+                    if use then
+                        text = lt:sub(1, 90)
+                        break
+                    end
+                end
+            end
+        end
+    end
+    -- a consumable with no use line says what it is: Potion, Elixir, Flask, Food & Drink ...
+    if not text and C_Item and C_Item.GetItemInfoInstant then
+        local ok, _, itype, isub, _, _, classID = pcall(C_Item.GetItemInfoInstant, id)
+        if ok and classID == 0 and type(isub) == "string" and isub ~= "" and isub ~= "Other" then text = isub end
+    end
+    -- an item the game has not loaded yet is asked again next time; only an answer is kept
+    if C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id) then self.db.itemUse[id] = text or false
+    elseif C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
+    return text
+end
+
 -- the loot lines of a recorded object (a chest, a cache ...): each item with its chance ("33% 1/3 chance") from the first time it was opened - for the tooltip of the
 -- object and for the little boxes on the world map
 function SFP.ObjectLootLines(tt, rec)
@@ -814,14 +860,16 @@ function SFP.ObjectLootLines(tt, rec)
         local price = SFP:GetPrice(e[1])
         tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. (chance ~= "" and ("  " .. chance) or ""),
             price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
-        -- what the item is for, only when the addon can say (a crafting material and its recipes, gear compared with yours, craftable ...): nothing is typed
-        -- when it cannot explain the item, and never where the item was seen
-        local why
-        local okT, tl = pcall(SFP.ItemTipLines, SFP, e[1])
-        if okT and type(tl) == "table" then
-            for _, row in ipairs(tl) do
-                local txt = type(row[1]) == "string" and row[1]
-                if txt and not txt:find("Seen from", 1, true) and not txt:find("Where to get", 1, true) and not txt:find("Dropped by", 1, true) then why = txt break end
+        -- what the item is for: its own use text (kept once read), else what the addon knows (a crafting material and its recipes, gear compared with yours ...);
+        -- nothing is typed when neither can say, and never where the item was seen
+        local why = SFP:ItemUseText(e[1])
+        if not why then
+            local okT, tl = pcall(SFP.ItemTipLines, SFP, e[1])
+            if okT and type(tl) == "table" then
+                for _, row in ipairs(tl) do
+                    local txt = type(row[1]) == "string" and row[1]
+                    if txt and not txt:find("Seen from", 1, true) and not txt:find("Where to get", 1, true) and not txt:find("Dropped by", 1, true) then why = txt break end
+                end
             end
         end
         if why then tt:AddLine("   |cff808080" .. why .. "|r", 1, 1, 1, false) end
