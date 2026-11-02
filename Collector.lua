@@ -236,25 +236,33 @@ local function ensureNpc(id, name)
     return rec
 end
 
+-- a value from the game that can be a secret one (in dungeons and fights): the plain value, or nil
+local function plainValue(f, ...)
+    local ok, v = pcall(f, ...)
+    if ok and v ~= nil and not (issecretvalue and issecretvalue(v)) then return v end
+end
+
 local function recordUnit(unit)
     if not SFP.db or not UnitExists(unit) then return end
-    if UnitIsPlayer(unit) or UnitPlayerControlled(unit) then return end
-    local kind, id = guidInfo(UnitGUID(unit))
+    if plainValue(UnitIsPlayer, unit) or plainValue(UnitPlayerControlled, unit) then return end
+    local kind, id = guidInfo(plainValue(UnitGUID, unit))
     if kind ~= "npc" then return end
-    local name = UnitName(unit)
-    if not name or (issecretvalue and issecretvalue(name)) or name == "" or name == UNKNOWN then return end
+    local name = plainValue(UnitName, unit)
+    if type(name) ~= "string" or name == "" or name == UNKNOWN then return end
     local rec = ensureNpc(id, name)
-    local lvl = UnitLevel(unit)
-    if lvl and lvl > 0 then
+    local lvl = plainValue(UnitLevel, unit)
+    if type(lvl) == "number" and lvl > 0 then
         rec.lmin = min(rec.lmin or lvl, lvl)
         rec.lmax = max(rec.lmax or lvl, lvl)
     elseif lvl == -1 then
         rec.boss = true
     end
-    rec.t = rec.t or UnitCreatureType(unit)
-    rec.f = rec.f or UnitCreatureFamily(unit)
-    local okC, cls = pcall(UnitClassification, unit)
-    if okC and type(cls) == "string" and not (issecretvalue and issecretvalue(cls)) and cls ~= "normal" then rec.c = cls end
+    local ctype = plainValue(UnitCreatureType, unit)
+    if type(ctype) == "string" then rec.t = rec.t or ctype end
+    local family = plainValue(UnitCreatureFamily, unit)
+    if type(family) == "string" then rec.f = rec.f or family end
+    local cls = plainValue(UnitClassification, unit)
+    if type(cls) == "string" and cls ~= "normal" then rec.c = cls end
     local map, x, y = playerPos()
     if map then addPoint(rec, map, x, y) end
 end
@@ -454,7 +462,11 @@ local function onLoot()
                 if lastBoss.counted ~= true then lastBoss.counted = true; boss.k = boss.k + 1 end
             end
             if kind == "npc" then
-                local name = (safeGUID("target") == guid) and UnitName("target") or nil
+                local name
+                if safeGUID("target") == guid then
+                    local okN, tn = pcall(UnitName, "target")   -- in a dungeon the name can be a secret value: never an error, never stored
+                    if okN and type(tn) == "string" and not (issecretvalue and issecretvalue(tn)) then name = tn end
+                end
                 if not name and C_TooltipInfo and C_TooltipInfo.GetHyperlink then
                     local okT, data = pcall(C_TooltipInfo.GetHyperlink, "unit:" .. guid)
                     local line = okT and data and data.lines and data.lines[1]
