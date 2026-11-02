@@ -92,7 +92,7 @@ scanners.item = function(done)
             for line in blocks[keys[n]]:gmatch("[^\n]+") do
                 local r = SFP.ItemParseLine(line)
                 if r and not (db and db.knownItems and db.knownItems[r.id]) and not ns:Get("item:" .. r.id) then
-                    local exp = r.exp and _G["EXPANSION_NAME" .. r.exp] or "Other expansions"
+                    local exp = r.exp and _G["EXPANSION_NAME" .. r.exp] or "No expansion set yet"
                     local cn = (r.class and GetItemClassInfo and GetItemClassInfo(r.class)) or "Other"
                     local sn = (r.class and r.sub and GetItemSubClassInfo and GetItemSubClassInfo(r.class, r.sub)) or nil
                     local g2 = exp .. " > " .. cn .. ((sn and sn ~= "" and sn ~= cn) and (" > " .. sn) or "")
@@ -178,7 +178,7 @@ makers.item = function(id)
             -- an item of Wowhead's lists
             local r = SFP.ShippedItem and SFP:ShippedItem(id)
             if r then
-                local exp = r.exp and _G["EXPANSION_NAME" .. r.exp] or "Other expansions"
+                local exp = r.exp and _G["EXPANSION_NAME" .. r.exp] or "No expansion set yet"
                 local cn = (r.class and GetItemClassInfo and GetItemClassInfo(r.class)) or "Other"
                 local sn = (r.class and r.sub and GetItemSubClassInfo and GetItemSubClassInfo(r.class, r.sub)) or nil
                 ns:Add({ cat = "item", id = id, name = r.name, itemID = id, wh = "item=" .. id, lazy = true, icon = C_Item.GetItemIconByID(id),
