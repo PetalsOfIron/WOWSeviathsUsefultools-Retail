@@ -843,10 +843,28 @@ local function unitTip(tt, data)
     for itemID, c in pairs(rec and rec.d or {}) do list[#list + 1] = { itemID, c } end
     table.sort(list, function(a, b) return a[2] > b[2] end)
     local kills = max(1, rec and rec.k or 1)
+    local shownIds = {}
     for i = 1, min(8, #list) do
         local e = list[i]
+        shownIds[e[1]] = true
+        -- the chance from your own kills with how many kills it takes: "12.5% (1 in 8)"; the number of kills itself is not shown
+        local chance = SFP.ChanceText(e[2], kills)
         tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]),
-            string.format("%d%%", min(100, floor(e[2] * 100 / kills + 0.5))), 1, 1, 1, 0.7, 0.7, 0.7)
+            chance ~= "" and chance or string.format("%d%%", min(100, floor(e[2] * 100 / kills + 0.5))), 1, 1, 1, 0.7, 0.7, 0.7)
+    end
+    -- and what Wowhead lists for this monster (rares, bosses, any monster), the rest of its loot table
+    do
+        local listed = SFP.WowheadDrops and SFP:WowheadDrops(id)
+        if listed then
+            local extra = 0
+            for _, itemID in ipairs(listed) do
+                if not shownIds[itemID] and not (rec and rec.d and rec.d[itemID]) then
+                    extra = extra + 1
+                    if extra > 8 then tt:AddLine("|cff808080+ more|r") break end
+                    tt:AddDoubleLine("|T" .. SFP:ItemIcon(itemID) .. ":12|t " .. SFP:ItemName(itemID), "|cff808080listed|r", 1, 1, 1, 0.7, 0.7, 0.7)
+                end
+            end
+        end
     end
     if rec and rec.s then
         local sk = {}

@@ -472,11 +472,14 @@ local function DetailText(e)
         end
         if list and #list > 0 then
             local lines = {}
+            local own = S.Npc and e.npcID and S:Npc(e.npcID)
             for i = 1, math.min(#list, 40) do
                 local id = list[i]
                 local nm = C_Item.GetItemNameByID(id)
                 if not nm then nm = "item " .. id; C_Item.RequestLoadItemDataByID(id) end
-                lines[#lines + 1] = "• " .. nm
+                -- the chance from your own kills, with how many kills it takes ("12.5% (1 in 8)")
+                local chance = (type(own) == "table" and own.d and S.ChanceText) and S.ChanceText(own.d[id], own.k or 0) or ""
+                lines[#lines + 1] = "• " .. nm .. (chance ~= "" and ("  " .. chance) or "")
             end
             if #list > 40 then lines[#lines + 1] = "|cff888888+ " .. (#list - 40) .. " more|r" end
             t = t .. section("Drops (Wowhead)", table.concat(lines, "\n"))
