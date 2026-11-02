@@ -1,8 +1,7 @@
 -- SeviathsUsefulTools - the points menu of the world map
 --
--- A small button under the map's own pin buttons (top right of the world map) opens a menu: the kinds of points the addon draws (farm spots, rares, hunter pets,
--- special materials, mining, herbs, treasures) can be switched on or off, and under them every point of the zone you are looking at is listed with a checkbox -
--- the list is made for each zone, from what is there (its farm spots, its rares, the treasures you opened).
+-- A small button under the map's own pin buttons (top right of the world map) opens a small menu: each kind of point the addon draws (farm spots, rares, hunter pets,
+-- special materials, mining, herbs, and all the treasure chests) can be switched on or off.
 
 local _, SFP = ...
 
@@ -13,7 +12,7 @@ local KINDS = {
     { "showSpecial",   "Special materials", false },
     { "showMining",    "Mining nodes",      false },
     { "showHerbs",     "Herb nodes",        false },
-    { "showTreasures", "Treasures",         true },
+    { "showTreasures", "Treasures (all chests)", true },
 }
 
 local function isOn(key, default)
@@ -69,36 +68,6 @@ local function openMenu(button)
             local key, label, default = k[1], k[2], k[3]
             root:CreateCheckbox(label, function() return isOn(key, default) end, function() toggleKind(key, default) end)
         end
-        if not map then return end
-        root:CreateDivider()
-        root:CreateTitle(SFP:ZoneName(map) .. " - every point")
-        local farm = SFP.FarmSpotsOf and SFP.FarmSpotsOf(map, "farm") or {}
-        local rare = SFP.FarmSpotsOf and SFP.FarmSpotsOf(map, "rare") or {}
-        local treasures = SFP.TreasuresOfMap and SFP.TreasuresOfMap(map) or {}
-        if #farm > 0 then
-            local sub = root:CreateButton("Farm spots (" .. #farm .. ")")
-            if sub.SetScrollMode then sub:SetScrollMode(320) end
-            addSpots(sub, farm)
-        end
-        if #rare > 0 then
-            local sub = root:CreateButton("Rares (" .. #rare .. ")")
-            if sub.SetScrollMode then sub:SetScrollMode(320) end
-            addSpots(sub, rare)
-        end
-        if #treasures > 0 then
-            local sub = root:CreateButton("Treasures (" .. #treasures .. ")")
-            if sub.SetScrollMode then sub:SetScrollMode(320) end
-            for _, t in ipairs(treasures) do
-                sub:CreateCheckbox(tostring(t.rec.n or ("Treasure " .. t.id)),
-                    function() return not (SFP.db.hiddenTreasures and SFP.db.hiddenTreasures[t.id]) end,
-                    function()
-                        SFP.db.hiddenTreasures = SFP.db.hiddenTreasures or {}
-                        SFP.db.hiddenTreasures[t.id] = (not SFP.db.hiddenTreasures[t.id]) or nil
-                        redraw()
-                    end)
-            end
-        end
-        if #farm + #rare + #treasures == 0 then root:CreateTitle("|cff808080nothing recorded here yet|r") end
     end)
 end
 
