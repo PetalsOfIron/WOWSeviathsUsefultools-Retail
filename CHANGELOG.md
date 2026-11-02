@@ -8,6 +8,7 @@
 - Monsters: the items Wowhead lists for a monster (2,700 monsters) show with its loot on the map, in Rares and Farm spots, and on the Codex monster page.
 - Mount search: mounts of every expansion from Classic to Midnight with source, cost (gold, a currency or an item, with its icon) and a waypoint where the guide names the exact place.
 - New Item search button next to Material search: the same window and lists, with every item the monsters of a zone drop (gear, bags, pets, materials ...). Material search now lists only crafting reagents.
+- The group makeup window no longer opens by itself when you enter a dungeon; in a group of 5 or more a Group makeup button at the top left of the screen opens it.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
