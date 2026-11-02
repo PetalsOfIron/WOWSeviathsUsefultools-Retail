@@ -6,7 +6,7 @@
 
 local _, SFP = ...
 
-local SIZE = 8            -- screen pixels of the box
+local SIZE = 5            -- screen pixels of the box
 local pins, used = {}, 0
 local byMap = {}          -- [map] = list of { id, rec, x, y }: made when a map is asked for, dropped when the loot changes
 local layer
@@ -33,14 +33,17 @@ local function convert(from, x, y, to)
     if type(tx) == "number" and type(ty) == "number" and tx >= 0 and tx <= 1 and ty >= 0 and ty <= 1 then return tx, ty end
 end
 
--- a treasure: an object that gave something and is neither a gathering node (by what it gave: ore, herbs, leather ...) nor an objective of a quest (what it gave
--- being a quest item does not matter: many treasures give those)
+-- a treasure: an object the game showed as a loot icon where you opened it (rec.tr, set by the Collector). Objects recorded before that was noted count when they
+-- look like one: a name, opened once or twice, not a quest objective, not a gathering node
 local function isTreasure(rec)
     if type(rec) ~= "table" or type(rec.d) ~= "table" or not next(rec.d) or type(rec.m) ~= "table" then return false end
     if (rec.k or 0) < 1 then return false end
     if rec.qs and next(rec.qs) then return false end
+    if rec.ot then return false end   -- a quest objective or a gathering node has its type text saved
     if SFP.ObjectKind and SFP:ObjectKind({ d = rec.d }) then return false end   -- the kind by its items only
-    return true
+    if rec.tr then return true end
+    if (rec.k or 0) > 2 then return false end
+    return type(rec.n) == "string" and not rec.n:find("^Object %d+$") and not rec.n:find("Seviath", 1, true)
 end
 
 -- the treasures recorded for one map (made when the map is asked for, dropped when the loot changes)
@@ -76,12 +79,12 @@ local function getPin()
         p = CreateFrame("Button", nil, layer)
         p.edge = p:CreateTexture(nil, "BACKGROUND")
         p.edge:SetAllPoints()
-        p.edge:SetColorTexture(0, 0.12, 0.2, 1)
+        p.edge:SetColorTexture(0, 0.08, 0.14, 0.85)
         p.fill = p:CreateTexture(nil, "ARTWORK")
         p.fill:SetPoint("TOPLEFT", 1, -1)
         p.fill:SetPoint("BOTTOMRIGHT", -1, 1)
         local cy = SFP.CYAN or { 0, 0.9, 1 }
-        p.fill:SetColorTexture(cy[1] or cy.r or 0, cy[2] or cy.g or 0.9, cy[3] or cy.b or 1, 1)
+        p.fill:SetColorTexture((cy[1] or cy.r or 0) * 0.55, (cy[2] or cy.g or 0.9) * 0.6, (cy[3] or cy.b or 1) * 0.8, 0.8)   -- a softer blue
         p:SetScript("OnEnter", function(self)
             local t = SFP.Tip and SFP.Tip() or GameTooltip
             t:SetOwner(self, "ANCHOR_RIGHT")

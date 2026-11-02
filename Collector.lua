@@ -518,6 +518,21 @@ local function onLoot()
                     seenGuid[guid] = true
                     rec.k = (rec.k or 0) + 1
                     if map then addPoint(rec, map, px, py) end
+                    -- a treasure: the game shows it as a loot icon (a vignette) right where you stand; a quest objective or a plain object is not
+                    if map and px and py and C_VignetteInfo and C_VignetteInfo.GetVignettes then
+                        local okV, vigs = pcall(C_VignetteInfo.GetVignettes)
+                        for _, vg in ipairs(okV and vigs or {}) do
+                            local okI, vi = pcall(C_VignetteInfo.GetVignetteInfo, vg)
+                            local atlas = okI and type(vi) == "table" and type(vi.atlasName) == "string" and not (issecretvalue and issecretvalue(vi.atlasName)) and vi.atlasName:lower()
+                            if atlas and (atlas:find("loot", 1, true) or atlas:find("treasure", 1, true) or atlas:find("chest", 1, true)) then
+                                local okP, vp = pcall(C_VignetteInfo.GetVignettePosition, vg, map)
+                                if okP and type(vp) == "table" and vp.GetXY then
+                                    local vx, vy = vp:GetXY()
+                                    if type(vx) == "number" and math.abs(vx - px) < 0.02 and math.abs(vy - py) < 0.02 then rec.tr = true break end
+                                end
+                            end
+                        end
+                    end
                 end
                 if itemID then
                     rec.d = rec.d or {}
