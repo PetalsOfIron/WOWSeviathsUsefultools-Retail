@@ -1554,9 +1554,9 @@ local function spotRow(i)
         for n, id in ipairs(order) do
             if n > 40 then SFP.Tip():AddLine("+" .. (#order - 40) .. " more", 0.6, 0.6, 0.6) break end
             local chance = SFP.ChanceText(drops[id], kills)
+            local pct = chance ~= "" and ("  " .. chance) or ""
             local price = SFP:GetPrice(id)
-            local priceStr = price and SFP:FormatPrice(price) or ""
-            SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id), priceStr .. (chance ~= "" and ((priceStr ~= "" and "   " or "") .. chance) or ""), 1, 1, 1, 1, 1, 1)
+            SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. pct, price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
         end
         if s.hx then SFP.Tip():AddLine(string.format("%.1f, %.1f", s.hx * 100, s.hy * 100), 1, 0.82, 0) end
         SFP.Tip():AddLine("Click: show or hide this spot on the map", 0, 0.9, 1)
@@ -1924,10 +1924,8 @@ local function addSpotDrops(t, s)
     local function itemLine(id, q)
         local price = SFP:GetPrice(id)
         local chance = SFP.ChanceText(q, kills)
-        local per = (q and q > 0 and kills >= 1) and ("  |cff808080x" .. q .. "|r") or ""
-        -- the chance is at the end of the line, after the price
-        local priceStr = (SFP.PriceText and SFP.PriceText(id)) or (price and SFP:FormatPrice(price)) or ""
-        t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. per, priceStr .. (chance ~= "" and ((priceStr ~= "" and "   " or "") .. chance) or ""), 1, 1, 1, 1, 1, 1)
+        local per = ((q and q > 0 and kills >= 1) and ("  |cff808080x" .. q .. "|r") or "") .. (chance ~= "" and ("  " .. chance) or "")
+        t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. per, (SFP.PriceText and SFP.PriceText(id)) or (price and SFP:FormatPrice(price)) or "", 1, 1, 1, 1, 1, 1)
     end
     if #order > 0 then t:AddLine("Recorded drops", 0.8, 0.8, 0.8) end
     local gold = SFP.MonsterGold and SFP.MonsterGold(s)
