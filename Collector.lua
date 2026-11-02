@@ -357,8 +357,10 @@ mountFrame:SetScript("OnEvent", function(_, event, encounterID, encounterName)
                     if type(l[1]) == "string" and l[1]:lower() == li and l[2] == encounterName then
                         local s = mountStat(itemID, "boss|" .. inst .. "|" .. encounterName)
                         s.n = s.n + 1
-                        -- a boss that can drop a mount killed again: collecting (the old raids), counts for the collector play style
-                        if SFP.Social and SFP.Social.Act then SFP.Social.Act("collect") end
+                        -- a boss that can drop a mount killed again: collecting (the old raids), counts for the collector play style - raids only,
+                        -- and not Timewalking (everyone can do that)
+                        local _, itype, diff = GetInstanceInfo()
+                        if itype == "raid" and diff ~= 33 and SFP.Social and SFP.Social.Act then SFP.Social.Act("collect") end
                         break
                     end
                 end

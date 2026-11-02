@@ -569,7 +569,15 @@ local function countDecor()
             end
             i = i + 1
         end
-        if i <= #data then C_Timer.After(0, step) else counts.decor = n; saveCount('decor', n) end
+        if i <= #data then
+            C_Timer.After(0, step)
+        else
+            -- decor collected since the last count is collecting too (the collector play style)
+            local prev = SFP.db and SFP.db.myCounts and SFP.db.myCounts.decor
+            counts.decor = n
+            saveCount('decor', n)
+            if prev and n > prev then S.Act("collect", n - prev) end
+        end
     end
     step()
 end
@@ -659,7 +667,7 @@ function S.AutoStyles(p)
     if (p.rstreak or 0) >= 4 then cand[#cand + 1] = { id = "raider", score = 1 + (p.rstreak - 4) / 8 } end                  -- raid bosses killed (this week counts double)
     add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8, 14, "mythic", "dungeon")   -- Mythic+ keys and dungeons
     add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 14, "delve")                 -- delves
-    add("collector", a.collect, 10, 5, "collect")                                           -- new mounts, pets, toys and appearances collected
+    add("collector", a.collect, 10, 5, "collect")                                           -- new mounts, pets and toys collected, old raids that drop mounts, rares, pet battles
     add("achiever", a.achv, 30, 20, "achv")                                               -- achievements earned
     add("pvp", a.pvp, 10, 10, "pvp")                                                     -- PvP matches
     add("dailies", a.daily, 20, 20, "daily")                                               -- daily and world quests handed in
@@ -2332,8 +2340,8 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
             C_Timer.After(8, function() SFP:Safe("delve statistic", S.ReadDelveStat) end)
             C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
         end
-    elseif event == "NEW_MOUNT_ADDED" or event == "NEW_PET_ADDED" or event == "NEW_TOY_ADDED"
-        or event == "TRANSMOG_COLLECTION_SOURCE_ADDED" then S.Act("collect")
+    elseif event == "NEW_MOUNT_ADDED" or event == "NEW_PET_ADDED" or event == "NEW_TOY_ADDED" then
+        S.Act("collect")   -- mounts, battle pets, toys: not transmog (everyone gets that from Timewalking)
     elseif event == "ACHIEVEMENT_EARNED" then S.Act("achv")
     elseif event == "PVP_MATCH_COMPLETE" then S.Act("pvp")
     elseif event == "PET_BATTLE_CLOSE" then S.Act("collect")   -- battle pets: wild pet battles, the way to new pets
