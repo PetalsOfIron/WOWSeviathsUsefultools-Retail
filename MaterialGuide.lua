@@ -384,7 +384,12 @@ local function goToMonster(mapID, sp)
         local px, py = sp.pts:match("([%d%.]+),([%d%.]+)")
         if px then x, y = tonumber(px) / 100, tonumber(py) / 100 end
     end
-    if not x then return end
+    if not x then
+        -- no exact spot known: the waypoint leads to the zone, the whole zone where the monster is
+        if mapID and WorldMapFrame:GetMapID() ~= mapID then WorldMapFrame:SetMapID(mapID) end
+        if mapID then SFP:Print(string.format("%s: %s (no exact spot known yet)", tostring(sp.name), SFP:ZoneName(mapID))) end
+        return
+    end
     -- the map shows that zone and the waypoint sits on the monster (set again, never removed by a second click)
     if WorldMapFrame:GetMapID() ~= mapID then WorldMapFrame:SetMapID(mapID) end
     local placed = false
@@ -425,8 +430,12 @@ local function addItem(n, mapID, id, withZone)
             m.click = function() goToMonster(spot.m, { hx = spot.x, hy = spot.y, name = iname(id) }) end
             if not r.click then r.click = m.click end
         else
-            m.text:SetText("|cff808080monsters of the zone (no spot known yet)|r")
-            m.hl:Hide()
+            -- no exact spot: the waypoint leads to the zone (the monsters there, or where it is gathered)
+            m.text:SetText("|cff00e5ff" .. SFP:ZoneName(mapID) .. "|r  |cff808080whole zone, no exact spot known yet|r")
+            m.right:SetText("|cffff3030WAYPOINT|r")
+            m.hint = "Click: open the map on " .. SFP:ZoneName(mapID)
+            m.click = function() goToMonster(mapID, { name = iname(id) }) end
+            if not r.click then r.click = m.click end
         end
     end
     for _, sp in ipairs(mons) do
