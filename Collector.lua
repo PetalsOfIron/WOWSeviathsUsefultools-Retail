@@ -1215,30 +1215,29 @@ SFP:OnLogin(function()
     end
     -- the materials of the recipes already saved are learned too (a few at a time, after the game has loaded)
     C_Timer.After(25, function()
-        local ids, n = {}, 0
+        -- the ids first (cheap: no item record is read), then each one is checked against the known items within a time budget per frame
+        local cand, seen = {}, {}
+        local function add(id)
+            if id and not seen[id] then seen[id] = true; cand[#cand + 1] = id end
+        end
         for _, r in pairs(SFP.db.recipes or {}) do
-            for _, rg in ipairs(r.r or {}) do
-                if rg[1] and not SFP.db.knownItems[rg[1]] and not ids[rg[1]] then ids[rg[1]] = true; n = n + 1 end
-            end
+            for _, rg in ipairs(r.r or {}) do add(rg[1]) end
         end
         -- and the materials of EVERY crafting profession, from the shipped recipe data (Alchemy to Tailoring), opened or not
         for _, r in ipairs(SFP.RecipeData or {}) do
-            for _, rg in ipairs(r[5] or {}) do
-                local id = rg[1]
-                if id and not SFP.db.knownItems[id] and not ids[id] then ids[id] = true; n = n + 1 end
-            end
+            for _, rg in ipairs(r[5] or {}) do add(rg[1]) end
         end
-        local list = {}
-        for id in pairs(ids) do list[#list + 1] = id end
         local i = 1
         local function step()
             local t0 = debugprofilestop()
-            while list[i] and debugprofilestop() - t0 < 4 do
-                SFP.LearnMaterial(list[i]); i = i + 1
+            while cand[i] and debugprofilestop() - t0 < 3 do
+                local id = cand[i]
+                if not SFP.db.knownItems[id] then SFP.LearnMaterial(id) end
+                i = i + 1
             end
-            if list[i] then C_Timer.After(0.2, step) end
+            if cand[i] then C_Timer.After(0.1, step) end
         end
-        if n > 0 then step() end
+        step()
     end)
     -- items we already know that are materials join the farm list straight away
     -- (in the background, a few hundred per frame, one record read at a time: nothing is read all at once at login)
