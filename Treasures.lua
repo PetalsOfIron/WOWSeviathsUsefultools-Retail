@@ -6,7 +6,7 @@
 
 local _, SFP = ...
 
-local SIZE = 6            -- screen pixels of the box
+local SIZE = 8            -- screen pixels of the box
 local pins, used = {}, 0
 local byMap = {}          -- [map] = list of { id, rec, x, y }: made when a map is asked for, dropped when the loot changes
 local layer
@@ -33,16 +33,13 @@ local function convert(from, x, y, to)
     if type(tx) == "number" and type(ty) == "number" and tx >= 0 and tx <= 1 and ty >= 0 and ty <= 1 then return tx, ty end
 end
 
--- a treasure: an object that gave something and is neither a gathering node (by what it gave: ore, herbs, leather ...) nor an objective of a quest
+-- a treasure: an object that gave something and is neither a gathering node (by what it gave: ore, herbs, leather ...) nor an objective of a quest (what it gave
+-- being a quest item does not matter: many treasures give those)
 local function isTreasure(rec)
     if type(rec) ~= "table" or type(rec.d) ~= "table" or not next(rec.d) or type(rec.m) ~= "table" then return false end
     if (rec.k or 0) < 1 then return false end
     if rec.qs and next(rec.qs) then return false end
     if SFP.ObjectKind and SFP:ObjectKind({ d = rec.d }) then return false end   -- the kind by its items only
-    for itemID in pairs(rec.d) do
-        local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, itemID)
-        if ok and classID == 12 then return false end   -- a quest item
-    end
     return true
 end
 
@@ -79,16 +76,17 @@ local function getPin()
         p = CreateFrame("Button", nil, layer)
         p.edge = p:CreateTexture(nil, "BACKGROUND")
         p.edge:SetAllPoints()
-        p.edge:SetColorTexture(0, 0, 0, 0.9)
+        p.edge:SetColorTexture(0, 0.12, 0.2, 1)
         p.fill = p:CreateTexture(nil, "ARTWORK")
         p.fill:SetPoint("TOPLEFT", 1, -1)
         p.fill:SetPoint("BOTTOMRIGHT", -1, 1)
-        p.fill:SetColorTexture(1, 0.82, 0.1, 1)
+        local cy = SFP.CYAN or { 0, 0.9, 1 }
+        p.fill:SetColorTexture(cy[1] or cy.r or 0, cy[2] or cy.g or 0.9, cy[3] or cy.b or 1, 1)
         p:SetScript("OnEnter", function(self)
             local t = SFP.Tip and SFP.Tip() or GameTooltip
             t:SetOwner(self, "ANCHOR_RIGHT")
             t:ClearLines()
-            t:AddLine(tostring(self.rec.n or ("Treasure " .. tostring(self.id))), 1, 0.82, 0.1)
+            t:AddLine(tostring(self.rec.n or ("Treasure " .. tostring(self.id))), 0, 0.9, 1)
             if SFP.ObjectLootLines then SFP.ObjectLootLines(t, self.rec) end
             t:Show()
         end)
@@ -151,7 +149,7 @@ SFP:OnLogin(function()
     if not c then return end
     layer = CreateFrame("Frame", nil, c)
     layer:SetAllPoints(c)
-    layer:SetFrameLevel((c:GetFrameLevel() or 0) + 6)
+    layer:SetFrameLevel(math.min((c:GetFrameLevel() or 0) + 3500, 9000))   -- above the map's own icons
     layer:EnableMouse(false)   -- only the little boxes take the mouse
     if WorldMapFrame.OnMapChanged then hooksecurefunc(WorldMapFrame, "OnMapChanged", update) end
     WorldMapFrame:HookScript("OnShow", update)
