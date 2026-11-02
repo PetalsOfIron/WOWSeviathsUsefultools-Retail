@@ -1314,7 +1314,8 @@ function SFP:FeedLearned(cx)
         table.sort(list, function(a, b) return a[2] > b[2] end)
         local out = {}
         for i = 1, min(12, #list) do
-            out[#out + 1] = "• " .. self:ItemName(list[i][1]) .. ("  %d%%"):format(min(100, floor(list[i][2] * 100 / max(1, kills) + 0.5)))
+            local chance = SFP.ChanceText(list[i][2], kills)
+            out[#out + 1] = "• " .. self:ItemName(list[i][1]) .. (chance ~= "" and ("  " .. chance) or ("  %d%%"):format(min(100, floor(list[i][2] * 100 / max(1, kills) + 0.5))))
         end
         return table.concat(out, "\n")
     end
