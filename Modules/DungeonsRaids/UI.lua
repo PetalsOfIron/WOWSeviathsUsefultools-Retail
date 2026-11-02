@@ -706,7 +706,7 @@ local function BuildGroup(p)
   -- the window opens by itself in a group of 5 or more; close it with the X, or switch that off here
   local S = _G.SeviathsUsefulTools
   if S and S.db then
-    UI.Check(p, "Open this by itself in a group of 5 or more (close it with the X)", S.db, "autoGroupComp", 16, -34)
+    UI.Check(p, "Show a button for this at the top left in a group of 5 or more", S.db, "autoGroupComp", 16, -34)
   end
 end
 

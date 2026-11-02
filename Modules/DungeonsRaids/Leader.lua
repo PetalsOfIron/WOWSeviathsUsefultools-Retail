@@ -125,21 +125,35 @@ ns:RequestHook("LFGListApplicationViewer_UpdateApplicantMember", function(member
   member.SDRText:SetText(table.concat(parts, " "))
 end)
 
--- the makeup opens by itself when a group of 5 or more forms or you enter a dungeon or raid with it
--- (also in the open world); once per group and per instance, not again after you close it
-local autoKey, autoPending
+-- the makeup no longer opens by itself (it covered the screen when a dungeon was entered): in a group of 5 or more a small button at the top left of the
+-- screen opens it, and it goes away when the group is smaller
+local autoPending, groupButton
 local function AutoComp()
   local S = _G.SeviathsUsefulTools
-  if S and S.db and S.db.autoGroupComp == false then return end
   local n = IsInGroup() and GetNumGroupMembers() or 0
-  if n < 5 then autoKey = nil; return end
-  if InCombatLockdown() then return end   -- tried again when combat ends
-  local inInst = IsInInstance()
-  local okI, instID = pcall(function() return select(8, GetInstanceInfo()) end)
-  local key = tostring(inInst and okI and instID or 0)
-  if autoKey == key then return end
-  autoKey = key
-  if ns.UI and ns.UI.Show then ns.UI:Show("group") end
+  local want = n >= 5 and not (S and S.db and S.db.autoGroupComp == false)
+  if not want then
+    if groupButton then groupButton:Hide() end
+    return
+  end
+  if not groupButton then
+    groupButton = CreateFrame("Button", "SeviathsGroupMakeupButton", UIParent, "UIPanelButtonTemplate")
+    groupButton:SetSize(120, 24)
+    groupButton:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 12, -12)
+    groupButton:SetFrameStrata("MEDIUM")
+    groupButton:SetText("Group makeup")
+    groupButton:SetScript("OnClick", function()
+      if ns.UI and ns.UI.Show then ns.UI:Show("group") end
+    end)
+    groupButton:SetScript("OnEnter", function(self)
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:AddLine("Group makeup")
+      GameTooltip:AddLine("Raid buffs, bloodlust, battle res and tier tokens of your group.", 1, 1, 1, true)
+      GameTooltip:Show()
+    end)
+    groupButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  end
+  groupButton:Show()
 end
 
 local function ScheduleAuto()
