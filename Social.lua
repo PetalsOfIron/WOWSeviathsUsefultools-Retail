@@ -92,22 +92,10 @@ function S.RecordChar()
     c.chars[name .. "-" .. realm] = rec
 end
 
--- Every character has its own counters (the activities, the week's numbers, the unique dungeons ...): S.Char() is the table of the character that is
--- playing. The first character that logs in after the counters were made per character takes what the account had counted so far.
+-- The play style counters (activities, the week's numbers, the unique dungeons ...) are for the whole account: S.Char() is the account's table. Only the Done
+-- list (dungeons entered, delves finished: S.MineDone) is kept per character.
 function S.Char()
-    local c = S.Config()
-    local key = (S.CharKey and S.CharKey()) or "?"
-    c.cc = c.cc or {}
-    local t = c.cc[key]
-    if not t then
-        t = {}
-        c.cc[key] = t
-        if not c.ccSeeded then
-            c.ccSeeded = true
-            t.act, t.wk, t.wku, t.rweeks, t.tot = c.act, c.wk, c.wku, c.rweeks, c.tot
-        end
-    end
-    return t
+    return S.Config()
 end
 
 -- what the player DOES: activities are counted per day and kept for 28 days; the play style follows these counts
