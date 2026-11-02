@@ -1,12 +1,11 @@
 -- SeviathsUsefulTools - the points menu of the world map
 --
--- A small button under the map's own pin buttons (top right of the world map) opens a small menu: each kind of point the addon draws (farm spots, rares, hunter pets,
+-- A small button under the map's own pin buttons (top right of the world map) opens a small menu: each kind of point the addon draws (rares, hunter pets,
 -- special materials, mining, herbs, and all the treasure chests) can be switched on or off.
 
 local _, SFP = ...
 
 local KINDS = {
-    { "showSpawns",    "Farm spots",        true },
     { "showRares",     "Rares",             true },
     { "showHunter",    "Hunter pets",       false },
     { "showSpecial",   "Special materials", false },
