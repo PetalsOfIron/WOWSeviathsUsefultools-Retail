@@ -14,7 +14,7 @@
 - The Mining & Herbalism button below the map is gone: Material search opens on the zone you are in, and its Mining & Herbalism tab has the same list. The Mount search updates when you collect a mount.
 - Guild Directory: US and EU buttons above the realm buttons pick the region (your own at first); a realm name that exists in both regions counts for your own region.
 - Farm spots: the monsters of a zone that Wowhead lists drops for (with their places) are farm spots too, with those items. The monsters come from Wowhead's monster pages; the scan adds more each update.
-- Collector play style: counts mounts, battle pets, toys and decor you collect, pet battles, rare kills and old raid bosses that drop mounts; transmog and Timewalking do not count.
+- Collector play style: counts mounts, battle pets, toys and decor you collect, pet battles, rare kills and old-expansion raid bosses that drop mounts (not the current expansion's raids); transmog and Timewalking do not count.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
