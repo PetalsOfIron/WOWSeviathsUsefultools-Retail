@@ -20,7 +20,32 @@ local function canvasScale()
     return (sc and sc.GetCanvasScale and sc:GetCanvasScale()) or 1
 end
 
--- the treasures recorded on one map: objects that gave something and are not gathering nodes (ore, herbs ...)
+-- a place recorded on map `from`, as a place on map `to` (the chest was opened on a part of the zone, the map shown may be the whole zone or the continent)
+local function convert(from, x, y, to)
+    if from == to then return x, y end
+    if not (C_Map and C_Map.GetWorldPosFromMapPos and C_Map.GetMapPosFromWorldPos and CreateVector2D) then return end
+    local ok, cont, wp = pcall(C_Map.GetWorldPosFromMapPos, from, CreateVector2D(x, y))
+    if not ok or not cont or not wp then return end
+    local ok2, pos = pcall(C_Map.GetMapPosFromWorldPos, cont, wp, to)
+    if not ok2 or not pos then return end
+    local tx, ty = pos:GetXY()
+    if type(tx) == "number" and type(ty) == "number" and tx >= 0 and tx <= 1 and ty >= 0 and ty <= 1 then return tx, ty end
+end
+
+-- a treasure: an object that gave something and is neither a gathering node (by what it gave: ore, herbs, leather ...) nor an objective of a quest
+local function isTreasure(rec)
+    if type(rec) ~= "table" or type(rec.d) ~= "table" or not next(rec.d) or type(rec.m) ~= "table" then return false end
+    if (rec.k or 0) < 1 then return false end
+    if rec.qs and next(rec.qs) then return false end
+    if SFP.ObjectKind and SFP:ObjectKind({ d = rec.d }) then return false end   -- the kind by its items only
+    for itemID in pairs(rec.d) do
+        local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, itemID)
+        if ok and classID == 12 then return false end   -- a quest item
+    end
+    return true
+end
+
+-- the treasures recorded for one map (made when the map is asked for, dropped when the loot changes)
 local function treasuresOf(map)
     local list = byMap[map]
     if list then return list end
@@ -28,12 +53,15 @@ local function treasuresOf(map)
     local objects = SFP.db and SFP.db.objects
     if objects then
         for id, rec in (SeviathsAllPairs or pairs)(objects) do
-            if type(id) == "number" and type(rec) == "table" and type(rec.d) == "table" and next(rec.d) and type(rec.m) == "table"
-                and (rec.k or 0) >= 1 and not (SFP.ObjectKind and SFP:ObjectKind(rec)) then
-                local pts = rec.m[map]
-                if type(pts) == "table" then
-                    for _, p in ipairs(pts) do
-                        if p[1] and p[2] then list[#list + 1] = { id = id, rec = rec, x = p[1], y = p[2] } end
+            if type(id) == "number" and isTreasure(rec) then
+                for from, pts in pairs(rec.m) do
+                    if type(pts) == "table" and type(from) == "number" then
+                        for _, p in ipairs(pts) do
+                            if type(p) == "table" and p[1] and p[2] then
+                                local x, y = convert(from, p[1], p[2], map)
+                                if x then list[#list + 1] = { id = id, rec = rec, x = x, y = y } end
+                            end
+                        end
                     end
                 end
             end
