@@ -208,9 +208,23 @@ local guideIndex = {}    -- [map] = the monsters of that map with their drops (m
 local ownByMap             -- [map] = ids of the player's own monsters on it
 local mapRecs = {}         -- [map] = { { id, rec } }: the records of that map, own and shipped
 local guideMapSet
+local itemMode = false   -- the Item search tab: every item; Material search (false) lists only crafting reagents
+local reagentCache = {}
 local function isReagent(id)
-    -- anything a monster drops: materials, gear, bags, battle pets, grays, everything (the sections sort it)
-    return id ~= nil
+    if id == nil then return false end
+    if itemMode then return true end
+    local c = reagentCache[id]
+    if c == nil then
+        c = false
+        if C_Item and C_Item.GetItemInfoInstant then
+            local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, id)
+            if ok and classID == 7 then c = true end   -- trade goods: the crafting reagents
+        end
+        local info = SFP.Items and SFP.Items[id]
+        if not c and info and info.kind == "mat" then c = true end
+        reagentCache[id] = c
+    end
+    return c
 end
 
 local function ownMaps()
@@ -323,7 +337,7 @@ local function zoneItems(map)
     local ids, seen = {}, {}
     local zone = SFP.zoneByMap[map]
     for _, id in ipairs(zone and zone.items or {}) do
-        if not seen[id] and SFP.Items[id] then seen[id] = true; ids[#ids + 1] = id end
+        if not seen[id] and SFP.Items[id] and isReagent(id) then seen[id] = true; ids[#ids + 1] = id end
     end
     for _, w in ipairs(guideList(map)) do
         for id in pairs(w.drop or {}) do
@@ -1379,7 +1393,7 @@ local function setMode(m)
     mode = m
     if win and win.tabs then
         win.tabs.monsters:SetShown(m == "mat")
-        win.tabs.gather:SetShown(m == "mat")
+        win.tabs.gather:SetShown(m == "mat" and not itemMode)
         if win.curBtn then win.curBtn:SetShown(m == "farm" or m == "rare") end
         if win.topBtn then win.topBtn:SetShown(m == "farm" or m == "rare" or m == "top") end
         if win.curBtn then win.curBtn:SetShown(m == "farm" or m == "rare" or m == "top") end
@@ -1388,7 +1402,7 @@ local function setMode(m)
     expSel = "all"
     if win then
         search:SetText("")
-        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "top" and "Best 15 spots" or m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or m == "pet" and "Battle pets" or m == "farm" and "Farm spots" or m == "rare" and "Rares" or "Material search") .. "|r")
+        win.header:SetText("|c" .. SFP.CYAN_HEX .. (m == "top" and "Best 15 spots" or m == "mount" and "Mount search" or m == "hunter" and "Hunter search" or m == "pet" and "Battle pets" or m == "farm" and "Farm spots" or m == "rare" and "Rares" or (itemMode and "Item search" or "Material search")) .. "|r")
     end
 end
 
@@ -1986,7 +2000,26 @@ local function openMode(m)
     renderTree()
     renderList()
 end
-local function openGuide() openMode("mat") end
+-- Material search and Item search are the same window: only what is listed differs (crafting reagents, or every item)
+local function setItemMode(on)
+    if itemMode == on then return end
+    itemMode = on
+    guideIndex, monsterIndex = {}, {}   -- the lists were made for the other kind
+    zonesCache = {}
+    if matTab == "gather" then matTab = "monsters" end
+end
+local function openGuide()
+    if win and win:IsShown() and mode == "mat" and itemMode then win:Hide() end
+    setItemMode(false)
+    openMode("mat")
+end
+local function openItems()
+    if not win then build() end
+    if win:IsShown() and mode == "mat" and itemMode then win:Hide() return end
+    setItemMode(true)
+    if win:IsShown() then win:Hide() end
+    openMode("mat")
+end
 local function openGather()
     if not win then build() end
     if win:IsShown() and mode == "mat" and matTab == "gather" then win:Hide() return end
@@ -2035,7 +2068,8 @@ local function refreshRow()
         makeButton("spots", "Farm spots", "The farm spots of this zone, with a checkbox each", function() openMode("farm") end)
         makeButton("coll", "Collectables", "Mounts of the dungeons and raids here, and the hunter pets of the zone", function() openOnly("coll") end)
         makeButton("rares", "Rares", "The rare monsters of this zone with a waypoint each", function() openMode("rare") end)
-        makeButton("search", "Material search", "Every zone from Classic to Midnight: what you can farm there and which monsters drop it. Click a monster for a waypoint.", openGuide)
+        makeButton("search", "Material search", "Every zone from Classic to Midnight: the crafting reagents you can farm there and which monsters drop them. Click a monster for a waypoint.", openGuide)
+        makeButton("items", "Item search", "Every zone from Classic to Midnight: all the items the monsters there drop (gear, bags, pets, materials ...) and which monsters drop them. Click a monster for a waypoint.", openItems)
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
         makeButton("pet", "Battle pets", "Every battle pet with its auction price - search by name, or pick a family", function() openMode("pet") end)
@@ -2050,6 +2084,7 @@ local function refreshRow()
         rares = true,
         coll = false,   -- Collectables is covered by Mount search and Hunter search
         search = true,
+        items = true,
         mount = true,
         hunter = true,
         pet = true,
@@ -2057,7 +2092,7 @@ local function refreshRow()
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "search", "coll", "rares", "spots" }) do
+    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "items", "search", "coll", "rares", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
