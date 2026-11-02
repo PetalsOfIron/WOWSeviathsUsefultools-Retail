@@ -53,6 +53,34 @@ local function isTreasure(rec)
 end
 
 -- the treasures recorded for one map (made when the map is asked for, dropped when the loot changes)
+-- what THIS character has opened (per character, like the rare scanner): { [objectID] = { { map, x, y }, ... } }; the box of an opened treasure is not shown
+-- for this character, the characters that did not open it still see it
+local function openedList()
+    SeviathsGuildHelperCharDB = SeviathsGuildHelperCharDB or {}
+    SeviathsGuildHelperCharDB.openedTreasures = SeviathsGuildHelperCharDB.openedTreasures or {}
+    return SeviathsGuildHelperCharDB.openedTreasures
+end
+
+function SFP.NoteOpened(id, map, x, y)
+    local list = openedList()
+    list[id] = list[id] or {}
+    for _, o in ipairs(list[id]) do
+        if o[1] == map and math.abs(o[2] - x) < 0.003 and math.abs(o[3] - y) < 0.003 then return end
+    end
+    list[id][#list[id] + 1] = { map, x, y }
+    wipe(byMap)
+end
+
+local function openedHere(id, map, x, y)
+    local mine = openedList()[id]
+    if not mine then return false end
+    for _, o in ipairs(mine) do
+        local ox, oy = convert(o[1], o[2], o[3], map)
+        if ox and math.abs(ox - x) < 0.02 and math.abs(oy - y) < 0.02 then return true end
+    end
+    return false
+end
+
 local function treasuresOf(map)
     local list = byMap[map]
     if list then return list end
@@ -66,7 +94,7 @@ local function treasuresOf(map)
                         for _, p in ipairs(pts) do
                             if type(p) == "table" and p[1] and p[2] then
                                 local x, y = convert(from, p[1], p[2], map)
-                                if x then list[#list + 1] = { id = id, rec = rec, x = x, y = y } end
+                                if x and not openedHere(id, map, x, y) then list[#list + 1] = { id = id, rec = rec, x = x, y = y } end
                             end
                         end
                     end
