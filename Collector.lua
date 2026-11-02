@@ -824,8 +824,7 @@ local function unitTip(tt, data)
             tt:AddLine("|cffffd100! Needed for one of your quests|r")
         end
     end
-    tt:AddLine("|c" .. SFP.CYAN_HEX .. "Seviaths|r  |cff808080NPC " .. id .. "|r" ..
-        (rec and rec.k and rec.k > 0 and ("  |cff808080" .. rec.k .. " kills seen|r") or ""))
+    tt:AddLine("|c" .. SFP.CYAN_HEX .. "Seviaths|r  |cff808080NPC " .. id .. "|r")
     -- history from before the addon: gear you already own from this monster (your transmog collection)
     do
         local nm = rec and rec.n
@@ -1331,7 +1330,7 @@ function SFP:FeedLearned(cx)
             "Level " .. lvl .. (rec.t and ("  " .. rec.t) or "") .. (rec.f and ("  " .. rec.f) or "") ..
             (rec.c and ("  " .. rec.c) or "") ..
             (#where > 0 and ("\n\n" .. c .. "Found in|r\n" .. table.concat(where, ", ")) or "") ..
-            ((rec.d and next(rec.d)) and ("\n\n" .. c .. "Drops (" .. (rec.k or 0) .. " kills)|r\n" .. dropText(rec.d, rec.k)) or "") ..
+            ((rec.d and next(rec.d)) and ("\n\n" .. c .. "Drops|r\n" .. dropText(rec.d, rec.k)) or "") ..
             ((rec.s and next(rec.s)) and ("\n\n" .. c .. "Skinning|r\n" .. dropText(rec.s, rec.sk)) or "")
         -- a monster is one that was fought (kills, drops); the rest (vendors, trainers, quest givers, passers-by) are NPCs
         local fought = (rec.k or 0) > 0 or (rec.d and next(rec.d)) or (rec.s and next(rec.s))

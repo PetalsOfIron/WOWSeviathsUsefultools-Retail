@@ -24,6 +24,7 @@
 - The Done line (delves, dungeons, keys, raid bosses) is per character; the first character that logs in after the update keeps what the account had collected.
 ### Other
 - Auction prices: a price from your own scan stays until your next scan; a battle pet the scan does not see keeps its earlier price.
+- Tooltips and lists no longer show the number of kills of a monster (it is still counted for the percentages and gold per kill).
 - The group makeup window no longer opens by itself in a dungeon: in a group of 5 or more a Group makeup button at the top left opens it.
 - Guild Directory: US and EU buttons above the realm buttons (your own region at first).
 - The shipped data is cut into small files and small load-on-demand folders; the game reads only the part you look at.

@@ -68,7 +68,6 @@ function ns:LoadCollected()
                 .. ((r.lmin and r.lmax) and ("  level " .. (r.lmin == r.lmax and r.lmin or (r.lmin .. "-" .. r.lmax))) or "")
             local z = zonesText(r)
             if z ~= "" then body[#body + 1] = "Found in: " .. z end
-            if (r.k or 0) > 0 then body[#body + 1] = r.k .. " kills" end
             if r.d and next(r.d) then body[#body + 1] = "\n" .. C .. "Drops|r\n" .. dropsText(r.d, r.k) end
             if r.s and next(r.s) then body[#body + 1] = "\n" .. C .. "Skinning|r\n" .. dropsText(r.s, r.sk) end
             local spot = firstSpot(r)

@@ -140,11 +140,6 @@ def main():
         print("monsters added from Wowhead:", added)
     if "npcs" in tools:
         npcs = tools.pop("npcs")
-        # kill counts are not shipped (k = kills, sk = skinned, gk = kills the gold was counted for): the player's own game keeps its counts
-        for rec in npcs.values():
-            if isinstance(rec, dict):
-                for field in ("k", "sk", "gk"):
-                    rec.pop(field, None)
         lod.setdefault("SeviathsUsefulToolsDB", {})["npcs"] = npcs
         # which monsters are on which map: the game reads only the records of the map that is shown (and only when it is shown)
         by_map = {}

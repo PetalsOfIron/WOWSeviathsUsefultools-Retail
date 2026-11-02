@@ -760,7 +760,7 @@ local function mountEntriesBase()
                         if key:lower():sub(1, #prefix) == prefix then n, d = n + (st.n or 0), d + (st.d or 0) end
                     end
                     local chance = info.drop and ("  |cffffd100" .. info.drop .. "|r") or ""
-                    if n > 0 then chance = "  |cff40ff40" .. d .. " of " .. n .. " kills = " .. string.format("%.1f", 100 * d / n) .. "%|r" end
+                    if n > 0 then chance = "  |cff40ff40" .. string.format("%.1f", 100 * d / n) .. "%|r" end
                     add(id, exp.key, { text = (inst.kind == "raid" and "Raid: " or "Dungeon: ") .. inst.name .. chance,
                         map = en and en.map, x = en and en.x, y = en and en.y })
                 end
@@ -774,7 +774,7 @@ local function mountEntriesBase()
                 if info and info.kind == "mount" then
                     local x, y = firstPoint(sp.pts)
                     local st = SFP.db and SFP.db.mountStats and SFP.db.mountStats[id] and SFP.db.mountStats[id]["npc|" .. tostring(sp.npc)]
-                    local chance = (st and st.n > 0) and ("  |cff40ff40" .. st.d .. " of " .. st.n .. " kills = " .. string.format("%.1f", 100 * st.d / st.n) .. "%|r") or ""
+                    local chance = (st and st.n > 0) and ("  |cff40ff40" .. string.format("%.1f", 100 * st.d / st.n) .. "%|r") or ""
                     add(id, list.exp, { text = "Rare: " .. tostring(sp.name) .. chance, zone = SFP:ZoneName(map), map = map, x = x, y = y })
                 end
             end
@@ -1601,7 +1601,7 @@ local function renderBlocks(n, map, spots, compact)
             local per = (kills >= 1 and d.q > 0) and (d.q / kills) or nil
             local perText = per and (per >= 10 and string.format("%d", math.floor(per + 0.5)) or string.format("%.1f", per)) or nil
             if d.q > 0 then
-                l.text:SetText(iname(d.id) .. "  |cff808080x" .. d.q .. " from " .. kills .. (kills == 1 and " kill" or " kills") .. "|r")
+                l.text:SetText(iname(d.id) .. "  |cff808080x" .. d.q .. "|r")
             end
             l.right:SetText((perText and ("|cffffd100" .. perText .. " per kill|r   ") or "") .. priceText(d.id))
             -- the materials are plain text here: no highlight, no tooltip, nothing under the mouse
@@ -1614,7 +1614,7 @@ local function renderBlocks(n, map, spots, compact)
             local g = rowOf(list, n)
             place(list, g, n, 30)
             g.icon:SetTexture("Interface\\Icons\\INV_Misc_Coin_01")
-            g.text:SetText("Gold  |cff808080from " .. goldKills .. (goldKills == 1 and " kill" or " kills") .. "|r")
+            g.text:SetText("Gold")
             g.right:SetText("|cffffd100" .. SFP:FormatPrice(math.floor(gold)) .. " per kill|r")
             g:EnableMouse(false)
             g.hl:Hide()
