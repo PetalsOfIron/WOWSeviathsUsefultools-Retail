@@ -26,8 +26,8 @@ local function convert(from, x, y, to)
     if not (C_Map and C_Map.GetWorldPosFromMapPos and C_Map.GetMapPosFromWorldPos and CreateVector2D) then return end
     local ok, cont, wp = pcall(C_Map.GetWorldPosFromMapPos, from, CreateVector2D(x, y))
     if not ok or not cont or not wp then return end
-    local ok2, pos = pcall(C_Map.GetMapPosFromWorldPos, cont, wp, to)
-    if not ok2 or not pos then return end
+    local ok2, _, pos = pcall(C_Map.GetMapPosFromWorldPos, cont, wp, to)   -- it returns the map id, then the position
+    if not ok2 or type(pos) ~= "table" or not pos.GetXY then return end
     local tx, ty = pos:GetXY()
     if type(tx) == "number" and type(ty) == "number" and tx >= 0 and tx <= 1 and ty >= 0 and ty <= 1 then return tx, ty end
 end
