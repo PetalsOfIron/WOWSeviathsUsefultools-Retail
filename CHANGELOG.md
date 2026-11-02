@@ -15,6 +15,7 @@
 - The items Wowhead lists for a monster (5,200 monsters) show in its loot on the map, in Rares and Farm spots, and on the Codex monster and boss pages.
 - Codex Rares lists all 339 shipped rares and Monsters & Creatures every shipped monster (not only the ones you saw). Rare pages show place, note and drops.
 - Dungeon and raid bosses: what you pick up from a boss is recorded even when the game hides what was looted; shown on the boss page.
+- Treasure chests, caches and other objects: hover one you have opened and its tooltip shows what it gave, each item with its chance ("33% 1/3 chance"), from the first time you opened it.
 ### Play style (profile tooltip)
 - Decided week by week and starting again at every weekly reset; the numbers are for the whole account.
 - The dungeon, delve and raid styles count each dungeon, delve and raid boss once a week (6 different ones). A few runs, or one day and then nothing, make no style.
