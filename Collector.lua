@@ -537,6 +537,21 @@ local function onLoot()
                 if itemID then
                     rec.d = rec.d or {}
                     rec.d[itemID] = (rec.d[itemID] or 0) + (qty or 1)
+                    -- the amount of one pickup (rec.q[item] = { smallest, largest }): a herb or ore node gives a different amount each time
+                    local one = tonumber(qty) or 1
+                    rec.q = rec.q or {}
+                    local qs = rec.q[itemID]
+                    if not qs then rec.q[itemID] = { one, one }
+                    else
+                        if one < qs[1] then qs[1] = one end
+                        if one > qs[2] then qs[2] = one end
+                    end
+                    -- the kind of node, noted once: "herb" or "ore" (by what it gave: the Collector's own item kinds, or the type text of the node)
+                    if not rec.gt then
+                        local okK = SFP:ObjectKind(rec)
+                        local lk = type(okK) == "string" and okK:lower() or ""
+                        if lk:find("herb", 1, true) then rec.gt = "herb" elseif lk:find("min", 1, true) or lk:find("ore", 1, true) then rec.gt = "ore" end
+                    end
                 end
             end
         end
@@ -879,7 +894,10 @@ function SFP.ObjectLootLines(tt, rec)
         local e = list[i]
         local chance = SFP.ChanceText(e[2], opened, 1, "pickup")
         local price = SFP:GetPrice(e[1])
-        tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. (chance ~= "" and ("  " .. chance) or ""),
+        local amt = ""
+        local qs = rec.q and rec.q[e[1]]
+        if type(qs) == "table" and qs[1] then amt = "  |cff808080x" .. (qs[1] == qs[2] and qs[1] or (qs[1] .. "-" .. qs[2])) .. "|r" end
+        tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. amt .. (chance ~= "" and ("  " .. chance) or ""),
             price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
         -- what the item is for: its own use text (kept once read), else what the addon knows (a crafting material and its recipes, gear compared with yours ...);
         -- nothing is typed when neither can say, and never where the item was seen
