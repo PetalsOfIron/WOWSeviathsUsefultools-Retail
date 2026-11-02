@@ -147,20 +147,20 @@ local function CreateRow(parent)
   row:SetSize(400, 22)
   row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   row.name:SetPoint("LEFT", 2, 0)
-  row.name:SetWidth(150)
+  row.name:SetWidth(110)
   row.name:SetJustifyH("LEFT")
   row.buttons = {}
-  local x = 156
+  local x = 114
   for _, key in ipairs(ns.TAG_ORDER) do
     local t = ns.TAGS[key]
-    local b = ns.UI.Button(row, t.short, 38, 18, function()
+    local b = ns.UI.Button(row, t.short, 46, 18, function()
       if ns:TagOf(row.player) == key then ns:SetTag(row.player, nil) else ns:SetTag(row.player, key) end
       row:Refresh()
     end)
     b:SetPoint("LEFT", x, 0)
     b.key = key
     row.buttons[#row.buttons + 1] = b
-    x = x + 40
+    x = x + 48
   end
   function row:Refresh()
     local cur = ns:TagOf(self.player)
@@ -179,7 +179,7 @@ function ns:ShowRateWindow(members, context)
   local f = ns.rateFrame
   if not f then
     f = CreateFrame("Frame", "SDRRateFrame", UIParent, "BackdropTemplate")
-    f:SetSize(440, 380)
+    f:SetSize(490, 380)
     f:SetPoint("CENTER", 0, 80)
     f:SetFrameStrata("DIALOG")
     ns.UI.Skin(f)
@@ -190,7 +190,7 @@ function ns:ShowRateWindow(members, context)
     local hint = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     hint:SetPoint("TOP", f.title, "BOTTOM", 0, -4)
     hint:SetText("Tags show up next time you see these players in the group finder.")
-    local scroll, content = ns.UI.ScrollList(f, 12, -52, 410, 280)
+    local scroll, content = ns.UI.ScrollList(f, 12, -52, 460, 280)
     f.content = content
     f.rows = {}
     local done = ns.UI.Button(f, "Done", 90, 22, function() f:Hide() end)
