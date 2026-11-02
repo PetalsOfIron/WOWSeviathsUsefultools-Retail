@@ -210,8 +210,18 @@ local mapRecs = {}         -- [map] = { { id, rec } }: the records of that map, 
 local guideMapSet
 local itemMode = false   -- the Item search tab: every item; Material search (false) lists only crafting reagents
 local reagentCache = {}
+local function isGray(id)
+    local rec = SFP.db and SFP.db.knownItems and SFP.db.knownItems[id]   -- the player's own record, or the shipped one of a gray item
+    if type(rec) == "table" and rec.q ~= nil then return rec.q == 0 end
+    if C_Item and C_Item.GetItemQualityByID then
+        local ok, q = pcall(C_Item.GetItemQualityByID, id)
+        if ok and q == 0 then return true end
+    end
+    return false
+end
+
 local function isReagent(id)
-    if id == nil then return false end
+    if id == nil or isGray(id) then return false end
     if itemMode then return true end
     local c = reagentCache[id]
     if c == nil then
