@@ -2060,6 +2060,7 @@ local function openGather()
     if win:IsShown() and mode == "mat" and matTab == "gather" then win:Hide() return end
     SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
     SFP.RefreshWorldMap()
+    setItemMode(false)   -- the materials of the zone: crafting reagents, never the Item search
     setMode("mat")
     gatherExp = "zone"
     win:Show()
@@ -2108,7 +2109,7 @@ local function refreshRow()
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
         makeButton("pet", "Battle pets", "Every battle pet with its auction price - search by name, or pick a family", function() openMode("pet") end)
-        makeButton("gather", "Mining & Herbalism", "The ores and herbs of this zone and the best zone for each", openGather)
+        makeButton("gather", "Zone materials", "The crafting reagents you can gather in this zone (ores, herbs ...) and the best zone for each", openGather)
     end
     local map = WorldMapFrame:GetMapID()
     local zone = map and SFP.zoneByMap[map]
@@ -2152,6 +2153,11 @@ do
             if not (SFP.db and mountID and C_MountJournal and C_MountJournal.GetMountInfoByID) then return end
             local name = C_MountJournal.GetMountInfoByID(mountID)
             if type(name) ~= "string" or name == "" then return end
+            -- the Mount search updates whatever way the mount came (instance, auction house, mail ...): the mount is collected now
+            entriesCache = nil
+            C_Timer.After(0.5, function()
+                if win and win:IsShown() and mode == "mount" and win.refreshList then pcall(win.refreshList) end
+            end)
             if IsInInstance and IsInInstance() then return end
             for _, fname in ipairs({ "AuctionHouseFrame", "AuctionFrame", "MailFrame", "TradeFrame" }) do
                 local fr = _G[fname]
