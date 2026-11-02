@@ -729,8 +729,8 @@ end
 
 -- the chance of an item from a monster, from your own kills, short: "12% 1/8 chance" = 12%, one in 8 kills. It is worked out from the saved drops and kills each time
 -- it is shown, so it changes every time the item drops; nothing until the monster was killed 3 times (the number of kills you made is never shown).
-function SFP.ChanceText(count, kills)
-    if type(count) ~= "number" or type(kills) ~= "number" or count <= 0 or kills < 3 then return "" end
+function SFP.ChanceText(count, kills, minKills)
+    if type(count) ~= "number" or type(kills) ~= "number" or count <= 0 or kills < (minKills or 3) then return "" end
     local pct = math.min(100, count / kills * 100)
     local oneIn = math.max(1, math.floor(kills / count + 0.5))
     local p = pct >= 10 and string.format("%d", math.floor(pct + 0.5)) or string.format("%.1f", pct)

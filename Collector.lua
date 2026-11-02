@@ -781,7 +781,44 @@ local function buildSeeds()
 end
 
 -- true when our lines are already in this tooltip (hooks can fire more than once)
-local function hasOurLines(tt)
+local hasOurLines   -- defined below
+-- a treasure chest, a cache, a skull ... (a game object): its loot as you recorded it, shown after the first time you opened it - each item with its chance
+-- ("33% 1/3 chance"), the same way as for monsters
+local function objectTip(tt, data)
+    if not SFP.db or not SFP.db.tooltip or not SFP.db.objects then return end
+    local id = data and data.id
+    if type(id) ~= "number" or (issecretvalue and issecretvalue(id)) then
+        local g = data and data.guid
+        if type(g) == "string" and not (issecretvalue and issecretvalue(g)) then
+            local kind, gid = guidInfo(g)
+            if kind == "obj" then id = gid end
+        end
+    end
+    if type(id) ~= "number" then return end
+    local rec = SFP.db.objects[id]
+    if type(rec) ~= "table" or type(rec.d) ~= "table" or not next(rec.d) then return end
+    if hasOurLines(tt) then return end
+    local list = {}
+    for itemID, n in pairs(rec.d) do list[#list + 1] = { itemID, n } end
+    table.sort(list, function(a, b)
+        if a[2] ~= b[2] then return a[2] > b[2] end
+        return a[1] < b[1]
+    end)
+    local opened = max(1, rec.k or 1)
+    tt:AddLine(" ")
+    tt:AddLine("|c" .. SFP.CYAN_HEX .. "Seviaths|r  |cff808080loot|r")
+    for i = 1, min(12, #list) do
+        local e = list[i]
+        local chance = SFP.ChanceText(e[2], opened, 1)   -- from the first time it was opened
+        local price = SFP:GetPrice(e[1])
+        tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. (chance ~= "" and ("  " .. chance) or ""),
+            price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+    end
+    if #list > 12 then tt:AddLine("|cff808080+ " .. (#list - 12) .. " more|r") end
+    tt:Show()
+end
+
+hasOurLines = function(tt)
     local n = tonumber(tt.NumLines and tt:NumLines()) or 0
     for i = n, 1, -1 do
         local fs = _G[(tt:GetName() or "GameTooltip") .. "TextLeft" .. i]
@@ -1276,6 +1313,9 @@ SFP:OnLogin(function()
     local okUnit, okItem = false, false
     if TooltipDataProcessor and TT and TT.Unit then
         okUnit = pcall(TooltipDataProcessor.AddTooltipPostCall, TT.Unit, function(tt, data) if tt == GameTooltip then SFP:Safe("unit tooltip", unitTip, tt, data) end end)
+    end
+    if TooltipDataProcessor and TT and TT.Object then
+        pcall(TooltipDataProcessor.AddTooltipPostCall, TT.Object, function(tt, data) if tt == GameTooltip then SFP:Safe("object tooltip", objectTip, tt, data) end end)
     end
     if TooltipDataProcessor and TT and TT.Item then
         okItem = pcall(TooltipDataProcessor.AddTooltipPostCall, TT.Item, function(tt, data) if tt == GameTooltip or tt == ItemRefTooltip then SFP:Safe("item tooltip", itemTip, tt, data) end end)
