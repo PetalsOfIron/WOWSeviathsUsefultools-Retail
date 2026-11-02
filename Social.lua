@@ -576,7 +576,7 @@ local function countDecor()
             local prev = SFP.db and SFP.db.myCounts and SFP.db.myCounts.decor
             counts.decor = n
             saveCount('decor', n)
-            if prev and n > prev then S.Act("collect", n - prev) end
+            if prev and n > prev then S.Act("c_decor", n - prev) end
         end
     end
     step()
@@ -667,7 +667,22 @@ function S.AutoStyles(p)
     if (p.rstreak or 0) >= 4 then cand[#cand + 1] = { id = "raider", score = 1 + (p.rstreak - 4) / 8 } end                  -- raid bosses killed (this week counts double)
     add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8, 14, "mythic", "dungeon")   -- Mythic+ keys and dungeons
     add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 14, "delve")                 -- delves
-    add("collector", a.collect, 10, 5, "collect")                                           -- new mounts, pets and toys collected, old raids that drop mounts, rares, pet battles
+    -- the collector: any one section reaches its number - mounts several in 28 days; battle pets, toys, decor, old-raid mount bosses, rares and pet battles 20
+    -- in the week (the weekly reset starts them again). The easiest style to get.
+    do
+        local sections = {
+            { "c_mount", 3, false }, { "c_pet", 20, true }, { "c_decor", 20, true }, { "c_toy", 20, true },
+            { "c_raid", 20, true }, { "c_rare", 20, true }, { "c_battle", 20, true },
+        }
+        local top = 0
+        for _, sec in ipairs(sections) do
+            local key, need, weekly = sec[1], sec[2], sec[3]
+            local n = weekly and (a[key] or 0) or S.ActSum(key)   -- a: this week; ActSum: the last 28 days
+            local days = weekly and S.ActWeekDays(key) or S.ActDays(key)
+            if n >= need and days >= 2 then top = math.max(top, n / need) end
+        end
+        if top > 0 then cand[#cand + 1] = { id = "collector", score = top } end
+    end
     add("achiever", a.achv, 30, 20, "achv")                                               -- achievements earned
     add("pvp", a.pvp, 10, 10, "pvp")                                                     -- PvP matches
     add("dailies", a.daily, 20, 20, "daily")                                               -- daily and world quests handed in
@@ -763,7 +778,7 @@ function S.MyProfile()
     local st = c.stats or {}
     -- what the player did this week (the play style is decided from this)
     p.act = {}
-    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan", "easy", "hardcore", "quest",
+    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan", "easy", "hardcore", "quest", "c_pet", "c_decor", "c_toy", "c_raid", "c_rare", "c_battle",
         "g_loot", "g_daily", "g_quest", "g_trade", "g_other" }) do
         p.act[k] = S.ActWeekSum(k)
     end
@@ -2340,11 +2355,12 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
             C_Timer.After(8, function() SFP:Safe("delve statistic", S.ReadDelveStat) end)
             C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
         end
-    elseif event == "NEW_MOUNT_ADDED" or event == "NEW_PET_ADDED" or event == "NEW_TOY_ADDED" then
-        S.Act("collect")   -- mounts, battle pets, toys: not transmog (everyone gets that from Timewalking)
+    elseif event == "NEW_MOUNT_ADDED" then S.Act("c_mount")       -- the collector's sections: not transmog (everyone gets that from Timewalking)
+    elseif event == "NEW_PET_ADDED" then S.Act("c_pet")
+    elseif event == "NEW_TOY_ADDED" then S.Act("c_toy")
     elseif event == "ACHIEVEMENT_EARNED" then S.Act("achv")
     elseif event == "PVP_MATCH_COMPLETE" then S.Act("pvp")
-    elseif event == "PET_BATTLE_CLOSE" then S.Act("collect")   -- battle pets: wild pet battles, the way to new pets
+    elseif event == "PET_BATTLE_CLOSE" then S.Act("c_battle")   -- battle pets: wild pet battles, the way to new pets
     elseif event == "LOOT_CLOSED" then ctx.loot, ctx.lootT = false, GetTime()
     elseif event == "QUEST_ACCEPTED" then SFP:Safe("quest place", S.NoteQuestPlace, a1, false)
     elseif event == "QUEST_TURNED_IN" then
