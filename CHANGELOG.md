@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.1
+### Items and the Codex
+- Transmog: 94,000 items from Wowhead with where each comes from (drop, vendor, quest ...), its armor or weapon type, slot, the classes that can use it and the required level. They are in a new Codex section, Transmog Items, grouped Source > Type > Slot > Quality, and on the Codex page of a piece and of a set. A weapon or armor tooltip shows the same, and where you looted it yourself. A collected appearance is marked collected.
+- Codex sections can hold sections inside sections (for example Classic > Trade Goods > Herb); each part opens on its own. Loot & Items is grouped that way now.
+- Gray items: 6,400 now (names and icons of the ones you have not picked up yet too).
+- Monsters: the items Wowhead lists for a monster (2,700 monsters) show with its loot on the map, in Rares and Farm spots, and on the Codex monster page.
+- Mount search: mounts of every expansion from Classic to Midnight with source, cost (gold, a currency or an item, with its icon) and a waypoint where the guide names the exact place.
+### Load
+- The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
+### Play style (profile tooltip)
+- Decided week by week and starting again at every weekly reset. A style needs a lot of the same activity on several days (for example 14 dungeons or delves a week; a raid every week for 4 weeks in a row makes a raid player); only dungeons and delves, nothing else, counts too.
+- Gold grinder: 60,000 gold in a week from monster drops and the auction house; quest and vendor gold does not count.
+- Casual (normal and raid finder raids, delves, normal and heroic dungeons, keys +0 to +4) and Hardcore (heroic and mythic raids, keys +5 and up) can sit next to the other styles.
+
 ## 2.0
 ### World map
 - One line of buttons below the map: Farm spots, Rares, Material search, Mount search, Hunter search, Battle pets, Mining & Herbalism. Each opens in a big window next to the map; only one is open at a time.
