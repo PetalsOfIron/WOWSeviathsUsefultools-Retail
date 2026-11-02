@@ -103,6 +103,7 @@ collected\tools.vendorLearned.lua
 CollectedImport.lua
 Data\TransmogIndex.lua
 Data\DropIndex.lua
+Data\ItemIndex.lua
 LazyData.lua
 Data\DecorData.lua
 Data\DecorNPCs.lua

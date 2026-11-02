@@ -4235,3 +4235,915 @@
 84757|Shattered Stone Fragment||85
 90561|Eternium Rose||1
 92524|A Missive From High Tinker Mekkatorque||1
+200105|Muck Covered Flotsam||70
+200106|Slimy Old Boot||70
+200107|Tarnished Engagement Ring||70
+200248|Cooked Book||1
+200264|A Steamy Romance Novel: The Lusty Draconian Mage||1
+200282|A Steamy Romance Novel: The Lusty Draconian Mage||1
+200451|Deep Sea Star||70
+200531|Worn Chitin Fragment||70
+200532|Damaged Qiraji Ring||70
+200533|Bygone Idol||70
+200620|Inflaming Incense||1
+200621|Soothing Incense||1
+200622|Focusing Incense||1
+200623|Wind-Grown Grass||1
+200637|Talisman of the Maruuk||1
+200639|Talisman of Ohn'ahra||1
+200933|Mushy Vegtable||70
+200935|Large Egg Shell||70
+200937|Flavorful Soup Bone||70
+201162|Shiny Metal Scraps||1
+201163|Piece of Dragonkin Eggshell||1
+201164|Titan Runestone||1
+201165|Burnished Bauble||1
+201166|Gilded Hilt||1
+201167|Stone Calendar||1
+201168|Untainted Scales||1
+201170|Knucklebones||1
+201171|Perfectly Round Stone||1
+201173|Handful of Teeth||1
+201174|Fantastic Jewel||1
+201175|Arakkoa Ritual Feather||1
+201176|Ornate Bracelet||1
+201177|Wooden Eagle Statue||1
+201178|Cracked Skull||1
+201179|Snapped Tusk Tip||1
+201180|Bone Necklace||1
+201182|Serrated Stone||1
+201183|Pouch of Salt||1
+201184|Spare Bow String||1
+201185|Hidden Blade||1
+201186|Rope Bonds||1
+201187|Bent Lockpicks||1
+201188|Deceased Critter||1
+201190|Goo Filled Flask||1
+201191|Back Scratcher||1
+201192|Large Dragonbone Dice||1
+201193|Dragon Tooth Shank||1
+201194|Pumice Hand Chalk||1
+201195|Empty Herb Pouch||1
+201196|Pretty Flower||1
+201197|Dream Journal||1
+201198|Beaded Bracelet||1
+201199|Splendid Feather Necklace||1
+201200|Makeshift Totem||1
+201201|Skull Pendant||1
+201202|Squirrel Tail||1
+201203|Painted Gnoll Band||1
+201204|Tooth Bracelet||1
+201205|Bone Toothpick||1
+201206|Fresh Meat Lump||1
+201207|Shells in a Conch||1
+201208|Seer's Crystal||1
+201209|Nibbled Fish Head||1
+201210|Albino Feather||1
+201211|Bottled Ear Wax||1
+201213|Sparkling Stone||1
+201214|Olfactory Truffle||1
+201216|Crumbled Elemental Spark||1
+201219|Parchment Cards||1
+201220|Ancient Tool||1
+201221|Small Titan Mechanism||1
+201222|Smooth Seashell||1
+201223|Thorn Bracelet||1
+201224|Tauren Horn||1
+201226|Big Rock||1
+201227|Half-Eaten Stone||1
+201228|Handful of Gravel||1
+201424|Unusable Plant Matter||70
+201723|Indecipherable Pages||70
+201724|Dracthyr Token of Cavalry Excellence||70
+201823|Arcane-Infused Webbing||70
+201824|Arcane Fluid||70
+201967|Autographed Skull||1
+201968|Enormous Grain of Salt||1
+201969|Threatening Note||1
+201970|Stolen Illidari Blindfold||1
+201971|Threatening Note||1
+202065|Static Sand||70
+202171|Obsidian Flightstone||50
+203206|Elegant Canvas Brush||70
+203713|Mysterious Flower||1
+203988|Warshard of the Hakkari, Unborn||1
+203989|Warshard of the Hakkari, Unborn||1
+204234|Dead Worms||1
+204308|Sturdy Bone||70
+204310|Mycelial Threads||70
+204312|Ettin Skin||70
+204313|Handful of Scales||1
+204330|Inert Primordial Fragments||1
+204442|Clump of Tar||1
+204580|Abnormal Brain||1
+204720|Join the New Scarlet Crusade!||1
+204812|Seared Book||1
+204813|Blank Tome||1
+204814|Aged Journal||1
+204815|Ambiguous Compendium||1
+204816|Mysterious Almanac||1
+204834|Unidentifiable Goo||70
+204835|Unraveled Sock||70
+204836|Insect Treasure||70
+204837|Rotting Fruit||70
+204838|Discarded Toy||70
+204839|Aged Feet||70
+204840|Bottled Pheromones||70
+204841|Decayed Remains||70
+204842|Red Sparklepretty||70
+204851|Oblong Brass Sculpture||1
+205221|Simple Pottery Fragment||70
+205222|Wooden Caravan Spoke||70
+205224|Just a Rock||1
+205235|Hound Paw||70
+205236|Long-Toed Talon||70
+205237|Pristine Beast Fur||70
+205238|Rain-soaked Feather||70
+205239|Fluffy Ear||70
+205240|Wooden Eagle Statue||1
+205241|Bone Necklace||1
+205242|Serrated Stone||1
+205243|Spare Bow String||1
+205244|Rain-soaked pelt||70
+205423|Shadowflame Residue Sack||1
+205457|Delicate Crystal Shell||70
+205459|Luminous Gloop||70
+205460|Pulverized Living Earth||70
+205461|Vicious Stoneclaw||70
+205462|Royal Nerubian Capsa||70
+205464|Granite Scales||70
+205465|Gleaming Rock Viper Eye||70
+205466|Regurgitated Spores||70
+205467|Preserved Krolusk Crest||70
+205468|Hooked Tail Claw||70
+205469|Serrated Sporebat Spine||70
+205470|Torn Deep Scales||70
+205471|Slimy Deepsea Fin||70
+205472|Wad of Sparkling Somethings||70
+205682|Large Shadowflame Residue Sack||1
+205691|Hypnotic Murloc Lure||70
+205695|Dense Salamanther Skull||70
+205696|Amethyst Deceiver Mushroom||70
+205697|Gelatinous Egg Mass||70
+205698|Mangled Niffen Pack||70
+205699|Rock Worm Frills||70
+205700|Sensitive Scotopic Eye||70
+205866|Rough Coiled Horns||70
+205867|Steaming Drake Heart||70
+205868|Cracked Chitin Carapace||70
+205869|Aromatic Royal Jelly||70
+205870|Glittering Spore Dust||70
+205871|Glowing Underlight Wings||70
+205872|Earthvermin Fluff||70
+205873|Foraged Rare Fungi||70
+205875|Massive Deepstrider Femur||70
+205970|Azure Flightstone||50
+206037|Ruby Flightstone||70
+208390|Bronze Archive Stone||50
+208417|Chromie's Certificate of Temporal Tidiness||70
+208736|Apprentice Astrologist Homework||70
+208783|Corrupted Blood||70
+208784|Primeval Fin||70
+208856|Pocket Lint||1
+209033|Worn Felsteel Prayer Rod||70
+209034|Half-Completed Invasion Plans||70
+210027|Extracted Ashen Dust||1
+210028|Extracted Ashen Dust||1
+210438|Wisp Dust||70
+210439|Speck of Mana||70
+210440|Splendid Blossom||70
+210441|Behemoth's Feather||70
+210443|Matchbook||1
+210444|Burning Flower||1
+210445|Ash Pouch||1
+210449|Heated Scales||1
+210450|Flaming Orb||1
+210451|Imp Tail||70
+210452|Small Demon Horn||70
+210554|Blazing Feather||70
+210658|Discarded Perfume Bottle||1
+210688|Manufacturing Oil||1
+211348|Awkward Potion||1
+211349|Mundane Potion||1
+211692|Tainted Patch of Hide||70
+211694|Oozing Felfang||70
+211695|Jagged Crystallized Eye||70
+211768|Hastily Scrawled Satyr Ravings||70
+211798|Un-Raised Bone Fragments||70
+211938|Flame Inscribed Band||70
+212341|Twice-Dead Tusk||70
+212345|Hunted Hakkari Blood||70
+212346|Failed Gurubashi Tribute||70
+212352|Mosh'Ogg Totem||70
+212531|Ruined Candle||1
+212533|Ear Worm||1
+212534|Wax Carving of a Candle||1
+212646|Chipped Armor Plate||70
+212647|Leather Bakar-Sized Shoe||70
+212648|Fishbone Needle||70
+212649|Quilted Tent Scrap||70
+212688|Salt-dried Roots||70
+212761|Pouch of Coins||70
+212763|Spoiled Honeywine||70
+212764|Fishing Net Fragment||70
+212765|Fish Bones||70
+212766|Amphora Fragment||70
+212767|Broken Beaker||70
+212768|Niffen-Sized Dagger||70
+212770|Smashed Pottery||70
+212771|Charred Snail Shells||70
+212772|False Silver Coin||70
+212774|Sharpened Shalewing Bones||70
+212784|Destroyed Relic||1
+213026|Massive Drakonid Brush||1
+213027|Chipped Drakonid Cup||1
+213028|Cracked Drafting Compass||1
+213029|Bent Drakonid Fork||1
+213030|Rusty Garden Shears||1
+213031|Misshapen Drakonid Goblet||1
+213032|Warped Drakonid Jar||1
+213033|Brittle Blacksmith Tongs||1
+213034|Cracked Drakonid Bowl||1
+213035|Crusty Dracthyr Brush||1
+213037|Jagged Garden Trowel||1
+213038|Cracked Magnifying Glass||1
+213039|Thin Drakonid Spoon||1
+213040|Tarnished Djaradin Amulet||1
+213041|Desiccated Djaradin Scroll||1
+213042|Deteriorated Djaradin Banner||1
+213043|Brittle Djaradin Leather||1
+213044|Frayed Fang Amulet||1
+213045|Snapped Djaradin Necklace||1
+213091|Memo from Apothecary Hummel||1
+213179|Cracked Draconic Tooth||70
+213180|Crumpled Map||70
+213182|Worry Stone||70
+213184|Rock with Chewed Gum||70
+213194|Petrified Rations||70
+213195|Charred Doodle||70
+213196|Pressed Flower||70
+213201|Discarded Waterfowl Bones||70
+213203|Velvet Nightcap||70
+213205|Mad Scribblings||70
+213206|Charred Letter||70
+213210|Bloodied Banner Scrap||70
+213211|Petrified Flower Petals||70
+213212|Whalebone Knife||70
+213213|Dried Cave Fungus||70
+213214|Woven Lavareed Basket||70
+213216|Strip of Notched Leather||70
+213234|Rusty Ritual Knife||80
+213235|Summoning Circle Chalk||80
+213236|Book of Vile Incantations||80
+213237|Harbinger Idol||80
+213238|Broken Shadow Beast Binding||80
+213239|Small Light Shards||80
+213240|Decorated Truffle||80
+213241|Gibbering Glowcap||80
+213242|Adventures of Libarbie and Lichen||80
+213245|Gnawed Binding||80
+213246|Tiny Glowing Rock||80
+213247|Razor-Sharp Bones||80
+213248|Shredded Fish||80
+213249|Empty Battered Shell||80
+213250|Cracked Gem||80
+213251|Cinderbee Wax Jar||80
+213252|Stolen Earthen Contraption||80
+213253|Gilded Candle||80
+213254|Big Gold Nugget||80
+213255|Wax Canary||80
+213256|Wax Spoon||80
+213257|Wax Shovel||80
+213258|Odorant Oddity||80
+213259|Silk Doll||80
+213260|Ripped Shawl||80
+213261|Niffen Smell Pouch||80
+213262|Stained Glass Fragment||80
+213263|Poison Needle||80
+213265|Empty Antidote Vial||80
+213266|Twitching Snack||80
+213267|Idol of Ansurek||80
+213268|Roughly Acquired Treat||80
+213277|Smudged Snippet of Poetry||70
+213358|Indelicately Excavated Skull||70
+213360|Discarded Drakonid Amulet||70
+213361|Disquieting Children's Toy||70
+213362|Ancient Drakonid Candy||70
+213363|Molted Eye Skin||70
+213364|Empty Vial of Perfume||70
+213366|Strip of Niffen Headwear||70
+213367|Discarded Claw Prototype||70
+213368|Scratch-and-Sniff Stone||70
+213374|Niffen Noseplug||70
+213377|Mutliated Storybook||70
+213380|Unidentifiable Equine Fossil||70
+213384|Horsehair Doll||70
+213385|Stiff Brush||70
+213386|Unearthed Stone Arrowhead||70
+213387|Primitive Centaur Carving||70
+213388|Faded Centaur Painting||70
+213530|Entropic Crystal||70
+213531|Nether Sands||70
+213532|Void Rune||70
+213537|Void Tendril||70
+213540|Ghostly Motes||70
+217010|Fragmented Medallion of the Draenei||70
+217016|Fragmented Medallion of the Darkspear||70
+217413|Depleted Blackened Flightstone||70
+217415|Depleted Ruby Flightstone||70
+217416|Depleted Emerald Flightstone||50
+218453|Unusable Fragment||80
+220219|Mound of Night Soil||80
+220220|Ornate Pipe||80
+220221|Void Pebble||80
+220222|Everburning Lump||80
+220223|Torn Gossamer Scrap||80
+220224|Iridescent Integument||80
+220225|Tattered Standard||80
+220226|Slime-Coated Membrane||80
+220227|Pristine Ventral Fin||80
+220228|Quartz Growth||80
+220229|Dormant Core||80
+220230|Punctured Intestine||80
+220231|Skiatic Vessel||80
+220232|Worm-Eaten Burlap Robe||80
+220233|Extinguished Icon||80
+220234|Leaden Vial||80
+220235|Electrified Teeth||80
+220236|Sanguineous Sac||80
+220237|Shining Amethyst Cluster||80
+220238|Keen Fang||80
+220239|Severed Spiraled Tail||80
+220240|Night's Litany||80
+220241|Softly Glowing Shard||80
+220242|Razored Tail-Blade||80
+220243|Eloquent Tailfeather||80
+220244|Oversized Claw||80
+220245|Charged Antennae||80
+220246|Humming Power Core||80
+220247|Polishing Powder||80
+220248|Mass of Melted Wax||80
+220249|Chipped Mandible||80
+220250|Filthy Handkerchief||80
+220251|Pale Gills||80
+220252|Handful of Smooth Pebbles||80
+220253|Inert Dust||80
+220254|Chipped Molars||80
+220255|Darkened Residue||80
+220256|Clump of Rotting Detritus||80
+220257|Pulsing Pustules||80
+220258|Rotting Bones||80
+220259|Gob of Mucus||80
+220260|Corroded Golem Graspers||80
+220261|Pungent Mushroom||80
+220262|Elongated Proboscis||80
+220263|Wax Miner's Sack||80
+220264|Jaw with Barbed Teeth||80
+220265|Slitted Eye||80
+220266|Sharpened Digging Claws||80
+220267|Combustible Gland||80
+220268|Spiraled Horn||80
+220269|Ionized Feather||80
+220270|Vile Catalyst||80
+220271|Downy Clump||80
+220272|Torn Manuscript Page||80
+220273|Shed Skin||80
+220274|Chipped Hammer||80
+220275|Indigo Shard||80
+220276|Wax-Covered Helmet||80
+220277|Carapace Fragment||80
+220278|Well-Worn Leather Sole||80
+220279|Handful of Polished Scales||80
+220280|Dense Five-Pound Stone||80
+220281|Charged Fragments||80
+220282|Tuft of Whiskers||80
+220283|Pileus Puff||80
+220284|Darkened Crystal||80
+220285|Moldy Rucksack||80
+220286|Tarnished Medallion||80
+220287|Acid-Filled Sack||80
+220288|Quivering Tail||80
+220289|Venomous Stinger||80
+220290|Barbed Pincers||80
+220291|Bioluminescent Thorax||80
+220292|Stretched Wing||80
+220293|Very Soft Wool||80
+220294|Strangely Glowing Filament||80
+220295|Unidentified Viscous Substance||80
+220296|Thickly Webbed Foot||80
+220297|Rock-Encrusted Plates||80
+220298|Melted Candle Stump||80
+220299|Sleek Beak||80
+220300|Translucent Wing||80
+220301|Crystallized Honey||80
+220302|Fractured Casing||80
+220303|Decayed Flesh||80
+220355|Enlarged Ear||80
+220361|Sharpened Steel Implement||80
+220362|Ragged Rope||80
+220363|Straw-Stuffed Hat||80
+220377|Growing Void Mass||80
+220380|Immature Spiderling||80
+220438|Root-Staff Splinter||80
+220439|Half-Eaten Fish||80
+220440|Kelp Necklace||80
+220441|Hardened Pearl||80
+220442|Weighty Shovel||80
+220443|Desecrated Arathi Tinderbox||80
+220444|Gnawed Spine||80
+220445|Illusionary Charm||80
+220447|Broken Trident Prong||80
+220448|Cerulean Orb||80
+220484|Bowl of Pulsing Goo||80
+220486|Collection of Shiny Shells||80
+220491|Wicked Blade Shard||80
+220509|Gossamer Web||80
+221550|Boskroot Cap||1
+221779|Bent Card||1
+222906|Plump Snapcrab||1
+223804|[DNT] Zone 1 Placeholder Treasure||80
+223843|Personally Crafted Mug||1
+223893|Uncharged Feather||80
+223897|Ruptured Engine||80
+223898|Loose Bolts||80
+223899|Shadowed Appendage||80
+223900|Bottled Darkness||80
+224153|Nibbled Shroomcap||80
+224154|Mushrock||80
+224155|Peeled Fungal Scale||80
+224373|Waterlord's Iridescent Gem||70
+224816|Nerubian Almanac||1
+225254|Almost Priceless Artifact||80
+225543|Bloodied Idol||80
+225785|Jar of Pickled Insects||80
+225786|Chitin Stress Ball||80
+225787|Pheromone-Covered Missive||80
+225788|Congratulatory Ascension Silk||80
+225789|Curved Threadripper||80
+225790|Half-Painted Pewter Spider||80
+225791|Jar of Alchemical Solvent||80
+225792|Elegant Pedipalp Wrappings||80
+225793|Acid-Etched Pendant||80
+225794|Preserved Gold-Inlaid Chelicera||80
+225795|Dented Pocketwatch||80
+225796|Particularly Pungent Herbs||80
+225797|The Fifty Rules of Commerce, Fourth Edition||80
+225798|Intricately Carved Barter Boulder||80
+225799|Dazzling Spanner||80
+225800|Stone Singing Bowl||80
+225801|Braided Seaweed Bangle||80
+225802|Well-Worn Darning Needle||80
+225803|Lynx Tag Collar||80
+225804|Crumpled Patrol Assignment||80
+225805|Ornate Box of Seasonings||80
+225806|Crystal Inkwell||80
+225807|Rune-Carved Bone||80
+225809|Oiled Pigment Pouch||80
+225810|Smoked Visor||80
+225811|Gleaming Deep-Pearl||80
+225812|Kobyss Teeth-Sharpener||80
+225813|Darkened Ritual Stone||80
+225814|Feather-on-a-Stick||80
+225815|Chipped Opal Signet Ring||80
+225816|Profaned Pendant||80
+225817|Ominous Ceremonial Robe||80
+225818|Tainted Incense||80
+225819|Smudged Propaganda||80
+225820|Lovingly Worn Chisel||80
+225821|Tattered Theater Hood||80
+225822|Jar of Cinderbee Honey||80
+225823|Split Bull-Horn||80
+225824|Sand Sculpting Comb||80
+225825|Ground Snacking Stone||80
+225826|Broken Elevator Cog||80
+225827|Cracked Pickaxe||80
+225828|Unrefined Dense Ore||80
+225829|Fractured Interface Crystal||80
+225830|Irreparably Bent Spoon||80
+225831|Glittering Rock||80
+225832|Smelly Backscratcher||80
+225833|Weathered Skipping Stone||80
+225834|Pilfered Matchbook||80
+225835|Battered Lantern||80
+225836|Drained Elemental Mote||80
+225837|Melted Globs of Glass||80
+225839|Agitated Water||80
+225840|Ionized Core||80
+225841|Ever-Frozen Ice||80
+225842|Whirling Sphere||80
+225843|Ancient Bronze Hourglass||80
+225844|Damaged Radial Cog||80
+225845|Old Explorer's Compass||80
+225846|Fractured Command Matrix||80
+225847|Inoperable Keystone||80
+225848|Cracked Etheric Power Core||80
+225849|Long-Forgotten Glove||80
+225850|Moldy Rations||80
+225852|The Foolhardy's Guide to Survival||80
+225853|Broken Stirrup||80
+225854|Muddied Amulet||80
+225875|Pitted Armor Plating||80
+225877|The Fifty Rules of Commerce, Fourth Edition||80
+225878|The Fifty Rules of Commerce, Fourth Edition||80
+225879|The Fifty Rules of Commerce, Fourth Edition||80
+226001|Pure Gold Stein||80
+226002|Expensive-Looking Find||80
+226003|Snake Oil||80
+226004|Olden Text||80
+226005|Ancient Tool||80
+226692|Splintered Stone||80
+227698|Torn Diary, Page 2||10
+228099|Oversized Chelicera||80
+228192|Cracked Fel Focus||80
+228193|Chipped Demon's Blade||80
+228194|Fully Scrapped Scrap||80
+228195|Tattered Goblin Cap||80
+228507|Swarmite Eggsac||80
+228509|Diaphanous Webbing||80
+228510|Ripped Swarmite Wing||80
+228624|Depleted Awakened Flightstone||50
+228625|Depleted Ruby Flightstone||70
+228626|Depleted Blackened Flightstone||70
+228720|Nascent Gemstone||80
+228911|Xal'atath's Rusty Coin||1
+229809|Weighted Metal Ball||1
+231899|Trash||1
+232632|Spiral Mollusk Shell||80
+232633|Shiny Seaside Clam||80
+232634|Emptied Turtle Shell||80
+232635|Torn Bilgewater Bandage||80
+232636|Rum-Soaked Handkerchief||80
+232637|Cracked Pirate Skull||80
+232638|Loosened Naga Scales||80
+233029|Cracked Core||80
+233030|Charged Cables||80
+233031|Intact Interlock||80
+233800|Decorated Gunpowder Flask||80
+234197|Gilded Screwdriver||80
+234203|Clay-Speckled Metal Slug||80
+234204|Depleted Battery||1
+234205|Bent Lever||80
+234212|"Beaten by the House"||80
+234718|Ancient Runic Hilt||80
+234719|Storm-Etched Vambrace||80
+234720|Memoric Residue||80
+234722|Carved Stone Fragment||80
+234723|Hollow Sigil||80
+234732|Bloodied Medallion||80
+234733|Bloodwake Ritual Bowl||80
+234734|Inscribed Drinking Horn||80
+234735|Battered Vrykul Lantern||80
+234736|Tar-Sealed Scroll||80
+234750|Myrmidon's Osminium Bracer||80
+234751|Pearl-Adorned Tailband||80
+234752|Coral-Pocked Scrying Stone||80
+234753|Cracked Divining Scepter||80
+234754|Bloodied Siren Pendant||80
+235018|Cracked Cold One||1
+235910|Mint Condition Gallagio Anniversary Coin||80
+235916|Deed to Azeroth||80
+236634|Itty Bitty Bonsai||80
+236635|Uncut Semi-Smoky Quartz||80
+236636|Cracked Chrysoberyl||80
+236637|Not-Quite-Crystal Ball||80
+236638|Bundle of Kaja-Scented Incense||80
+236639|Dented Censer||80
+236640|Cracked Earthen Singing Bowl||80
+236651|Vince's Old Left Shoe||80
+236652|Re-Down-Upcycled Salvage||80
+236955|Crimson Valorstone||80
+236956|Void-Touched Valorstone||80
+237036|Golden Valorstone||80
+237305|Chalky Shungite||80
+237313|Totally Legit Samophlange||80
+237502|Puzzling Cartel Chip||1
+238799|Harrowed Ichor||80
+238800|Soggy Bone Splinters||80
+238801|Mite-Kissed Silver Tooth||80
+238808|Celeste-Touched Fin||80
+238810|Mana-Blessed Fin||80
+238812|Long Fibrous Tongue||80
+238813|Irridescent Eye||80
+238814|Vibrantly Colored Crest||80
+238832|Sinuous Wing Membrane||80
+238833|Flowing Ridge Spikes||80
+238834|Burnished Void Claw||80
+238836|Spindly Flesh||80
+238838|Enlarged Nerve||80
+238841|Void-Seeping Eyeball||80
+238847|Torn Maw Fragment||80
+238848|Void Tendril||80
+238849|Ominous Unblinking Eye||80
+238851|Fractured Dragon Scale||80
+238853|Netherbound Heart||80
+238854|Sleek Beak||80
+238855|Netherclaw||80
+238856|Nightpiercer Feather||80
+238865|Void-Warped Hoof||80
+238866|K'aresh Dust||80
+238867|Unstable Elemental Essence||80
+238868|Flickering Primeval Element||80
+238869|Matted Pelt||80
+238870|Pearly Incisor||80
+238871|Luminous Brushtail||80
+238872|Fragmented Fin||80
+238873|Serrated Scale Shard||80
+238874|Congealed Mana||80
+238875|Twisted Sediment||80
+238876|Malicious Mandible||80
+238877|Hollow Mandible||80
+238878|Shadow-Touched Fang||80
+238879|Cracked Void Carapace||80
+238880|Oily Blubber||80
+238881|Barbed Predator Tusk||80
+238882|Cursed Eyeball Cluster||80
+238883|Dimly Glowing Scrap||80
+238884|Machine Remnant||80
+238885|Unstable Power Source||80
+238886|Faintly Glowing Vellum||80
+238887|Torn Voidscript Page||80
+238888|Essence of Ephemeral Knowledge||80
+238889|Eldritch Signal Antenna||80
+238944|Torn Material||80
+238946|Letter from Keg Leg||1
+239115|L.O.S.E.R. Ticket||1
+240209|Golden Valorstone||80
+240210|Crimson Valorstone||80
+240211|Void-Touched Valorstone||80
+241632|Heroic Waxy Figurine||80
+241633|Tiny Decorative Rocket||80
+241635|Patchy Spider-Silk Square||80
+241636|Storm Glass and Feather Necklace||80
+243197|Matured Hoof Piece||1
+243199|Majestic Whisker||1
+243200|Slightly Smooth Scales||80
+243201|Massive Serpent Fang||32
+243202|Tiny Pangolin Fang||1
+243204|Stiff Bristles||1
+243206|Cracked Predator's Claw||1
+243207|Matted Cat Hair||80
+243208|Mangled Leg Meat||80
+243209|Split Bird Beak||1
+243210|Shredded Ray Fin||80
+243211|Shattered Aquatic Jaw||1
+243212|Toxic Barbed Stinger||1
+243213|Gnawed Rabbit's Foot||1
+243214|Shed Vulpine Fur||80
+243215|Enlarged Insect Organs||1
+243216|Snapped Antennae||1
+243218|Pristine Blushleaf Shell||1
+243222|Pillaged Rake||1
+243223|Shredded Linen Cloth||1
+243224|Pilfered Spade||1
+243225|Mashed Carrot||1
+243226|Glimmering Elemental Core||1
+243227|Handful of Water Droplets||1
+243228|Dim Elemental Essence||1
+244355|Voidstorm Obsidian||1
+244357|Time-Worn Memento||1
+244358|"Prophecies of the Void"||80
+244359|Ethereal Pylon Conduit||80
+244360|K'aresh Nightbloom||80
+244361|Void-Carved Amethyst||80
+245566|Fel Splinter||1
+245591|Flawed Amethyst||80
+245592|Chipped Skull||80
+245593|Runed Cube||80
+245594|Worn Rune||80
+245595|Splintered Charm||80
+245596|Damaged Eburine Jewel||80
+245597|Empty Antidote Bottle||80
+245598|Unknown Spellbook||80
+245599|Rusted Adventurer's Leg||80
+245606|Blank Scroll||80
+245607|Dull Javelin||80
+245608|Chipped Sapphire||80
+245609|Flawed Skull||80
+246063|Void-Polished Warpstalker Stone||80
+246268|A Steamy Romance Novel: Voidlust||1
+246584|A Steamy Romance Novel: Devouring Love||1
+246816|A Steamy Romance Novel: Nightborne of the Living Dead||1
+246817|A Steamy Romance Novel: Of Elven Bondage||1
+246818|A Steamy Romance Novel: Waves of Desire||1
+246820|A Steamy Romance Novel: Stormy Seas||1
+246821|A Steamy Romance Novel: The Lusty Draconian Mage||1
+246822|A Steamy Romance Novel: Devouring Love||1
+246823|A Steamy Romance Novel: Got Milk?||1
+246837|Mysterious Notebook||1
+246839|Multiversal Energy Dynamics and the Murmuration Paradox||1
+246840|Ba'key's Aromatic Broker Cookies Recipes||1
+246841|From Vengeance to Void||1
+246842|The Facets of K'aresh||1
+246843|Coins: An Oath We Exchange||1
+246844|I Have Become Void!||1
+247685|Slightly Used Containment Device||80
+247686|Crystallized Nightshade||80
+247687|Overly-Preserved K'areshi Preserves||80
+247688|K'arroc Feather Quill||80
+247689|K'areshi Copper Ingot||80
+247690|Void-Tainted Lotus||80
+247691|Slateback Hide||80
+249710|Cartel Zo Cypher||1
+249711|Cartel Ba Cypher||1
+249712|Cartel Om Cypher||1
+250305|Phase-Lost Detritus||80
+250741|Puzzling Cartel Chip||1
+253622|Strangely Pleasant Painting||1
+253623|Abstract Painting||1
+253706|Junk Mail||1
+254874|Glowing Moth Dust||80
+258636|Honored Guest's Party Favor||1
+258900|Charred World Tree Branch||1
+258901|Waterlogged Reliquary Paintbrush||1
+260309|Thrumming Plant Matter||90
+260428|Raw Mussel||1
+260603|Frail and Flexible Wing||90
+260604|Insect Shedding||90
+260605|Shattered Spear Tip||90
+260606|Light and Shaggy Fur||90
+260608|Bloated Animal Remains||90
+260611|Large Bestial Scale||90
+260613|Lightbloom Flower||90
+260614|Unrecognizable Organ||90
+260615|Void Dust Residue||90
+260616|Soft Marine Fungi||90
+260617|Large Broken Teeth||90
+260618|Light-Infused Leaves||90
+260619|Colorful Leaves||90
+260620|Stone Droppings||90
+260621|Magic-Infused Bark||90
+260636|Algae Covered Stone||90
+260637|Rotting Insect Eggs||90
+260638|Fine Void Residue||90
+260639|Fractured Bone||90
+260640|Crooked Bird Talons||90
+260641|Arid Tendrils||90
+260642|Fossilized Wildlife||90
+260643|Pile of Feathers||90
+260644|Lightbloom Bark||90
+260645|Water-Filled Organ||90
+260646|Glowing Gland||90
+260647|Digested Human Hand||90
+260648|Tattered Clothes||90
+260649|Vibrant Vortex||90
+260650|Elemental Debris||90
+260651|Lustrous Wildlife Pelt||90
+260652|Broken Wildlife Claw||90
+260653|Large Lightbloom Fungi||90
+260654|Abrasive Sand||90
+260655|Decaying Humanoid Flesh||90
+260656|Perforated Wing||90
+260657|Holey Organ||90
+260658|Crystal Rock Shard||90
+260659|Stellar Vortex Residue||90
+260660|Putrid Mushroom Spores||90
+260661|Glowing Shrub||90
+260662|Polished Purple Pebble||90
+260663|Lightbloom Residue||90
+260664|Bioluminescent Flower Petals||90
+260665|Sizable Tusk||90
+260666|Earthy Mushroom||90
+260667|Tainted Organs||90
+260668|Cloudy Purple Gem||90
+260669|Colorless Pebbles||90
+260670|Bloody Broken Beak||90
+260671|Oversized Gland||90
+260672|Fetid Eye||90
+260673|Partially Digested Bracers||90
+260674|Fine Arcane Dust||90
+260675|Luminous Seeds||90
+260676|Unremarkable Crystal||90
+260677|Void Flakes||90
+260678|Sharp Obsidian Chunk||90
+260679|Fleshless Bone||90
+260680|Nesting Materials||90
+260681|Lightbloom-Infused Spores||90
+260682|Rusty Tusk Ring||90
+260683|Fine Magenta Sand||90
+260684|Sharp Scales||90
+260685|Large Brittle Bone||90
+260686|Vibrant Wings||90
+260687|Decaying Leather||90
+260688|Insect Exoskeleton||90
+260689|Fine Bioluminescent Powder||90
+260690|Gloomy Root||90
+260691|Void-Tainted Pelt||90
+260692|Chunk of Mystery Meat||90
+260693|Mossy Lump of Dirt||90
+260694|Foul Kelp||90
+260695|Rancid Aquatic Remains||90
+262562|Bolt of Pressed Linen||1
+262563|Bolt of Elegant Silk||1
+262564|Bolt of Soft Wool||1
+262565|Spool of Thread||1
+263192|Unattainable Artifact of Desire||1
+263508|Human Brain||1
+263515|Broken Soulstealing Mirror||1
+263516|Cosmic Ritual Bowl||1
+263517|Ancient Text||1
+263518|Expensive-Looking Find||1
+263519|Snake Oil||1
+265040|Fractured Void Focus||90
+265041|Singed Ritual Parchment||90
+265042|Tarnished Shadow Torque||90
+265043|Dented Voidblade Pommel||90
+265044|Frayed Twilight Sash||90
+265045|Sealed Blood Vial||90
+265046|Warped Summoning Sigil||90
+265047|Cracked Soul Phylactery||90
+265048|Scale Fragment||90
+265049|Drifting Conch Whistle||90
+265050|Coral Shard||90
+265051|Carved Root Totem||90
+265052|Crumbly Stone Shard||90
+265053|Gnarled Bark Shard||90
+265054|Cracked Tribal Mask||90
+265055|Torn Dimensional Wrap||90
+265056|Flickering Energy Coil||90
+265057|Hollow Binding Strand||90
+265058|Distorted Echo Fragment||90
+265059|Collapsed Void Core||90
+265061|Whispering Rift Residue||90
+265062|Nullflare Residue||90
+266002|Broken Trap Mechanism||1
+268552|Ascendant Voidcore||1
+268650|Ascendant Voidshard||1
+269258|Void-Twisted Sporbit||90
+269868|Miniature Hand-Crafted Mask||1
+270335|Mostly Smooth Seastone||1
+272046|Mana-Singed Divining Rod||80
+272047|Deeplurk Scrying Stone||80
+272048|Shattered Containment Pearl||80
+272049|Bloodied Propaganda Leaflet||80
+272051|Sticky Propaganda Scroll||80
+272052|Ripped Propaganda Page||80
+272109|Crumpled Propaganda Page||80
+272110|Singed Propaganda Leaflet||80
+272111|Decaying Necromancer Cloak||80
+272112|Golden Rune-Etched Circlet||80
+272113|Scourge Shard Fragment||80
+272114|Discarded Excavation Tool||80
+272115|Smashed Shield Emitter||80
+272116|Water-Logged Transaction Scroll||80
+272117|Shattered Energy Weapon||80
+272118|Inert Arcane Explosive||80
+272119|Residue-Covered Tool||80
+272120|Mysterious Vial||80
+272400|Fine Lynx Fur||90
+272892|Shattered Gem||80
+272893|Icy Harness||80
+272894|Inert Runestone||80
+273013|Void-Permeated Hide Scrap||80
+273014|Howling Glass Shard||80
+274951|Corroded Scale||90
+274953|Serpentine Iris||90
+274954|Pristine Fang||90
+275699|Veraan's Soul Lattice Report||1
+275920|Tarnished Amani Glaive||1
+276343|Console Encryption Key||80
+276344|Overgrown Spore Extractor||80
+276345|Malfunctioning Holoprint||80
+276346|Fel-Singed Salvage||80
+276347|Cracked Legion Communicator||80
+276348|Marsh Wrangler's Vinewhip||80
+276349|Bulbous Leyshroom||80
+276350|Shimmering Algae||80
+276351|Muckfaded Crystalline Figure||80
+276352|Scuffed Prayer Bangle||80
+276353|Frozen Sliver of Darkness||80
+276354|Frozen Fel Core||80
+276355|Shattered Frostforged Hilt||80
+276356|Frost-Shredded Demon Cloak||80
+276357|Razor-Ice Flake||80
+276358|Shattered Shadowgraft||80
+276359|Twisted Domanaar Armament||80
+276360|Etched Ice Chip||80
+276361|Frost-Calloused Remains||80
+276362|Lost Glacier Climbing Hooks||80
+276617|Fancy Oar||1
+276618|Weathered Stone Tablet||1
+276619|Mysterious Corked Bottle||1
+276620|Patinaed Bottle||1
+276621|Antique Shield||1
+276645|Soggy Shipping Manifest||1
+277849|Mushed Crab||1
+278095|Liver Pulp||1
+279142|Intact Spine Segment||90
+279143|Elongated Viscera||90
+279145|Vial of Venom||90
+279146|Lopped Rattle||90
+279147|Unrecognizable Bone||90
+279148|Strip of Snake Hide||90
+279152|Intact Snake Head||90
+279153|Large Trophy||90
+279154|Large Leaf||90
+279157|Frayed Nomad's Cord||90
+279160|Mud-Caked Footwraps||90
+279166|Pumice Hand Chalk||90
+280105|Disgraced Amani Tablet||1
+284576|Cracked Mask||90
+284577|Stinging Nettle||90
+284578|Untainted Wicker||90
+286211|Echoing Hive Fragment||90
+286212|Aqir Wing Membrane||90
+286213|Cracked Hive Signet||90
