@@ -108,6 +108,9 @@ local function update()
     local c = canvas()
     local map = WorldMapFrame:GetMapID()
     if not (c and map) then return end
+    -- only on the map of a zone (or smaller): not on the continent, the world or the cosmic map
+    local info = C_Map.GetMapInfo(map)
+    if info and type(info.mapType) == "number" and info.mapType < (Enum and Enum.UIMapType and Enum.UIMapType.Zone or 3) then return end
     local w, h = c:GetWidth(), c:GetHeight()
     if not w or w <= 0 then return end
     local size = math.max(SIZE / canvasScale(), 3)
