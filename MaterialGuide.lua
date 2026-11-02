@@ -2272,14 +2272,15 @@ local LOOT_LIST_MODES = { mat = true, rare = true, farm = true, top = true }   -
 local lootFrame = CreateFrame("Frame")
 lootFrame:RegisterEvent("LOOT_CLOSED")
 lootFrame:SetScript("OnEvent", function()
-    if lootWait or not (win and win:IsShown()) or not LOOT_LIST_MODES[mode] then return end
+    if lootWait then return end
     lootWait = true
     C_Timer.After(3, function()
         lootWait = nil
-        if not (win and win:IsShown() and LOOT_LIST_MODES[mode]) then return end
+        -- the lists are made again from the new kill, also when the window is closed now (it is up to date the next time it opens)
         guideIndex, monsterIndex, mapRecs, ownByMap, guideMapSet = {}, {}, {}, nil, nil
         zonesCache = {}
         if SFP.FreeMonsterCache then SFP:FreeMonsterCache() end
+        if not (win and win:IsShown() and LOOT_LIST_MODES[mode]) then return end
         if win.refreshList then pcall(win.refreshList) end
     end)
 end)
