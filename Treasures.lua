@@ -67,9 +67,9 @@ function SFP.NoteOpened(id, map, x, y)
     list[id] = list[id] or {}
     local now = time()
     for _, o in ipairs(list[id]) do
-        if o[1] == map and math.abs(o[2] - x) < 0.003 and math.abs(o[3] - y) < 0.003 then
-            -- opened again at the same place: it respawns, after about the time between the two openings
-            if o[4] and now - o[4] > 60 then o[5] = now - o[4] end
+        if o[1] == map and math.abs(o[2] - x) < 0.02 and math.abs(o[3] - y) < 0.02 then
+            -- opened again at the same place: it respawns, after about the time between the two openings (one day until two openings of it are known)
+            if o[4] and now - o[4] > 60 then o[5] = now - o[4] elseif not o[4] then o[5] = 86400 end
             o[4] = now
             wipe(byMap)
             return
@@ -104,7 +104,7 @@ local function seedOpened()
                     for _, p in ipairs(pts) do
                         if type(p) == "table" and p[1] and p[2] then
                             list[id] = list[id] or {}
-                            list[id][#list[id] + 1] = { from, p[1], p[2], now }
+                            list[id][#list[id] + 1] = { from, p[1], p[2] }   -- no time: when it is opened again it counts as respawning
                         end
                     end
                 end
