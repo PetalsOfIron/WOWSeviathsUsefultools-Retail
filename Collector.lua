@@ -830,6 +830,19 @@ function SFP:ItemUseText(id)
                     end
                 end
             end
+            -- no use line: the item's own description (the quoted text of its tooltip)
+            if not text then
+                for _, line in ipairs(data.lines) do
+                    local lt = line and line.leftText
+                    if type(lt) == "string" and not (issecretvalue and issecretvalue(lt)) then
+                        local desc = lt:match('^"(.-)"?$')
+                        if desc and #desc > 8 then
+                            text = (#desc > 90) and (desc:sub(1, 87) .. "...") or desc
+                            break
+                        end
+                    end
+                end
+            end
         end
     end
     -- a consumable with no use line says what it is: Potion, Elixir, Flask, Food & Drink ...
@@ -868,7 +881,8 @@ function SFP.ObjectLootLines(tt, rec)
             if okT and type(tl) == "table" then
                 for _, row in ipairs(tl) do
                     local txt = type(row[1]) == "string" and row[1]
-                    if txt and not txt:find("Seen from", 1, true) and not txt:find("Where to get", 1, true) and not txt:find("Dropped by", 1, true) then why = txt break end
+                    if txt and not txt:find("Seen from", 1, true) and not txt:find("Where to get", 1, true) and not txt:find("Dropped by", 1, true)
+                        and not txt:find("Info:", 1, true) then why = txt break end
                 end
             end
         end
