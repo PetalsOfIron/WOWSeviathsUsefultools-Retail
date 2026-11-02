@@ -814,6 +814,15 @@ function SFP.ObjectLootLines(tt, rec)
         local price = SFP:GetPrice(e[1])
         tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. (chance ~= "" and ("  " .. chance) or ""),
             price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+        -- what the item is for: what the addon knows (crafting material and the recipes, gear compared with yours ...), else its kind
+        local why
+        local okT, tl = pcall(SFP.ItemTipLines, SFP, e[1])
+        if okT and type(tl) == "table" and tl[1] and type(tl[1][1]) == "string" then why = tl[1][1] end
+        if not why then
+            local okI, _, itype, isub = pcall(C_Item.GetItemInfoInstant, e[1])
+            if okI and type(itype) == "string" then why = itype .. ((type(isub) == "string" and isub ~= "" and isub ~= itype) and (" - " .. isub) or "") end
+        end
+        if why then tt:AddLine("   |cff808080" .. why .. "|r", 1, 1, 1, false) end
     end
     if #list > 12 then tt:AddLine("|cff808080+ " .. (#list - 12) .. " more|r") end
 end
