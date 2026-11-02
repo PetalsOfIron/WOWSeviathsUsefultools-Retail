@@ -2092,7 +2092,7 @@ local function refreshRow()
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "items", "search", "coll", "rares", "spots" }) do
+    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "search", "coll", "rares", "items", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
