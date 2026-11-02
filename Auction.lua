@@ -201,7 +201,12 @@ local function processReplicate()
             SFP.db.ahAll[SFP:RealmKey()] = allBest
             if next(petBest) then
                 SFP.db.petPrices = SFP.db.petPrices or {}
-                SFP.db.petPrices[SFP:RealmKey()] = petBest   -- [speciesID] = copper, replaced by each fast scan
+                -- [speciesID] = copper: merged like the item prices - a pet not listed this time keeps its price until a scan sees it again
+                local oldPets = SFP.db.petPrices[SFP:RealmKey()]
+                if type(oldPets) == "table" then
+                    for sid, p in pairs(oldPets) do if petBest[sid] == nil then petBest[sid] = p end end
+                end
+                SFP.db.petPrices[SFP:RealmKey()] = petBest
             end
             SFP.db.ahListings = SFP.db.ahListings or {}
             SFP.db.ahListings[SFP:RealmKey()] = listings

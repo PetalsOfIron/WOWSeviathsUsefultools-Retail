@@ -17,6 +17,7 @@
 - Collector play style: 10 mounts in 28 days, or 20 in the week (the weekly reset starts again) of battle pets, toys, decor, old-expansion raid bosses that drop mounts or pet battles. Transmog, rare kills and Timewalking do not count; the current expansion's raids do not either.
 - Codex Rares: all the rares the addon knows (339, every zone) are listed, not only the ones you saw on the minimap; each page shows its place, its note and the drops Wowhead lists.
 - Codex Monsters & Creatures: every monster the addon ships (with a place) is listed, not only the ones you have met.
+- Auction prices: a price from your own scan stays until your next scan (a newer shipped price no longer replaces it), and a battle pet the scan does not see this time keeps its earlier price.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
