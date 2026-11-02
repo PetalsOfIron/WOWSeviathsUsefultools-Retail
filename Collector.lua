@@ -338,7 +338,7 @@ function SFP:RareKillTry(npcID)
     end
     for _, id in ipairs(rareMounts[npcID] or {}) do mountStat(id, "npc|" .. npcID).n = mountStat(id, "npc|" .. npcID).n + 1 end
     -- a rare killed is collecting (rares drop mounts, pets and toys): counts for the collector play style
-    if self.Social and self.Social.Act then self.Social.Act("collect") end
+    if self.Social and self.Social.Act then self.Social.Act("c_rare") end
 end
 
 -- a raid of an OLD expansion: the raids of the newest expansion in the data (Midnight now) are not old, they do not count for the collector style
@@ -381,7 +381,7 @@ mountFrame:SetScript("OnEvent", function(_, event, encounterID, encounterName)
                         -- a boss that can drop a mount killed again: collecting (the old raids), counts for the collector play style - raids only,
                         -- and not Timewalking (everyone can do that)
                         local iname, itype, diff = GetInstanceInfo()
-                        if itype == "raid" and diff ~= 33 and isOldRaid(iname) and SFP.Social and SFP.Social.Act then SFP.Social.Act("collect") end
+                        if itype == "raid" and diff ~= 33 and isOldRaid(iname) and SFP.Social and SFP.Social.Act then SFP.Social.Act("c_raid") end
                         break
                     end
                 end
