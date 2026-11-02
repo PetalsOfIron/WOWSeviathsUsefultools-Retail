@@ -15,6 +15,7 @@
 - Guild Directory: US and EU buttons above the realm buttons pick the region (your own at first); a realm name that exists in both regions counts for your own region.
 - Farm spots: the monsters of a zone that Wowhead lists drops for (with their places) are farm spots too, with those items. The monsters come from Wowhead's monster pages; the scan adds more each update.
 - Collector play style: 10 mounts in 28 days, or 20 in the week (the weekly reset starts again) of battle pets, toys, decor, old-expansion raid bosses that drop mounts or pet battles. Transmog, rare kills and Timewalking do not count; the current expansion's raids do not either.
+- Codex Rares: all the rares the addon knows (339, every zone) are listed, not only the ones you saw on the minimap; each page shows its place, its note and the drops Wowhead lists.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)

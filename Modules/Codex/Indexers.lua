@@ -637,6 +637,28 @@ local function IndexRares()
         AddRare(key, r)
         ns:Yield()
     end
+    -- the rares the addon ships (every zone: Data/Rares.lua), not only the ones you have seen on the minimap
+    local S = _G.SeviathsUsefulTools
+    for map, list in pairs((S and S.Rares) or {}) do
+        for _, r in ipairs(list) do
+            local key = tostring(r.name) .. "@" .. tostring(map)
+            if r.name and not ns:Get("rare:" .. key) then
+                local x, y = tostring(r.pts or ""):match("([%d%.]+),([%d%.]+)")
+                if x and y then
+                    local e = ns:Add({
+                        cat = "rare", id = "rare:" .. key, name = r.name, npcID = r.npc,
+                        group = "Rares — " .. (select(2, ContinentOf(map)) or "Other"),
+                        icon = "Interface\\Icons\\Achievement_Boss_Archaedas",
+                        sub = ("Rare — %s"):format(ns:MapName(map)),
+                        map = { m = map, x = tonumber(x) / 100, y = tonumber(y) / 100 }, rare = true,
+                        body = r.note,
+                        tags = "rare elite world",
+                    })
+                end
+            end
+            ns:Yield()
+        end
+    end
     -- sister addons (Farm Pack) can add their rares through SeviathsCodex:AddExternal
 end
 
