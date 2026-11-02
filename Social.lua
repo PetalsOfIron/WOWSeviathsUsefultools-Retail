@@ -199,9 +199,30 @@ function S.WeekAdd(name)
     if c.wk["last_" .. name] and now - c.wk["last_" .. name] < 60 and name ~= "raid" then return end
     c.wk["last_" .. name] = now
     c.wk[name] = (c.wk[name] or 0) + 1
+    if name == "raid" then   -- a week with a raid in it (one boss is enough): the weeks in a row make a raider
+        c.rweeks = c.rweeks or {}
+        c.rweeks[w] = true
+        for k in pairs(c.rweeks) do if k < w - 20 * 7 * 86400 then c.rweeks[k] = nil end end
+    end
     -- the total in Midnight (all your characters): counted as you do them
     c.tot = c.tot or {}
     c.tot[name] = (c.tot[name] or 0) + 1
+end
+
+-- the weeks in a row (counting back from this week, or from last week when this one has no raid yet) with at least one raid boss
+function S.RaidStreak()
+    local c = S.Config()
+    local w = weekStart()
+    if not (w and c.rweeks) then return 0 end
+    local WEEK = 7 * 86400
+    local function had(t)
+        for k in pairs(c.rweeks) do if math.abs(k - t) < 12 * 3600 then return true end end
+        return false
+    end
+    local n, t = 0, w
+    if not had(t) then t = t - WEEK end   -- this week's raid may still come
+    while had(t) do n = n + 1; t = t - WEEK end
+    return n
 end
 
 -- gold made this week from monster drops and the auction house (copper): starts from zero at every weekly reset
@@ -598,9 +619,11 @@ function S.AutoStyles(p)
         count = count or 0
         if count >= (min or 1) and S.ActWeekDays(...) >= 3 then cand[#cand + 1] = { id = id, score = count / regular } end
     end
-    add("raider", math.max(a.raid or 0, (p.rw or 0) * 2), 8, 6, "raid")                  -- raid bosses killed (this week counts double)
+    add("raider", math.max(a.raid or 0, (p.rw or 0) * 2), 8, 6, "raid")
+    -- a raid every week, never skipping one (a single boss is enough), is a raid player: 4 weeks in a row or more
+    if (p.rstreak or 0) >= 4 then cand[#cand + 1] = { id = "raider", score = 1 + (p.rstreak - 4) / 8 } end                  -- raid bosses killed (this week counts double)
     add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8, 14, "mythic", "dungeon")   -- Mythic+ keys and dungeons
-    add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 8, "delve")                 -- delves
+    add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 14, "delve")                 -- delves
     add("collector", a.collect, 10, 8, "collect")                                           -- new mounts, pets, toys and appearances collected
     add("achiever", a.achv, 30, 20, "achv")                                               -- achievements earned
     add("pvp", a.pvp, 10, 10, "pvp")                                                     -- PvP matches
@@ -613,6 +636,11 @@ function S.AutoStyles(p)
         local id = ((a.g_trade or 0) > (a.g_loot or 0)) and "gold:trade" or "gold:loot"
         cand[#cand + 1] = { id = id, score = weekGold / 60000 + (a.scan or 0) / 40 }
     end
+    -- one entry per style: the stronger one when a style was found twice (raider by the week and by the weeks in a row)
+    local best = {}
+    for _, cd in ipairs(cand) do if not best[cd.id] or cd.score > best[cd.id].score then best[cd.id] = cd end end
+    cand = {}
+    for _, cd in pairs(best) do cand[#cand + 1] = cd end
     table.sort(cand, function(x, y) if x.score ~= y.score then return x.score > y.score end return x.id < y.id end)
     local out = {}
     for i = 1, math.min(2, #cand) do out[#out + 1] = cand[i].id end   -- the two best
@@ -647,6 +675,7 @@ function S.MyProfile()
         rw = math.max(vaultMax("Raid", 1), S.WeekGet("raid")),
         dl = math.max(vaultMax("World", 6), S.WeekGet("delve")),
         prog = S.Progress(),   -- done out of the whole: delves, keys, raid bosses
+        rstreak = S.RaidStreak(),   -- weeks in a row with a raid
         wgold = S.WeekGoldGet(),   -- gold from monster drops and the auction house since the weekly reset
     }
     -- guild: guild master (rank 0) or officer
