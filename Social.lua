@@ -629,7 +629,7 @@ function S.AutoStyles(p)
     local function add(id, count, regular, min, ...)
         count = count or 0
         if S.ActWeekDays(...) < 3 then return end
-        if count >= (min or 1) or (count >= 5 and (id == "mythic" or id == "delver") and onlyThis("mythic", "dungeon", "delve"))   -- dungeons and delves together: both styles then
+        if count >= (min or 1) or (count >= 5 and (id == "mythic" or id == "delver") and onlyThis("mythic", "dungeon", "delve")) then
             cand[#cand + 1] = { id = id, score = count / regular }
         end
     end
