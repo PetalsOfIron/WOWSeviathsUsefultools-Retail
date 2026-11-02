@@ -341,6 +341,27 @@ function SFP:RareKillTry(npcID)
     if self.Social and self.Social.Act then self.Social.Act("collect") end
 end
 
+-- a raid of an OLD expansion: the raids of the newest expansion in the data (Midnight now) are not old, they do not count for the collector style
+local oldRaidCache = {}
+local function isOldRaid(instName)
+    if type(instName) ~= "string" then return false end
+    local c = oldRaidCache[instName]
+    if c ~= nil then return c end
+    c = true   -- an instance the data does not list is an old one
+    local exps = SFP.Expansions or {}
+    local newest = exps[#exps]
+    for _, z in ipairs(newest and newest.zones or {}) do
+        for _, inst in ipairs(z.instances or {}) do
+            if inst.name == instName then c = false end
+        end
+    end
+    for _, inst in ipairs(newest and newest.instances or {}) do
+        if inst.name == instName then c = false end
+    end
+    oldRaidCache[instName] = c
+    return c
+end
+
 local mountFrame = CreateFrame("Frame")
 mountFrame:RegisterEvent("BOSS_KILL")
 mountFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
@@ -359,8 +380,8 @@ mountFrame:SetScript("OnEvent", function(_, event, encounterID, encounterName)
                         s.n = s.n + 1
                         -- a boss that can drop a mount killed again: collecting (the old raids), counts for the collector play style - raids only,
                         -- and not Timewalking (everyone can do that)
-                        local _, itype, diff = GetInstanceInfo()
-                        if itype == "raid" and diff ~= 33 and SFP.Social and SFP.Social.Act then SFP.Social.Act("collect") end
+                        local iname, itype, diff = GetInstanceInfo()
+                        if itype == "raid" and diff ~= 33 and isOldRaid(iname) and SFP.Social and SFP.Social.Act then SFP.Social.Act("collect") end
                         break
                     end
                 end
