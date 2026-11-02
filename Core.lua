@@ -735,7 +735,9 @@ function SFP.ChanceText(count, kills, minKills, word)
     local oneIn = math.max(1, math.floor(kills / count + 0.5))
     local p = pct >= 10 and string.format("%d", math.floor(pct + 0.5)) or string.format("%.1f", pct)
     -- word: what is counted - "pickup" for a chest or a cache ("33% 1/3 pickup chance"); nothing for a monster ("33% 1/3 chance")
-    return "|cffffd100" .. p .. "%|r |cff808080" .. (oneIn <= 1 and ("every " .. (word or "kill")) or ("1/" .. oneIn)) .. (word and (" " .. word) or "") .. " chance|r"
+    local label
+    if oneIn <= 1 then label = "every " .. (word or "kill") else label = "1/" .. oneIn .. (word and (" " .. word) or "") end
+    return "|cffffd100" .. p .. "%|r |cff808080" .. label .. " chance|r"
 end
 
 function SFP:FormatPrice(copper)
