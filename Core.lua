@@ -729,12 +729,13 @@ end
 
 -- the chance of an item from a monster, from your own kills, short: "12% 1/8 chance" = 12%, one in 8 kills. It is worked out from the saved drops and kills each time
 -- it is shown, so it changes every time the item drops; nothing until the monster was killed 3 times (the number of kills you made is never shown).
-function SFP.ChanceText(count, kills, minKills)
+function SFP.ChanceText(count, kills, minKills, word)
     if type(count) ~= "number" or type(kills) ~= "number" or count <= 0 or kills < (minKills or 3) then return "" end
     local pct = math.min(100, count / kills * 100)
     local oneIn = math.max(1, math.floor(kills / count + 0.5))
     local p = pct >= 10 and string.format("%d", math.floor(pct + 0.5)) or string.format("%.1f", pct)
-    return "|cffffd100" .. p .. "%|r |cff808080" .. (oneIn <= 1 and "every kill" or ("1/" .. oneIn)) .. " chance|r"
+    -- word: what is counted - "pickup" for a chest or a cache ("33% 1/3 pickup chance"); nothing for a monster ("33% 1/3 chance")
+    return "|cffffd100" .. p .. "%|r |cff808080" .. (oneIn <= 1 and ("every " .. (word or "kill")) or ("1/" .. oneIn)) .. (word and (" " .. word) or "") .. " chance|r"
 end
 
 function SFP:FormatPrice(copper)

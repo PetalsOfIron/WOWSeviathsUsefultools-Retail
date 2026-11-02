@@ -810,7 +810,7 @@ function SFP.ObjectLootLines(tt, rec)
     local opened = max(1, rec.k or 1)
     for i = 1, min(12, #list) do
         local e = list[i]
-        local chance = SFP.ChanceText(e[2], opened, 1)
+        local chance = SFP.ChanceText(e[2], opened, 1, "pickup")
         local price = SFP:GetPrice(e[1])
         tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. (chance ~= "" and ("  " .. chance) or ""),
             price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
