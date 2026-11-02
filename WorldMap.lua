@@ -889,7 +889,7 @@ end
 
 local function placeSymbol(x, y, c, zoneID, continent, w, hh)
     local p = getPin()
-    local size = 15 / canvasScale()
+    local size = 7 / canvasScale()   -- the herb and ore symbols are as small as the blue treasure boxes
     p:SetSize(size * 1.6, size * 1.6)
     p.outer:SetSize(1, 1); p.outer:SetVertexColor(0, 0, 0, 0)
     p.inner:SetSize(1, 1); p.inner:SetVertexColor(0, 0, 0, 0)
