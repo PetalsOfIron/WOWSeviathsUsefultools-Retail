@@ -218,7 +218,11 @@ function SFP:FreeDropCache() dropCache = {} end
 -- (c = Classic, w = Warlords of Draenor, m = Midnight, t = other). Read only while the Codex lists items.
 ---------------------------------------------------------------------------
 local itemLoaded = {}
-local ITAG = { c = 0, w = 5, m = 12 }   -- the expansion number of the list the item was found in (the game's EXPANSION_NAME numbering)
+-- the expansion of the list the item was found in, as the game numbers them (EXPANSION_NAME0 Classic ... 11 Midnight); xN is Wowhead's expansion N (the game's N - 1)
+local ITAG = setmetatable({ c = 0, w = 5, m = 11 }, { __index = function(_, k)
+    local n = type(k) == "string" and k:match("^x(%d+)$")
+    return n and (tonumber(n) - 1) or nil
+end })
 local function loadItemPart(folder)
     local s = itemLoaded[folder]
     if s == nil then
