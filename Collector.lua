@@ -253,8 +253,8 @@ local function recordUnit(unit)
     end
     rec.t = rec.t or UnitCreatureType(unit)
     rec.f = rec.f or UnitCreatureFamily(unit)
-    local cls = UnitClassification(unit)
-    if cls and cls ~= "normal" then rec.c = cls end
+    local okC, cls = pcall(UnitClassification, unit)
+    if okC and type(cls) == "string" and not (issecretvalue and issecretvalue(cls)) and cls ~= "normal" then rec.c = cls end
     local map, x, y = playerPos()
     if map then addPoint(rec, map, x, y) end
 end
@@ -440,12 +440,16 @@ local function onLoot()
                 if not skin and lootMoney then lootMoney.npcs[id] = true end
                 SFP.lastLoot = { kind = skin and "s" or "n", name = rec.n, t = GetTime(), itemID = itemID }   -- what the last loot came from (a monster)
                 if safeGUID("target") == guid then
-                    local cls = UnitClassification("target")
-                    if cls and cls ~= "normal" then rec.c = cls end
+                    local okC, cls = pcall(UnitClassification, "target")   -- a secret value in some places: never an error
+                    if okC and type(cls) == "string" and not (issecretvalue and issecretvalue(cls)) and cls ~= "normal" then rec.c = cls end
                 else
                     -- not the target any more: the class from the unit of that id when the game still has one, else from the rare data
                     local unit = UnitTokenFromGUID and UnitTokenFromGUID(guid)
-                    local cls2 = unit and UnitClassification(unit)
+                    local cls2
+                    if unit and not (issecretvalue and issecretvalue(unit)) then
+                        local okC2, c2 = pcall(UnitClassification, unit)
+                        if okC2 and type(c2) == "string" and not (issecretvalue and issecretvalue(c2)) then cls2 = c2 end
+                    end
                     if cls2 and cls2 ~= "normal" then rec.c = cls2
                     elseif not rec.c and isDataRare(id) then rec.c = "rare" end
                 end
