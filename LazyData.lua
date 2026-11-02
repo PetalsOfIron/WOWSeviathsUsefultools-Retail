@@ -69,6 +69,7 @@ end
 
 function SFP:FreeMonsterCache()
     cache = {}
+    if SFP.FreeDropCache then SFP:FreeDropCache() end
 end
 
 ---------------------------------------------------------------------------
@@ -160,3 +161,54 @@ function SFP:TransmogItem(id)
         from = s + 1
     end
 end
+
+---------------------------------------------------------------------------
+-- Items Wowhead lists as dropped by a monster (SeviathsUsefulTools_Drops1, 2 ...): the folder of the monster looked at is loaded, the others not.
+-- Data/DropIndex.lua says which folder holds which blocks of 500 monster ids. A block is "npcID|itemID,itemID,...", one line per monster.
+---------------------------------------------------------------------------
+local dropLoaded = {}
+local dropCache = {}   -- [npcID] = list of item ids (false = none), freed with the monster cache
+
+function SFP:WowheadDrops(npcID)
+    if type(npcID) ~= "number" then return nil end
+    local c = dropCache[npcID]
+    if c ~= nil then return c or nil end
+    local block = math.floor(npcID / 500)
+    local text
+    for _, part in ipairs(SFP.DropParts or {}) do
+        if block >= part[1] and block <= part[2] then
+            local s = dropLoaded[part[3]]
+            if s == nil then
+                s = false
+                if C_AddOns and C_AddOns.LoadAddOn then
+                    if C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(part[3]) then s = true
+                    else s = C_AddOns.LoadAddOn(part[3]) and true or false end
+                end
+                dropLoaded[part[3]] = s
+            end
+            local blocks = s and _G.SeviathsDropBlocks
+            text = blocks and blocks[block]
+            break
+        end
+    end
+    local list
+    if text then
+        local key = npcID .. "|"
+        local from = 1
+        while true do
+            local s = text:find(key, from, true)
+            if not s then break end
+            if s == 1 or text:sub(s - 1, s - 1) == "\n" then
+                local e = text:find("\n", s, true) or (#text + 1)
+                list = {}
+                for id in text:sub(s + #key, e - 1):gmatch("%d+") do list[#list + 1] = tonumber(id) end
+                break
+            end
+            from = s + 1
+        end
+    end
+    dropCache[npcID] = list or false
+    return list
+end
+
+function SFP:FreeDropCache() dropCache = {} end

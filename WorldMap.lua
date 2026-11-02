@@ -2121,6 +2121,9 @@ local function monsterLoot(s)
     end
     for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
     for _, id in ipairs(s.items or {}) do if not drops[id] then drops[id] = 0 end end
+    -- the items Wowhead lists for this monster (gear, bags, pets ...), also the ones nobody here has seen drop yet
+    local listed = s.npc and SFP.WowheadDrops and SFP:WowheadDrops(s.npc)
+    if listed then for _, id in ipairs(listed) do if not drops[id] then drops[id] = 0 end end end
     local order = {}
     for id, q in pairs(drops) do order[#order + 1] = { id = id, q = q } end
     table.sort(order, function(a, c)
