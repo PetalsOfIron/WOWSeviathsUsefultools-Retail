@@ -337,6 +337,8 @@ function SFP:RareKillTry(npcID)
         end
     end
     for _, id in ipairs(rareMounts[npcID] or {}) do mountStat(id, "npc|" .. npcID).n = mountStat(id, "npc|" .. npcID).n + 1 end
+    -- a rare killed is collecting (rares drop mounts, pets and toys): counts for the collector play style
+    if self.Social and self.Social.Act then self.Social.Act("collect") end
 end
 
 local mountFrame = CreateFrame("Frame")
@@ -355,6 +357,8 @@ mountFrame:SetScript("OnEvent", function(_, event, encounterID, encounterName)
                     if type(l[1]) == "string" and l[1]:lower() == li and l[2] == encounterName then
                         local s = mountStat(itemID, "boss|" .. inst .. "|" .. encounterName)
                         s.n = s.n + 1
+                        -- a boss that can drop a mount killed again: collecting (the old raids), counts for the collector play style
+                        if SFP.Social and SFP.Social.Act then SFP.Social.Act("collect") end
                         break
                     end
                 end

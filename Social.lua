@@ -628,7 +628,7 @@ function S.AutoStyles(p)
     end
     local function add(id, count, regular, min, ...)
         count = count or 0
-        if S.ActWeekDays(...) < 3 then return end
+        if S.ActWeekDays(...) < (id == "collector" and 2 or 3) then return end   -- the collector is the easiest style to get
         if count >= (min or 1) or (count >= 5 and (id == "mythic" or id == "delver") and onlyThis("mythic", "dungeon", "delve")) then
             cand[#cand + 1] = { id = id, score = count / regular }
         end
@@ -638,7 +638,7 @@ function S.AutoStyles(p)
     if (p.rstreak or 0) >= 4 then cand[#cand + 1] = { id = "raider", score = 1 + (p.rstreak - 4) / 8 } end                  -- raid bosses killed (this week counts double)
     add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8, 14, "mythic", "dungeon")   -- Mythic+ keys and dungeons
     add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 14, "delve")                 -- delves
-    add("collector", a.collect, 10, 8, "collect")                                           -- new mounts, pets, toys and appearances collected
+    add("collector", a.collect, 10, 5, "collect")                                           -- new mounts, pets, toys and appearances collected
     add("achiever", a.achv, 30, 20, "achv")                                               -- achievements earned
     add("pvp", a.pvp, 10, 10, "pvp")                                                     -- PvP matches
     add("dailies", a.daily, 20, 20, "daily")                                               -- daily and world quests handed in
@@ -649,6 +649,13 @@ function S.AutoStyles(p)
     if weekGold >= 60000 then
         local id = ((a.g_trade or 0) > (a.g_loot or 0)) and "gold:trade" or "gold:loot"
         cand[#cand + 1] = { id = id, score = weekGold / 60000 + (a.scan or 0) / 40 }
+    end
+    -- the collector is the easiest style to reach, so any other style that is reached overwrites it
+    for _, cd in ipairs(cand) do
+        if cd.id ~= "collector" then
+            for i = #cand, 1, -1 do if cand[i].id == "collector" then table.remove(cand, i) end end
+            break
+        end
     end
     -- one entry per style: the stronger one when a style was found twice (raider by the week and by the weeks in a row)
     local best = {}
@@ -2096,7 +2103,7 @@ local ev = CreateFrame("Frame")
 for _, e in ipairs({ "CHAT_MSG_ADDON", "GROUP_ROSTER_UPDATE", "PLAYER_ENTERING_WORLD", "INSPECT_READY", "PLAYER_MONEY",
     "MERCHANT_SHOW", "MERCHANT_CLOSED", "MAIL_SHOW", "MAIL_CLOSED", "LOOT_OPENED", "LOOT_CLOSED", "QUEST_TURNED_IN",
     "BOSS_KILL", "CHALLENGE_MODE_COMPLETED", "NEW_MOUNT_ADDED", "NEW_PET_ADDED", "NEW_TOY_ADDED",
-    "TRANSMOG_COLLECTION_SOURCE_ADDED", "ACHIEVEMENT_EARNED", "PVP_MATCH_COMPLETE", "LFG_COMPLETION_REWARD", "SCENARIO_COMPLETED", "QUEST_ACCEPTED" }) do
+    "TRANSMOG_COLLECTION_SOURCE_ADDED", "ACHIEVEMENT_EARNED", "PVP_MATCH_COMPLETE", "PET_BATTLE_CLOSE", "LFG_COMPLETION_REWARD", "SCENARIO_COMPLETED", "QUEST_ACCEPTED" }) do
     pcall(ev.RegisterEvent, ev, e)
 end
 
@@ -2299,6 +2306,7 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
         or event == "TRANSMOG_COLLECTION_SOURCE_ADDED" then S.Act("collect")
     elseif event == "ACHIEVEMENT_EARNED" then S.Act("achv")
     elseif event == "PVP_MATCH_COMPLETE" then S.Act("pvp")
+    elseif event == "PET_BATTLE_CLOSE" then S.Act("collect")   -- battle pets: wild pet battles, the way to new pets
     elseif event == "LOOT_CLOSED" then ctx.loot, ctx.lootT = false, GetTime()
     elseif event == "QUEST_ACCEPTED" then SFP:Safe("quest place", S.NoteQuestPlace, a1, false)
     elseif event == "QUEST_TURNED_IN" then
