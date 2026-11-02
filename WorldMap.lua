@@ -1543,7 +1543,7 @@ local function spotRow(i)
         local listed = s.npc and SFP.WowheadDrops and SFP:WowheadDrops(s.npc)
         if listed then for _, id in ipairs(listed) do if not drops[id] then drops[id] = 0 end end end
         local order = {}
-        for id in pairs(drops) do order[#order + 1] = id end
+        for id in pairs(drops) do if not (SFP.IsQuestLoot and SFP.IsQuestLoot(id)) then order[#order + 1] = id end end
         table.sort(order, function(a, c2)
             if drops[a] ~= drops[c2] then return drops[a] > drops[c2] end
             return a < c2
@@ -1916,7 +1916,7 @@ local function addSpotDrops(t, s)
     local guide = {}
     for _, id in ipairs(s.items or {}) do if not drops[id] or drops[id] == 0 then guide[#guide + 1] = id; drops[id] = nil end end
     local order = {}
-    for id, q in pairs(drops) do order[#order + 1] = id end
+    for id, q in pairs(drops) do if not (SFP.IsQuestLoot and SFP.IsQuestLoot(id)) then order[#order + 1] = id end end
     table.sort(order, function(a, c)
         if drops[a] ~= drops[c] then return drops[a] > drops[c] end
         return a < c
@@ -2162,7 +2162,7 @@ local function monsterLoot(s)
     local listed = s.npc and SFP.WowheadDrops and SFP:WowheadDrops(s.npc)
     if listed then for _, id in ipairs(listed) do if not drops[id] then drops[id] = 0 end end end
     local order = {}
-    for id, q in pairs(drops) do order[#order + 1] = { id = id, q = q } end
+    for id, q in pairs(drops) do if not (SFP.IsQuestLoot and SFP.IsQuestLoot(id)) then order[#order + 1] = { id = id, q = q } end end
     table.sort(order, function(a, c)
         if a.q ~= c.q then return a.q > c.q end
         return a.id < c.id
