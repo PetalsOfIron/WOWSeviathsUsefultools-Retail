@@ -1011,7 +1011,7 @@ local function inspectReady(guid)
     local unit
     for _, u in ipairs({ pendingUnit or "mouseover", "mouseover", "target", "focus" }) do
         local ok, g = pcall(UnitGUID, u)
-        if ok and g == guid and not secret(g) then unit = u; break end
+        if ok and type(g) == "string" and not secret(g) and g == guid then unit = u; break end   -- the secret check first: a secret value cannot be compared
     end
     if not unit then return end
     local rec = { t = time() }
@@ -1051,7 +1051,7 @@ local function inspectReady(guid)
             if okG and res and res.any then rec.gear = res end
         end
         local okU, g = pcall(UnitGUID, unit)
-        local same = okU and g == guid and not secret(g)
+        local same = okU and type(g) == "string" and not secret(g) and g == guid
         if (rec.gear and rec.gear.any) or tries >= 4 or not same then
             finishInspect(guid, unit, rec)
         else
