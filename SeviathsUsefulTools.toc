@@ -92,6 +92,7 @@ collected\tools.nameplateText.2.lua
 collected\tools.nameplateText.3.lua
 collected\tools.nameplateText.4.lua
 collected\tools.nameplateText.5.lua
+collected\tools.nameplateText.6.lua
 collected\tools.npcMaps.lua
 collected\tools.npcPos.lua
 collected\tools.objects.lua
