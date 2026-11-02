@@ -17,7 +17,7 @@
 - Dungeon and raid bosses: what you pick up from a boss is recorded even when the game hides what was looted; shown on the boss page.
 - Treasure chests, caches and other objects: hover one you have opened and its tooltip shows what it gave, each item with its chance ("33% 1/3 chance"), from the first time you opened it. Each treasure you open is also a very small blue box on the world map at that place; hover it to see the loot. Under each item a short line says what it is for (its "Use:" text, a battle pet, a mount, a toy, a potion ...); nothing is typed when that is not known.
 - A button under the map's own pin buttons opens a small menu to switch each kind of point on the map off or on: farm spots, rares, hunter pets, special materials, mining, herbs, and all treasure chests with one switch.
-- Herb and ore nodes: the addon records the kind of node and the smallest and largest amount of each pickup; hovering a node you have gathered shows its loot with the amounts. The herb and ore symbols on the map are as small as the treasure boxes.
+- Herb and ore nodes: the addon records the kind of node and the smallest and largest amount of each pickup; hovering a node you have gathered shows its loot with the amounts. The herb and ore symbols on the map are as small as the treasure boxes. Nodes you have gathered show on the map as small icons; hover one to see what it gave. The Herb nodes and Mining nodes switches of the points menu show or hide them.
 ### Play style (profile tooltip)
 - Decided week by week and starting again at every weekly reset; the numbers are for the whole account.
 - The dungeon, delve and raid styles count each dungeon, delve and raid boss once a week (6 different ones). A few runs, or one day and then nothing, make no style.

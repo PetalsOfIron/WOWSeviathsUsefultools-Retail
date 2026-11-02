@@ -78,6 +78,68 @@ local function treasuresOf(map)
     return list
 end
 
+-- the recorded herb and ore nodes: an object that gave something and is a gathering node (rec.gt "herb" or "ore", else by what it gave or its type text)
+local function nodeKind(rec)
+    if type(rec) ~= "table" or type(rec.d) ~= "table" or not next(rec.d) or type(rec.m) ~= "table" or (rec.k or 0) < 1 then return nil end
+    if rec.gt == "herb" or rec.gt == "ore" then return rec.gt end
+    local k = SFP.ObjectKind and SFP:ObjectKind(rec)
+    local lk = type(k) == "string" and k:lower() or ""
+    if lk:find("herb", 1, true) then return "herb" end
+    if lk:find("min", 1, true) or lk:find("ore", 1, true) then return "ore" end
+end
+
+local byMapNodes = {}
+local function nodesOf(map)
+    local list = byMapNodes[map]
+    if list then return list end
+    list = {}
+    local objects = SFP.db and SFP.db.objects
+    if objects then
+        for id, rec in (SeviathsAllPairs or pairs)(objects) do
+            local kind = type(id) == "number" and nodeKind(rec)
+            if kind then
+                for from, pts in pairs(rec.m) do
+                    if type(pts) == "table" and type(from) == "number" then
+                        for _, p in ipairs(pts) do
+                            if type(p) == "table" and p[1] and p[2] then
+                                local x, y = convert(from, p[1], p[2], map)
+                                if x then list[#list + 1] = { id = id, rec = rec, x = x, y = y, kind = kind } end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    byMapNodes[map] = list
+    return list
+end
+
+local npins, nused = {}, 0
+local function getNodePin()
+    nused = nused + 1
+    local p = npins[nused]
+    if not p then
+        p = CreateFrame("Button", nil, layer)
+        p.icon = p:CreateTexture(nil, "ARTWORK")
+        p.icon:SetAllPoints()
+        p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        p:SetScript("OnEnter", function(self)
+            local t = SFP.Tip and SFP.Tip() or GameTooltip
+            t:SetOwner(self, "ANCHOR_RIGHT")
+            t:ClearLines()
+            t:AddLine(tostring(self.rec.n or ("Node " .. tostring(self.id))), 0.4, 1, 0.55)
+            t:AddLine(self.kind == "herb" and "Herb node" or "Mining node", 0.7, 0.7, 0.7)
+            if SFP.ObjectLootLines then SFP.ObjectLootLines(t, self.rec) end
+            t:Show()
+        end)
+        p:SetScript("OnLeave", function() (SFP.Tip and SFP.Tip() or GameTooltip):Hide() end)
+        npins[nused] = p
+    end
+    p:Show()
+    return p
+end
+
 local function getPin()
     used = used + 1
     local p = pins[used]
@@ -109,7 +171,8 @@ end
 local function update()
     if not layer then return end
     for i = 1, #pins do pins[i]:Hide() end
-    used = 0
+    for i = 1, #npins do npins[i]:Hide() end
+    used, nused = 0, 0
     if not (WorldMapFrame and WorldMapFrame:IsShown()) or not (SFP.db and SFP.db.showTreasures ~= false) then return end
     local c = canvas()
     local map = WorldMapFrame:GetMapID()
@@ -129,6 +192,20 @@ local function update()
         p:SetPoint("CENTER", c, "TOPLEFT", t.x * w, -t.y * h)
         p.id, p.rec = t.id, t.rec
       end
+    end
+    -- the herb and ore nodes (the switches are the Herbalism and Mining ones of the map layers)
+    local showH, showO = SFP.db and SFP.db.showHerbs, SFP.db and SFP.db.showMining
+    if showH or showO then
+        for _, n in ipairs(nodesOf(map)) do
+            if (n.kind == "herb" and showH) or (n.kind == "ore" and showO) then
+                local p = getNodePin()
+                p:SetSize(size * 1.3, size * 1.3)
+                p:ClearAllPoints()
+                p:SetPoint("CENTER", c, "TOPLEFT", n.x * w, -n.y * h)
+                p.id, p.rec, p.kind = n.id, n.rec, n.kind
+                p.icon:SetTexture(SFP.KindIcon and SFP.KindIcon[n.kind] or (n.kind == "ore" and "Interface\\Icons\\INV_Ore_Copper_01" or "Interface\\Icons\\INV_Misc_Herb_01"))
+            end
+        end
     end
 end
 
@@ -198,7 +275,7 @@ SFP:OnLogin(function()
     ev:RegisterEvent("LOOT_CLOSED")
     ev:SetScript("OnEvent", function()
         C_Timer.After(1, function()
-            wipe(byMap)
+            wipe(byMap); wipe(byMapNodes)
             if WorldMapFrame:IsShown() then SFP:Safe("treasures", update) end
         end)
     end)
