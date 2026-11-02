@@ -225,6 +225,26 @@ function S.RaidStreak()
     return n
 end
 
+-- the dungeons, delves and raid bosses done this week, each ONCE: doing the same one again changes nothing. This is what the play style counts.
+function S.UniqueAdd(kind, name)
+    if type(name) ~= "string" or name == "" or secret(name) then return end
+    local c = S.Config()
+    local w = weekStart()
+    if not w then return end
+    if not (c.wku and c.wku.t == w) then c.wku = { t = w } end
+    c.wku[kind] = c.wku[kind] or {}
+    c.wku[kind][name:lower()] = true
+end
+
+function S.UniqueWeek(kind)
+    local c = S.Config()
+    local w = weekStart()
+    local t = (c.wku and w and c.wku.t == w) and c.wku[kind]
+    local n = 0
+    for _ in pairs(t or {}) do n = n + 1 end
+    return n
+end
+
 -- gold made this week from monster drops and the auction house (copper): starts from zero at every weekly reset
 function S.WeekGoldAdd(copper)
     local c = S.Config()
@@ -658,15 +678,15 @@ function S.AutoStyles(p)
     local function add(id, count, regular, min, ...)
         count = count or 0
         if S.ActWeekDays(...) < (id == "collector" and 2 or 3) then return end   -- the collector is the easiest style to get
-        if count >= (min or 1) or (count >= 5 and (id == "mythic" or id == "delver") and onlyThis("mythic", "dungeon", "delve")) then
+        if count >= (min or 1) or (count >= 3 and (id == "mythic" or id == "delver") and onlyThis("mythic", "dungeon", "delve")) then
             cand[#cand + 1] = { id = id, score = count / regular }
         end
     end
-    add("raider", math.max(a.raid or 0, (p.rw or 0) * 2), 8, 6, "raid")
+    add("raider", (p.u and p.u.raid) or 0, 8, 6, "raid")
     -- a raid every week, never skipping one (a single boss is enough), is a raid player: 4 weeks in a row or more
     if (p.rstreak or 0) >= 4 then cand[#cand + 1] = { id = "raider", score = 1 + (p.rstreak - 4) / 8 } end                  -- raid bosses killed (this week counts double)
-    add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8, 14, "mythic", "dungeon")   -- Mythic+ keys and dungeons
-    add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 14, "delve")                 -- delves
+    add("mythic", (p.u and p.u.dungeon) or 0, 8, 6, "mythic", "dungeon")   -- Mythic+ keys and dungeons
+    add("delver", (p.u and p.u.delve) or 0, 8, 6, "delve")                 -- delves
     -- the collector: any one section reaches its number - 10 mounts in 28 days; 20 battle pets, toys, decor, old-raid mount bosses or pet battles
     -- in the week (rare kills do not count) (the weekly reset starts them again). The easiest style to get.
     do
@@ -752,6 +772,7 @@ function S.MyProfile()
         dl = math.max(vaultMax("World", 6), S.WeekGet("delve")),
         prog = S.Progress(),   -- done out of the whole: delves, keys, raid bosses
         rstreak = S.RaidStreak(),   -- weeks in a row with a raid
+        u = { dungeon = S.UniqueWeek("dungeon"), raid = S.UniqueWeek("raid"), delve = S.UniqueWeek("delve") },   -- unique ones this week
         wgold = S.WeekGoldGet(),   -- gold from monster drops and the auction house since the weekly reset
     }
     -- guild: guild master (rank 0) or officer
@@ -2333,22 +2354,26 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
             -- heroic and mythic raids are hardcore, normal and raid finder are easy content
             local okD, _, _, diff = pcall(GetInstanceInfo)
             if okD and (diff == 15 or diff == 16) then S.Act("hardcore") else S.Act("easy") end
+            S.UniqueAdd("raid", type(a2) == "string" and a2 or nil)   -- the boss: each boss once
             S.Act("raid"); S.WeekAdd("raid"); C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
         elseif itype == "party" then S.Act("dungeon") end
     elseif event == "CHALLENGE_MODE_COMPLETED" then
         S.Act("mythic"); S.WeekAdd("dungeon")
+        do local okI, iname = pcall(GetInstanceInfo); if okI then S.UniqueAdd("dungeon", iname) end end
         -- keys from +5 up are hardcore, +0 to +4 are easy content
         local okK, _, keyLevel = pcall(C_ChallengeMode.GetCompletionInfo)
         if okK and type(keyLevel) == "number" and not secret(keyLevel) and keyLevel >= 5 then S.Act("hardcore") else S.Act("easy") end
         C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
     elseif event == "LFG_COMPLETION_REWARD" then
         S.Act("dungeon"); S.WeekAdd("dungeon"); S.Act("easy")
+        do local okI, iname = pcall(GetInstanceInfo); if okI then S.UniqueAdd("dungeon", iname) end end
         C_Timer.After(5, function() SFP:Safe("statistics", S.ReadStats); SFP:Safe("share profile", broadcastGroup, true) end)
     elseif event == "SCENARIO_COMPLETED" then
         -- a delve is a scenario: finishing it counts as a delve done this week
         local okI, inInst, itype = pcall(IsInInstance)
         if okI and inInst and itype == "scenario" then
             S.WeekAdd("delve")
+            do local okI, iname = pcall(GetInstanceInfo); if okI then S.UniqueAdd("delve", iname) end end
             S.Act("easy")   -- delves count as easy content
             S.MarkDelveDone()
             C_Timer.After(8, function() SFP:Safe("delve statistic", S.ReadDelveStat) end)
