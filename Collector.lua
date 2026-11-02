@@ -802,6 +802,11 @@ local hasOurLines   -- defined below
 function SFP:ItemUseText(id)
     if type(id) ~= "number" or not self.db then return nil end
     self.db.itemUse = self.db.itemUse or {}
+    -- earlier "nothing to say" answers were kept even when the game's tooltip had not loaded yet: they are asked again once
+    if self.db.itemUseV ~= 2 then
+        for k, v in pairs(self.db.itemUse) do if v == false then self.db.itemUse[k] = nil end end
+        self.db.itemUseV = 2
+    end
     local kept = self.db.itemUse[id]
     if kept ~= nil then return kept ~= false and kept or nil end
     local text
@@ -817,9 +822,11 @@ function SFP:ItemUseText(id)
         local ok, tid = pcall(C_ToyBox.GetToyInfo, id)
         if ok and tid then text = "Toy" end
     end
+    local tooltipRead = false
     if not text and C_TooltipInfo and C_TooltipInfo.GetItemByID then
         local ok, data = pcall(C_TooltipInfo.GetItemByID, id)
-        if ok and type(data) == "table" and type(data.lines) == "table" then
+        if ok and type(data) == "table" and type(data.lines) == "table" and #data.lines > 1 then
+            tooltipRead = true
             for _, line in ipairs(data.lines) do
                 local lt = line and line.leftText
                 if type(lt) == "string" and not (issecretvalue and issecretvalue(lt)) then
@@ -851,7 +858,8 @@ function SFP:ItemUseText(id)
         if ok and classID == 0 and type(isub) == "string" and isub ~= "" and isub ~= "Other" then text = isub end
     end
     -- an item the game has not loaded yet is asked again next time; only an answer is kept
-    if C_Item and C_Item.GetItemNameByID and C_Item.GetItemNameByID(id) then self.db.itemUse[id] = text or false
+    if text then self.db.itemUse[id] = text
+    elseif tooltipRead then self.db.itemUse[id] = false   -- the tooltip was read and says nothing
     elseif C_Item and C_Item.RequestLoadItemDataByID then C_Item.RequestLoadItemDataByID(id) end
     return text
 end
