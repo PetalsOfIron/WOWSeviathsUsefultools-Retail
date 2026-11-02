@@ -1602,6 +1602,7 @@ local function renderBlocks(n, map, spots, compact)
             local perText = per and (per >= 10 and string.format("%d", math.floor(per + 0.5)) or string.format("%.1f", per)) or nil
             if d.q > 0 then
                 local chance = SFP.ChanceText(d.q, kills)
+                if chance == "" and kills >= 1 then chance = string.format("%d%%", math.min(100, math.floor(d.q * 100 / kills + 0.5))) end   -- like the monster tooltip: a plain percentage until 3 kills
                 l.text:SetText(iname(d.id) .. "  |cff808080x" .. d.q .. "|r" .. (chance ~= "" and ("  |cff40ff40" .. chance .. "|r") or ""))
             end
             l.right:SetText((perText and ("|cffffd100" .. perText .. " per kill|r   ") or "") .. priceText(d.id))
