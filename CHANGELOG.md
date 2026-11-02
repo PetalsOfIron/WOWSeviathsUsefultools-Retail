@@ -7,6 +7,7 @@
 - Gray items: 6,400 now (names and icons of the ones you have not picked up yet too).
 - Monsters: the items Wowhead lists for a monster (2,700 monsters) show with its loot on the map, in Rares and Farm spots, and on the Codex monster page.
 - Mount search: mounts of every expansion from Classic to Midnight with source, cost (gold, a currency or an item, with its icon) and a waypoint where the guide names the exact place.
+- New Item search button next to Material search: the same window and lists, with every item the monsters of a zone drop (gear, bags, pets, materials ...). Material search now lists only crafting reagents.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
