@@ -727,14 +727,14 @@ function SFP:StackCount(itemID)
     return nil
 end
 
--- the chance of an item from a monster, from your own kills: "12.5% (1 in 8)"; nothing until the monster was killed 3 times (the number of kills itself is
--- never shown)
+-- the chance of an item from a monster, from your own kills: "12.5% (1 in 8 kills)" - the chance to get the item in that many kills; nothing until the
+-- monster was killed 3 times (the number of kills you made is never shown)
 function SFP.ChanceText(count, kills)
     if type(count) ~= "number" or type(kills) ~= "number" or count <= 0 or kills < 3 then return "" end
     local pct = math.min(100, count / kills * 100)
     local oneIn = math.max(1, kills / count)
     local function fmt(v) return v >= 10 and string.format("%d", math.floor(v + 0.5)) or string.format("%.1f", v) end
-    return "|cffffd100" .. fmt(pct) .. "%|r |cff808080(1 in " .. fmt(oneIn) .. ")|r"
+    return "|cffffd100" .. fmt(pct) .. "%|r |cff808080(1 in " .. fmt(oneIn) .. " kills)|r"
 end
 
 function SFP:FormatPrice(copper)
