@@ -48,7 +48,9 @@ SFP:OnLogin(function()
     f:SetScript("OnEvent", function(_, event, msg)
         if not SFP.db.auctionSold then return end
         if event == "CHAT_MSG_SYSTEM" then
-            local item = msg and soldPattern and msg:match(soldPattern)
+            -- a chat line can be a secret string (in a dungeon or a fight): it is left alone then
+            if type(msg) ~= "string" or (issecretvalue and issecretvalue(msg)) then return end
+            local item = soldPattern and msg:match(soldPattern)
             if item then
                 say("Sold: " .. item)
                 pcall(PlaySound, 120)   -- coin sound
