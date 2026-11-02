@@ -18,6 +18,7 @@
 - Codex Rares: all the rares the addon knows (339, every zone) are listed, not only the ones you saw on the minimap; each page shows its place, its note and the drops Wowhead lists.
 - Codex Monsters & Creatures: every monster the addon ships (with a place) is listed, not only the ones you have met.
 - Auction prices: a price from your own scan stays until your next scan (a newer shipped price no longer replaces it), and a battle pet the scan does not see this time keeps its earlier price.
+- Play style: the dungeon, delve and raid styles count each dungeon, delve and raid boss once a week (6 different ones); doing the same one again adds nothing.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
