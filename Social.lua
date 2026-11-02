@@ -616,7 +616,7 @@ function S.AutoStyles(p)
     -- someone who keeps queuing for Mythic+ is a Mythic+ player
     -- and it has to come back on several days of the week: one day of three runs in a row and then nothing is no style either
     -- Short of the minimum it still counts when this was ALL the player did that week (nothing else but this, on several days): someone who only
-    -- ran dungeons, or only delves, and never anything else is a dungeon or a delve player.
+    -- ran dungeons and delves, and never anything else, is a dungeon and a delve player (gold made on the way does not matter).
     local ALLKEYS = { "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "session" }
     local function onlyThis(...)
         local mine = {}
@@ -629,7 +629,7 @@ function S.AutoStyles(p)
     local function add(id, count, regular, min, ...)
         count = count or 0
         if S.ActWeekDays(...) < 3 then return end
-        if count >= (min or 1) or (count >= 5 and (id == "mythic" or id == "delver") and onlyThis(...)) then
+        if count >= (min or 1) or (count >= 5 and (id == "mythic" or id == "delver") and onlyThis("mythic", "dungeon", "delve"))   -- dungeons and delves together: both styles then
             cand[#cand + 1] = { id = id, score = count / regular }
         end
     end
