@@ -1091,7 +1091,6 @@ local function detailText(mode, key)
             for n in pairs(r.a) do al[#al + 1] = n end
             t = t .. "|cff808080Also seen as: " .. table.concat(al, ", ") .. "|r\n"
         end
-        t = t .. "\n" .. (r.k or 0) .. " kills seen"
         if r.d and next(r.d) then t = t .. "\n\nDrops:\n" .. dropLines(r.d, r.k) end
         if r.s and next(r.s) then t = t .. "\n\nSkinning:\n" .. dropLines(r.s, r.sk) end
         return t

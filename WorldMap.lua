@@ -202,7 +202,7 @@ local function showMultiTip(h)
         else
             local best = {}
             for _, id in ipairs(s.bestFor or {}) do best[id] = true end
-            if s.learned then tip:AddLine("learned from your loot, " .. (s.kills or 0) .. " kills", 0.4, 0.8, 1) end
+            if s.learned then tip:AddLine("learned from your loot", 0.4, 0.8, 1) end
             for _, id in ipairs(sortedItems(s.items)) do lootLine(id, best[id], s) end
         end
     end
@@ -247,7 +247,7 @@ local function showSpotTip(h, owner)
     for _, id in ipairs(s.bestFor or {}) do best[id] = true end
     local function line(id) lootLine(id, best[id], s) end
     if s.learned then
-        tip:AddLine("Learned from your own loot - " .. (s.kills or 0) .. " kills here", 0.4, 0.8, 1, true)
+        tip:AddLine("Learned from your own loot", 0.4, 0.8, 1, true)
     end
     if s.bestFor and not s.rare then
         local names = {}
@@ -1549,7 +1549,7 @@ local function spotRow(i)
             return a < c2
         end)
         if #order > 0 then
-            SFP.Tip():AddLine("Drops" .. (kills > 0 and ("  |cff808080" .. kills .. " kills|r") or ""), 0.8, 0.8, 0.8)
+            SFP.Tip():AddLine("Drops", 0.8, 0.8, 0.8)
         end
         for n, id in ipairs(order) do
             if n > 40 then SFP.Tip():AddLine("+" .. (#order - 40) .. " more", 0.6, 0.6, 0.6) break end
@@ -1922,10 +1922,10 @@ local function addSpotDrops(t, s)
     end)
     local function itemLine(id, q)
         local price = SFP:GetPrice(id)
-        local per = (q and q > 0 and kills >= 1) and ("  |cff808080x" .. q .. " from " .. kills .. (kills == 1 and " kill" or " kills") .. "|r") or ""
+        local per = (q and q > 0 and kills >= 1) and ("  |cff808080x" .. q .. "|r") or ""
         t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. per, (SFP.PriceText and SFP.PriceText(id)) or (price and SFP:FormatPrice(price)) or "", 1, 1, 1, 1, 1, 1)
     end
-    if #order > 0 then t:AddLine("Recorded drops" .. (kills > 0 and ("  |cff808080" .. kills .. " kills|r") or ""), 0.8, 0.8, 0.8) end
+    if #order > 0 then t:AddLine("Recorded drops", 0.8, 0.8, 0.8) end
     local gold = SFP.MonsterGold and SFP.MonsterGold(s)
     if gold then t:AddDoubleLine("|TInterface\\Icons\\INV_Misc_Coin_01:12|t Gold", SFP:FormatPrice(math.floor(gold)) .. " per kill", 1, 1, 1, 1, 1, 1) end
     for n, id in ipairs(order) do

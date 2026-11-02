@@ -294,8 +294,7 @@ function SFP:GatherLines(kind, id, creatureType, unitLevel, unitName)
     if kind == "n" and rec.d and (rec.k or 0) >= 1 then
         local v = dropValue(rec.d, rec.k)
         ownV = v
-        add("|cffffd100Loot worth|r ~" .. money(v) .. " per kill  |cff808080(" .. rec.k .. " kill" .. (rec.k == 1 and "" or "s") ..
-            (rec.k < 5 and ", few samples" or "") .. ")|r")
+        add("|cffffd100Loot worth|r ~" .. money(v) .. " per kill" .. (rec.k < 5 and "  |cff808080(few samples)|r" or ""))
         -- is it worth farming? compare with the monsters of about the same level you know
         local lvl = rec.lmax or rec.lmin or unitLevel
         local typeName = creatureType or rec.t
