@@ -615,9 +615,23 @@ function S.AutoStyles(p)
     -- a few runs make no style: an activity counts only after a lot of it (min), so three delves and something else is not a delver, and
     -- someone who keeps queuing for Mythic+ is a Mythic+ player
     -- and it has to come back on several days of the week: one day of three runs in a row and then nothing is no style either
+    -- Short of the minimum it still counts when this was ALL the player did that week (nothing else but this, on several days): someone who only
+    -- ran dungeons, or only delves, and never anything else is a dungeon or a delve player.
+    local ALLKEYS = { "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "session" }
+    local function onlyThis(...)
+        local mine = {}
+        for i = 1, select("#", ...) do mine[select(i, ...)] = true end
+        for _, k in ipairs(ALLKEYS) do
+            if not mine[k] and (a[k] or 0) > 0 then return false end
+        end
+        return true
+    end
     local function add(id, count, regular, min, ...)
         count = count or 0
-        if count >= (min or 1) and S.ActWeekDays(...) >= 3 then cand[#cand + 1] = { id = id, score = count / regular } end
+        if S.ActWeekDays(...) < 3 then return end
+        if count >= (min or 1) or (count >= 5 and (id == "mythic" or id == "delver") and onlyThis(...)) then
+            cand[#cand + 1] = { id = id, score = count / regular }
+        end
     end
     add("raider", math.max(a.raid or 0, (p.rw or 0) * 2), 8, 6, "raid")
     -- a raid every week, never skipping one (a single boss is enough), is a raid player: 4 weeks in a row or more
