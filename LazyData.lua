@@ -106,25 +106,47 @@ local function parseTransmog(line)
 end
 SFP.TransmogParseLine = parseTransmog
 
-local function loadTransmog()
-    if tstate == nil then
-        tstate = false
+-- the transmog items are in several small load-on-demand folders (Data/TransmogIndex.lua says which holds which blocks of 500 ids): the folder
+-- of the item looked at is loaded, not all of them
+local loadedPart = {}
+local function loadPart(folder)
+    local s = loadedPart[folder]
+    if s == nil then
+        s = false
         if C_AddOns and C_AddOns.LoadAddOn then
-            if C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(TNAME) then tstate = true
-            else tstate = C_AddOns.LoadAddOn(TNAME) and true or false end
+            if C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded(folder) then s = true
+            else s = C_AddOns.LoadAddOn(folder) and true or false end
         end
+        loadedPart[folder] = s
     end
-    return tstate and _G.SeviathsTransmogBlocks or nil
+    return s
 end
 
--- the blocks (500 ids each) of the transmog items, for the Codex section that lists them; nil when the folder is not there
-function SFP:TransmogBlocks() return loadTransmog() end
+local function blockText(block)
+    for _, part in ipairs(SFP.TransmogParts or {}) do
+        if block >= part[1] and block <= part[2] then
+            if loadPart(part[3]) then
+                local blocks = _G.SeviathsTransmogBlocks
+                return blocks and blocks[block]
+            end
+            return nil
+        end
+    end
+end
+
+-- every folder, for the Codex section that lists all the transmog items
+function SFP:TransmogBlocks()
+    local any
+    for _, part in ipairs(SFP.TransmogParts or {}) do
+        if loadPart(part[3]) then any = true end
+    end
+    return any and _G.SeviathsTransmogBlocks or nil
+end
 
 -- { name, quality, source ("Drop", "Vendor" ...), source name, type, slot, required level, classes } or nil
 function SFP:TransmogItem(id)
     if type(id) ~= "number" then return nil end
-    local blocks = loadTransmog()
-    local text = blocks and blocks[math.floor(id / 500)]
+    local text = blockText(math.floor(id / 500))
     if not text then return nil end
     local key = id .. "|"
     local from = 1
