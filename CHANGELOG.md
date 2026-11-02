@@ -1,31 +1,33 @@
 # Changelog
 
 ## 2.1
-### Items and the Codex
-- Transmog: 94,000 items from Wowhead with where each comes from (drop, vendor, quest ...), its armor or weapon type, slot, the classes that can use it and the required level. They are in a new Codex section, Transmog Items, grouped Source > Type > Slot > Quality, and on the Codex page of a piece and of a set. A weapon or armor tooltip shows the same, and where you looted it yourself. A collected appearance is marked collected.
-- Codex sections can hold sections inside sections (for example Classic > Trade Goods > Herb); each part opens on its own. Loot & Items is grouped that way now.
-- Gray items: 6,400 now (names and icons of the ones you have not picked up yet too).
-- Monsters: the items Wowhead lists for a monster (2,700 monsters) show with its loot on the map, in Rares and Farm spots, and on the Codex monster page.
-- Mount search: mounts of every expansion from Classic to Midnight with source, cost (gold, a currency or an item, with its icon) and a waypoint where the guide names the exact place.
-- New Item search button next to Material search: the same window and lists, with every item the monsters of a zone drop except the crafting reagents. Material search lists all the crafting reagents.
-- The group makeup window no longer opens by itself when you enter a dungeon; in a group of 5 or more a Group makeup button at the top left of the screen opens it.
-- Dungeon and raid bosses: what you pick up from a boss is recorded even when the game hides what was looted (filed under the boss killed), shown on the boss page in the Codex; the spot tooltips (Rares, Farm spots) list Wowhead's drops of dungeon monsters and bosses too.
-- Material search, Item search, Rares and Farm spots update by themselves when you kill a monster or pick something up.
-- The Mining & Herbalism button below the map is gone: Material search opens on the zone you are in, and its Mining & Herbalism tab has the same list. The Mount search updates when you collect a mount.
-- Guild Directory: US and EU buttons above the realm buttons pick the region (your own at first); a realm name that exists in both regions counts for your own region.
-- Farm spots: the monsters of a zone that Wowhead lists drops for (with their places) are farm spots too, with those items. The monsters come from Wowhead's monster pages; the scan adds more each update.
-- Collector play style: 10 mounts in 28 days, or 20 in the week (the weekly reset starts again) of battle pets, toys, decor, old-expansion raid bosses that drop mounts or pet battles. Transmog, rare kills and Timewalking do not count; the current expansion's raids do not either.
-- Codex Rares: all the rares the addon knows (339, every zone) are listed, not only the ones you saw on the minimap; each page shows its place, its note and the drops Wowhead lists.
-- Codex Monsters & Creatures: every monster the addon ships (with a place) is listed, not only the ones you have met.
-- Auction prices: a price from your own scan stays until your next scan (a newer shipped price no longer replaces it), and a battle pet the scan does not see this time keeps its earlier price.
-- Play style: the dungeon, delve and raid styles count each dungeon, delve and raid boss once a week (6 different ones); doing the same one again adds nothing.
-- The Done line (delves, dungeons, keys, raid bosses) is per character; the play style stays account wide. Each dungeon, delve and raid boss counts once. The first character that logs in after the update keeps the delves and dungeons the account had collected so far.
-### Load
-- The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
+### World map
+- New Item search button (next to Farm spots): every item the monsters of a zone drop, except the crafting reagents. Material search now lists all the crafting reagents. Same window and style.
+- The Mining & Herbalism button below the map is gone: Material search opens on the zone you are in, and its Mining & Herbalism tab has the same list.
+- Material search, Item search, Rares and Farm spots update by themselves when you kill a monster or pick something up; the Mount search when you collect a mount.
+- Farm spots: the monsters of a zone that Wowhead lists drops for (with their places) are farm spots too. More monsters are added with each update.
+- Mount search: mounts of every expansion from Classic to Midnight with their source, cost (gold, a currency or an item, with its icon) and a waypoint where the guide names the exact place; sections Flying, Ground and Aquatic.
+- When there is no exact spot, a waypoint opens the zone.
+### Items, monsters and the Codex
+- Transmog Items (97,500 items from Wowhead): where each comes from (drop, vendor, quest ...), its armor or weapon type, slot, classes and level. A new Codex section groups them Source > Type > Slot > Quality; weapon and armor tooltips show the same and where you looted it yourself.
+- Loot & Items lists all items of every expansion (Classic to Midnight) as Expansion > Type > Subtype; sections can hold sections inside sections. Items with no expansion are in "No expansion set yet".
+- Gray items (6,600) are in the data and in a monster's loot table when you hover it, never in the lists.
+- The items Wowhead lists for a monster (5,200 monsters) show in its loot on the map, in Rares and Farm spots, and on the Codex monster and boss pages.
+- Codex Rares lists all 339 shipped rares and Monsters & Creatures every shipped monster (not only the ones you saw). Rare pages show place, note and drops.
+- Dungeon and raid bosses: what you pick up from a boss is recorded even when the game hides what was looted; shown on the boss page.
 ### Play style (profile tooltip)
-- Decided week by week and starting again at every weekly reset. A style needs a lot of the same activity on several days (for example 14 dungeons or delves a week; a raid every week for 4 weeks in a row makes a raid player); only dungeons and delves, nothing else, counts too.
-- Gold grinder: 60,000 gold in a week from monster drops and the auction house; quest and vendor gold does not count.
-- Casual (anyone who plays and does nothing hardcore: quests, normal and raid finder raids, delves, normal and heroic dungeons, keys +0 to +4) and Hardcore (heroic and mythic raids, keys +5 and up) can sit next to the other styles.
+- Decided week by week and starting again at every weekly reset; the numbers are for the whole account.
+- The dungeon, delve and raid styles count each dungeon, delve and raid boss once a week (6 different ones). A few runs, or one day and then nothing, make no style.
+- Gold grinder: 60,000 gold in a week from monster drops and the auction house (not quests or vendors).
+- Collector: 10 mounts in 28 days, or 20 in the week of battle pets, toys, decor, old-expansion raid bosses that drop mounts or pet battles. Transmog, rare kills, Timewalking and the current expansion's raids do not count.
+- Casual (anyone who plays and does nothing hardcore) and Hardcore (heroic and mythic raids, keys +5 and up) sit next to the other styles.
+- The Done line (delves, dungeons, keys, raid bosses) is per character; the first character that logs in after the update keeps what the account had collected.
+### Other
+- Auction prices: a price from your own scan stays until your next scan; a battle pet the scan does not see keeps its earlier price.
+- The group makeup window no longer opens by itself in a dungeon: in a group of 5 or more a Group makeup button at the top left opens it.
+- Guild Directory: US and EU buttons above the realm buttons (your own region at first).
+- The shipped data is cut into small files and small load-on-demand folders; the game reads only the part you look at.
+- Fixes: several Lua errors (secret values in dungeons, "script ran too long" at login and in statistics).
 
 ## 2.0
 ### World map
