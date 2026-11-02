@@ -190,7 +190,7 @@ def main():
             by_file.setdefault((db, key), []).append(text)
         # a table is split into parts of about MAX_FILE bytes (name.key.1.lua, name.key.2.lua ...), so no single file gets huge as the data grows;
         # update_data.py lists whatever files exist in the .toc
-        MAX_FILE = 1_000_000
+        MAX_FILE = 500_000
         n_files = 0
         for (db, key), group in by_file.items():
             parts, cur, size = [], [], 0

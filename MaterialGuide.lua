@@ -760,6 +760,23 @@ local function expOrder(key)
     return 99
 end
 
+-- what a mount can do, from the journal's mount type: flying (flying, Skyriding, flying + swimming), aquatic (swimming, turtles, seahorses), ground (the rest)
+local MOUNT_KIND = {
+    [247] = "flying", [248] = "flying", [398] = "flying", [402] = "flying", [407] = "flying", [424] = "flying", [436] = "flying", [445] = "flying",
+    [231] = "aquatic", [232] = "aquatic", [254] = "aquatic",
+}
+local MOUNT_KINDS = { { "flying", "Flying" }, { "ground", "Ground" }, { "aquatic", "Aquatic" }, { "other", "Not in the journal" } }
+-- is a mount in the section picked on the left: "all", "type:flying" or "type:flying|expansion", or just an expansion
+local function mountSel(e)
+    if expSel == "all" then return true end
+    local kind, exp = expSel:match("^type:(%a+)|?(.*)$")
+    if kind then
+        if (e.mtype or "other") ~= kind then return false end
+        return exp == "" or e.exp == exp
+    end
+    return e.exp == expSel
+end
+
 local renderPetTree   -- defined below (the battle pets list)
 local function renderModeTree()
     if mode == "pet" then return renderPetTree() end
@@ -776,6 +793,21 @@ local function renderModeTree()
             renderModeTree()
             win.refreshList()
         end
+    end
+    if mode == "mount" then
+        row(1, "All mounts", "all", 0)
+        for _, kind in ipairs(MOUNT_KINDS) do
+            n = n + 1
+            row(n, kind[2], "type:" .. kind[1], 8)
+            if expSel == "type:" .. kind[1] or expSel:find("^type:" .. kind[1] .. "|") then
+                for _, exp in ipairs(SFP.Expansions) do
+                    n = n + 1
+                    row(n, exp.name, "type:" .. kind[1] .. "|" .. exp.key, 22)
+                end
+            end
+        end
+        finish(tree, n)
+        return
     end
     row(1, "All expansions", "all", 0)
     for _, exp in ipairs(SFP.Expansions) do
@@ -1181,7 +1213,8 @@ local function mountEntries()
                     if costStr and not e.cost then e.cost = costStr end
                     e.item = e.item or vv.item
                 end
-                local _, _, src = MJ.GetMountInfoExtraByID(mid)
+                local _, _, src, _, mtid = MJ.GetMountInfoExtraByID(mid)
+                e.mtype = MOUNT_KIND[mtid or 0] or "ground"
                 src = plain(src or "")
                 e.sourceText = src
                 -- a place from the journal's text, when the addon's own sources have none
@@ -1248,7 +1281,7 @@ local function renderMounts(q)
     local entries = {}
     for _, e in ipairs(entriesCache) do
         local nm = (nameOf(e) .. " " .. (e.item and plain(iname(e.item)) or "")):lower()
-        if (#ql >= 2 and nm:find(ql, 1, true)) or (#ql < 2 and (expSel == "all" or e.exp == expSel)) then entries[#entries + 1] = e end
+        if (#ql >= 2 and nm:find(ql, 1, true)) or (#ql < 2 and mountSel(e)) then entries[#entries + 1] = e end
     end
     table.sort(entries, function(a, c)
         if a.rarity ~= c.rarity then return a.rarity < c.rarity end
