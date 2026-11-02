@@ -1957,8 +1957,37 @@ local function waypointAt(map, x, y, label)
     end
 end
 
+-- the monsters of the zone that Wowhead lists drops for (the shipped monsters with a place): farm spots too, with those items; once per zone and session.
+-- A monster the zone already lists by name is left as it is.
+local function addWowheadSpawns(zone)
+    if not zone or zone._wh or not zone.map or not SFP.ShippedNpcIDs or not SFP.WowheadDrops then return end
+    zone._wh = true
+    zone.spawns = zone.spawns or {}
+    local have = {}
+    for _, s in ipairs(zone.spawns) do have[tostring(s.name):lower()] = true end
+    for _, id in ipairs(SFP:ShippedNpcIDs(zone.map)) do
+        local drops = SFP:WowheadDrops(id)
+        local rec = drops and SFP:Npc(id)
+        local pts = type(rec) == "table" and type(rec.m) == "table" and rec.m[zone.map]
+        if type(pts) == "table" and pts[1] and type(rec.n) == "string" and not rec.n:find("^NPC ") and not have[rec.n:lower()] then
+            local items = {}
+            for _, itemID in ipairs(drops) do
+                local q = C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID)
+                if q ~= 0 and #items < 40 then items[#items + 1] = itemID end   -- gray items stay in the monster's loot table only
+            end
+            if #items > 0 then
+                local points, sx, sy = {}, 0, 0
+                for _, p in ipairs(pts) do points[#points + 1] = { p[1], p[2] }; sx, sy = sx + p[1], sy + p[2] end
+                zone.spawns[#zone.spawns + 1] = { name = rec.n, npc = id, items = items, points = points, hx = sx / #points, hy = sy / #points, wowhead = true }
+                have[rec.n:lower()] = true
+            end
+        end
+    end
+end
+
 local function spotsOfGroup(zone, group)
     local list, seen = {}, {}
+    addWowheadSpawns(zone)
     if not SFP._bestDone then markBest() end
     for _, s in ipairs(zone and zone.spawns or {}) do
         -- every spot of the database, not only the best one of each item (the map markers still show only the best)
