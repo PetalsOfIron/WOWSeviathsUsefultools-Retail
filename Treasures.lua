@@ -41,9 +41,15 @@ local function isTreasure(rec)
     if rec.qs and next(rec.qs) then return false end
     if rec.ot then return false end   -- a quest objective or a gathering node has its type text saved
     if SFP.ObjectKind and SFP:ObjectKind({ d = rec.d }) then return false end   -- the kind by its items only
-    if rec.tr then return true end
+    if rec.tr then return true end   -- the game showed it as a loot icon: a treasure, whatever it gave
     if (rec.k or 0) > 2 then return false end
-    return type(rec.n) == "string" and not rec.n:find("^Object %d+$") and not rec.n:find("Seviath", 1, true)
+    if not (type(rec.n) == "string" and not rec.n:find("^Object %d+$") and not rec.n:find("Seviath", 1, true)) then return false end
+    -- the clues and objects of quest lines give quest items; a treasure gives ordinary items
+    for itemID in pairs(rec.d) do
+        local ok, _, _, _, _, _, classID = pcall(C_Item.GetItemInfoInstant, itemID)
+        if ok and classID == 12 then return false end
+    end
+    return true
 end
 
 -- the treasures recorded for one map (made when the map is asked for, dropped when the loot changes)
