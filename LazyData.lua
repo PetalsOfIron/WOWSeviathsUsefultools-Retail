@@ -201,7 +201,9 @@ function SFP:WowheadDrops(npcID)
             if s == 1 or text:sub(s - 1, s - 1) == "\n" then
                 local e = text:find("\n", s, true) or (#text + 1)
                 list = {}
-                for id in text:sub(s + #key, e - 1):gmatch("%d+") do list[#list + 1] = tonumber(id) end
+                local line = text:sub(s + #key, e - 1)
+                local _, items = line:match("^(.-)|(.*)$")
+                for id in (items or line):gmatch("%d+") do list[#list + 1] = tonumber(id) end
                 break
             end
             from = s + 1
@@ -212,6 +214,32 @@ function SFP:WowheadDrops(npcID)
 end
 
 function SFP:FreeDropCache() dropCache = {} end
+
+-- the items Wowhead lists for a monster by its name (a boss page of the Codex has a name, not an id): every folder is read for it, so it is
+-- for the pages that are opened one at a time
+function SFP:WowheadDropsByName(name)
+    if type(name) ~= "string" or name == "" then return nil end
+    local want = name:lower()
+    local out, seen = {}, {}
+    for _, part in ipairs(SFP.DropParts or {}) do
+        if not dropLoaded[part[3]] then
+            dropLoaded[part[3]] = (C_AddOns and C_AddOns.LoadAddOn and C_AddOns.LoadAddOn(part[3])) and true or false
+        end
+    end
+    for _, text in pairs(_G.SeviathsDropBlocks or {}) do
+        for line in text:gmatch("[^\n]+") do
+            local nm = line:match("^%d+|(.-)|")
+            if nm and nm:lower() == want then
+                local items = line:match("^%d+|.-|(.*)$")
+                for id in (items or ""):gmatch("%d+") do
+                    id = tonumber(id)
+                    if not seen[id] then seen[id] = true; out[#out + 1] = id end
+                end
+            end
+        end
+    end
+    return #out > 0 and out or nil
+end
 
 ---------------------------------------------------------------------------
 -- Items of Wowhead's lists that are not transmog (SeviathsUsefulTools_Items1, 2 ...): id, name, quality, item class and subclass, level, the list

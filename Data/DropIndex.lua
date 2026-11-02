@@ -3,5 +3,6 @@
 local _, SFP = ...
 
 SFP.DropParts = {
-    { 0, 540, "SeviathsUsefulTools_Drops1" },
+    { 0, 349, "SeviathsUsefulTools_Drops1" },
+    { 350, 540, "SeviathsUsefulTools_Drops2" },
 }

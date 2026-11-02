@@ -268,12 +268,16 @@ local function guideList(map)
     local out = {}
     for _, e in ipairs(recsOfMap(map)) do
         local rec, npcID = e.rec, e.id
-        if type(rec.m) == "table" and (rec.d or rec.s) and rec.n then
+        local listed = SFP.WowheadDrops and SFP:WowheadDrops(npcID)   -- what Wowhead lists for this monster (no counts)
+        if type(rec.m) == "table" and (rec.d or rec.s or listed) and rec.n then
             local pts = rec.m[map]
             local p = type(pts) == "table" and pts[1]
             if p and p[1] and p[2] then
                 local kills = rec.k or 0
                 local drop
+                for _, id in ipairs(listed or {}) do
+                    if isReagent(id) then drop = drop or {}; drop[id] = drop[id] or 0 end
+                end
                 for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
                     for id, q in pairs(src) do
                         if type(q) == "number" and isReagent(id) then
