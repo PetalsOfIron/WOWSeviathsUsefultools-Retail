@@ -2108,7 +2108,6 @@ local function refreshRow()
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
         makeButton("pet", "Battle pets", "Every battle pet with its auction price - search by name, or pick a family", function() openMode("pet") end)
-        makeButton("gather", "Current zone materials", "The materials you can gather in the zone you are in (ores, herbs ...) and the best zone for each", openGather)
     end
     local map = WorldMapFrame:GetMapID()
     local zone = map and SFP.zoneByMap[map]
@@ -2123,11 +2122,10 @@ local function refreshRow()
         mount = true,
         hunter = true,
         pet = true,
-        gather = SFP.db.showGatherList and map and (zone or SFP.GatherHere) and #SFP.GatherHere(map) > 0,
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "search", "coll", "rares", "items", "spots" }) do
+    for _, key in ipairs({ "pet", "hunter", "mount", "search", "coll", "rares", "items", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
