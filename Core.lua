@@ -701,8 +701,9 @@ function SFP:GetPrice(itemID)
         end
         rec = rec or self.db.prices[id]
         if rec and rec.ext and not self:ExternalOn(rec.ext) then rec = nil end
-        -- the shipped price fills in an item this player never scanned, and replaces his when it is newer (never a copied Auctionator/TSM one)
-        if not rec or (not rec.ext and (rec.t or 0) < (self:ShippedPriceTime(id) or 0)) then
+        -- the shipped price fills in an item this player never scanned; a price from his own scan stays until his next scan (a newer shipped price
+        -- never replaces it)
+        if not rec then
             local sp = self:ShippedPrice(id)
             if sp then rec = { p = sp, t = self:ShippedPriceTime(id) } end
         end
