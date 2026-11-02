@@ -782,6 +782,27 @@ end
 
 -- true when our lines are already in this tooltip (hooks can fire more than once)
 local hasOurLines   -- defined below
+-- the loot lines of a recorded object (a chest, a cache ...): each item with its chance ("33% 1/3 chance") from the first time it was opened - for the tooltip of the
+-- object and for the little boxes on the world map
+function SFP.ObjectLootLines(tt, rec)
+    if type(rec) ~= "table" or type(rec.d) ~= "table" then return end
+    local list = {}
+    for itemID, n in pairs(rec.d) do list[#list + 1] = { itemID, n } end
+    table.sort(list, function(a, b)
+        if a[2] ~= b[2] then return a[2] > b[2] end
+        return a[1] < b[1]
+    end)
+    local opened = max(1, rec.k or 1)
+    for i = 1, min(12, #list) do
+        local e = list[i]
+        local chance = SFP.ChanceText(e[2], opened, 1)
+        local price = SFP:GetPrice(e[1])
+        tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. (chance ~= "" and ("  " .. chance) or ""),
+            price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+    end
+    if #list > 12 then tt:AddLine("|cff808080+ " .. (#list - 12) .. " more|r") end
+end
+
 -- a treasure chest, a cache, a skull ... (a game object): its loot as you recorded it, shown after the first time you opened it - each item with its chance
 -- ("33% 1/3 chance"), the same way as for monsters
 local function objectTip(tt, data)
@@ -798,23 +819,9 @@ local function objectTip(tt, data)
     local rec = SFP.db.objects[id]
     if type(rec) ~= "table" or type(rec.d) ~= "table" or not next(rec.d) then return end
     if hasOurLines(tt) then return end
-    local list = {}
-    for itemID, n in pairs(rec.d) do list[#list + 1] = { itemID, n } end
-    table.sort(list, function(a, b)
-        if a[2] ~= b[2] then return a[2] > b[2] end
-        return a[1] < b[1]
-    end)
-    local opened = max(1, rec.k or 1)
     tt:AddLine(" ")
     tt:AddLine("|c" .. SFP.CYAN_HEX .. "Seviaths|r  |cff808080loot|r")
-    for i = 1, min(12, #list) do
-        local e = list[i]
-        local chance = SFP.ChanceText(e[2], opened, 1)   -- from the first time it was opened
-        local price = SFP:GetPrice(e[1])
-        tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]) .. (chance ~= "" and ("  " .. chance) or ""),
-            price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
-    end
-    if #list > 12 then tt:AddLine("|cff808080+ " .. (#list - 12) .. " more|r") end
+    SFP.ObjectLootLines(tt, rec)
     tt:Show()
 end
 

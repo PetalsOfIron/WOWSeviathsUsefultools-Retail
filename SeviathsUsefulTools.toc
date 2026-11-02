@@ -136,6 +136,7 @@ MinimapPins.lua
 Guides.lua
 Scanner.lua
 WorldMap.lua
+Treasures.lua
 MapMenu.lua
 MaterialGuide.lua
 Minimap.lua
