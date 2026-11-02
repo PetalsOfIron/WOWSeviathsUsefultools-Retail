@@ -219,6 +219,23 @@ def build_zip():
             os.remove(os.path.join(out, old))
     shutil.copy2(zpath, out)
     print("copied to " + out)
+    # the text for the CurseForge changelog box: the newest section of CHANGELOG.md only (what is new in this version), as plain lines
+    try:
+        text = open(os.path.join(ADDON, "CHANGELOG.md"), encoding="utf-8").read().replace(chr(13) + chr(10), chr(10))
+        start = text.index("## ")
+        end = text.find(chr(10) + "## ", start + 3)
+        section = text[start:end if end > 0 else len(text)].strip().split(chr(10))[1:]
+        lines = ["New in %s" % version(), ""]
+        for line in section:
+            if line.startswith("### "):
+                lines += ["", line[4:]]
+            else:
+                lines.append(line)
+        with open(os.path.join(out, "CHANGELOG-for-curse.txt"), "w", encoding="utf-8", newline=chr(10)) as fh:
+            fh.write(chr(10).join(lines).strip() + chr(10))
+        print("changelog text written for version " + version())
+    except Exception as e:
+        print("changelog text not written: %s" % e)
 
 
 def take_lock():
