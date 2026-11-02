@@ -73,7 +73,8 @@ collected\tools.inspected.2.lua
 collected\tools.instanceEntrances.lua
 collected\tools.itemExp.lua
 collected\tools.itemFrom.lua
-collected\tools.itemIcon.lua
+collected\tools.itemIcon.1.lua
+collected\tools.itemIcon.2.lua
 collected\tools.itemSpots.lua
 collected\tools.itemZones.lua
 collected\tools.killPos.lua
