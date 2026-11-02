@@ -260,7 +260,7 @@ local function update()
     for i = 1, #pins do pins[i]:Hide() end
     for i = 1, #npins do npins[i]:Hide() end
     used, nused = 0, 0
-    if not (WorldMapFrame and WorldMapFrame:IsShown()) or not (SFP.db and SFP.db.showTreasures ~= false) then return end
+    if not (WorldMapFrame and WorldMapFrame:IsShown()) or not SFP.db then return end
     local c = canvas()
     local map = WorldMapFrame:GetMapID()
     if not (c and map) then return end
@@ -271,7 +271,7 @@ local function update()
     if not w or w <= 0 then return end
     local size = math.max(SIZE / canvasScale(), 3)
     local hidden = SFP.db and SFP.db.hiddenTreasures
-    for _, t in ipairs(treasuresOf(map)) do
+    for _, t in ipairs(SFP.db.showTreasures ~= false and treasuresOf(map) or {}) do
       if not (hidden and hidden[t.id]) then
         local p = getPin()
         p:SetSize(size, size)
