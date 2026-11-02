@@ -2262,6 +2262,25 @@ nameFrame:SetScript("OnEvent", function(_, _, itemID)
     end)
 end)
 
+-- Material search, Item search, Rares and Farm spots update when you loot (a kill, a pickup): what the monsters of the zone drop is read again, a moment after the loot
+-- window closes (the Collector records on LOOT_OPENED), at most every few seconds
+local lootWait
+local LOOT_LIST_MODES = { mat = true, rare = true, farm = true, top = true }   -- the lists a kill changes: materials and items, Rares, Farm spots
+local lootFrame = CreateFrame("Frame")
+lootFrame:RegisterEvent("LOOT_CLOSED")
+lootFrame:SetScript("OnEvent", function()
+    if lootWait or not (win and win:IsShown()) or not LOOT_LIST_MODES[mode] then return end
+    lootWait = true
+    C_Timer.After(3, function()
+        lootWait = nil
+        if not (win and win:IsShown() and LOOT_LIST_MODES[mode]) then return end
+        guideIndex, monsterIndex, mapRecs, ownByMap, guideMapSet = {}, {}, {}, nil, nil
+        zonesCache = {}
+        if SFP.FreeMonsterCache then SFP:FreeMonsterCache() end
+        if win.refreshList then pcall(win.refreshList) end
+    end)
+end)
+
 SFP:OnLogin(function()
     -- once: the side lists start closed (they are opened with the buttons below the map); older saved settings had the Farm spots list open
     if SFP.db and not SFP.db.panelsClosedV2 then
