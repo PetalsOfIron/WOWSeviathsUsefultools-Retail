@@ -191,9 +191,9 @@ local function nodesOf(map)
             for item, c in pairs(r.d) do t.d[item] = (t.d[item] or 0) + c end
             for item, qr in pairs(r.q or {}) do
                 local e = t.q[item]
-                if type(qr) == "table" then
-                    if not e then t.q[item] = { min = qr.min, max = qr.max }
-                    else e.min = math.min(e.min or qr.min, qr.min or e.min); e.max = math.max(e.max or qr.max, qr.max or e.max) end
+                if type(qr) == "table" and type(qr[1]) == "number" and type(qr[2]) == "number" then
+                    if not e then t.q[item] = { qr[1], qr[2] }
+                    else e[1] = math.min(e[1], qr[1]); e[2] = math.max(e[2], qr[2]) end
                 end
             end
         end
