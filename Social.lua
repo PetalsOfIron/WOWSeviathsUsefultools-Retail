@@ -29,8 +29,8 @@ S.STYLES = {
 }
 local AUTO_LABEL = { raider = "Hardcore raider", mythic = "Hardcore Mythic+ player", delver = "Delve player", collector = "Collector",
     achiever = "Achievement hunter", pvp = "PvP player", dailies = "Daily quest player", farmer = "Gold farmer",
-    gold = "Gold farmer", ["gold:loot"] = "Gold farmer (farming)", ["gold:daily"] = "Gold farmer (daily quests)",
-    ["gold:trade"] = "Gold farmer (auction and vendor)", housing = "Housing fan",
+    gold = "Gold grinder", ["gold:loot"] = "Gold grinder (farming)", ["gold:daily"] = "Gold grinder (daily quests)",
+    ["gold:trade"] = "Gold grinder (auction house)", housing = "Housing fan",
     alliance = "Alliance player", horde = "Horde player", altaholic = "Alt collector", casual = "Casual" }
 local STYLE_LABEL = { relaxed = "Relaxed", learning = "Learning", social = "Social", speed = "Fast runs and farming" }
 
@@ -108,6 +108,51 @@ function S.Act(name, n)
     d[name] = (d[name] or 0) + (n or 1)
 end
 
+-- on how many of the last days (of 28) the player did this at all
+function S.ActDays(...)
+    local c = S.Config()
+    local day = math.floor(time() / DAY)
+    local n = 0
+    for k, d in pairs(c.act or {}) do
+        if k >= day - WINDOW_DAYS then
+            for i = 1, select("#", ...) do
+                if (d[select(i, ...)] or 0) > 0 then n = n + 1 break end
+            end
+        end
+    end
+    return n
+end
+
+-- the same, since the weekly reset (the play style is decided week by week; it starts again at every reset)
+local function weekFromDay()
+    local w
+    local ok, s = pcall(C_DateAndTime.GetSecondsUntilWeeklyReset)
+    if ok and type(s) == "number" and not secret(s) then w = math.floor((time() + s - 7 * 86400) / 3600) * 3600 end
+    return w and math.floor(w / DAY) or (math.floor(time() / DAY) - 6)
+end
+
+function S.ActWeekSum(name)
+    local c = S.Config()
+    local from, sum = weekFromDay(), 0
+    for day, d in pairs(c.act or {}) do
+        if day >= from then sum = sum + (d[name] or 0) end
+    end
+    return sum
+end
+
+function S.ActWeekDays(...)
+    local c = S.Config()
+    local from, n = weekFromDay(), 0
+    for k, d in pairs(c.act or {}) do
+        if k >= from then
+            for i = 1, select("#", ...) do
+                if (d[select(i, ...)] or 0) > 0 then n = n + 1 break end
+            end
+        end
+    end
+    return n
+end
+
 function S.ActSum(name)
     local c = S.Config()
     local sum, day = 0, math.floor(time() / DAY)
@@ -157,6 +202,21 @@ function S.WeekAdd(name)
     -- the total in Midnight (all your characters): counted as you do them
     c.tot = c.tot or {}
     c.tot[name] = (c.tot[name] or 0) + 1
+end
+
+-- gold made this week from monster drops and the auction house (copper): starts from zero at every weekly reset
+function S.WeekGoldAdd(copper)
+    local c = S.Config()
+    local w = weekStart()
+    if not w then return end
+    if not (c.wk and c.wk.t == w) then c.wk = { t = w } end
+    c.wk.gold = (c.wk.gold or 0) + copper
+end
+
+function S.WeekGoldGet()
+    local c = S.Config()
+    local w = weekStart()
+    return (c.wk and w and c.wk.t == w) and math.floor((c.wk.gold or 0) / 10000) or 0
 end
 
 -- the game's own statistics of completed content, found in the Statistics panel by their names (no ID is guessed).
@@ -527,31 +587,31 @@ end
 
 -- the play style the addon decides on from the numbers: collections, Mythic+ and raids
 function S.AutoStyles(p)
-    -- by what the player DOES in the last 28 days, never by how much they own: every activity gets a score
+    -- by what the player DOES this week (it starts again at every weekly reset), never by how much they own: every activity gets a score
     -- (its count against what a regular player of it does), and the two strongest are the play style
     local a = p.act or {}
     local cand = {}
-    local function add(id, count, regular)
+    -- a few runs make no style: an activity counts only after a lot of it (min), so three delves and something else is not a delver, and
+    -- someone who keeps queuing for Mythic+ is a Mythic+ player
+    -- and it has to come back on several days of the week: one day of three runs in a row and then nothing is no style either
+    local function add(id, count, regular, min, ...)
         count = count or 0
-        if count >= 1 then cand[#cand + 1] = { id = id, score = count / regular } end
+        if count >= (min or 1) and S.ActWeekDays(...) >= 3 then cand[#cand + 1] = { id = id, score = count / regular } end
     end
-    add("raider", math.max(a.raid or 0, (p.rw or 0) * 2), 8)                  -- raid bosses killed (this week counts double)
-    add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8)   -- Mythic+ keys and dungeons
-    add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8)                 -- delves
-    add("collector", a.collect, 10)                                           -- new mounts, pets, toys and appearances collected
-    add("achiever", a.achv, 30)                                               -- achievements earned
-    add("pvp", a.pvp, 10)                                                     -- PvP matches
-    add("dailies", a.daily, 20)                                               -- daily and world quests handed in
-    add("farmer", (a.loot or 0) + (a.session or 0) * 40, 150)                 -- monsters looted, farm sessions
-    -- gold earned, by where it came from
-    local sources = { loot = a.g_loot or 0, daily = a.g_daily or 0, trade = a.g_trade or 0 }
-    local goldTotal = sources.loot + sources.daily + sources.trade + (a.g_quest or 0) + (a.g_other or 0)
-    goldTotal = math.floor(goldTotal / 10000)   -- in gold
-    if goldTotal >= 1 then
-        local best, bestV = nil, 0
-        for k, v in pairs(sources) do if v > bestV then best, bestV = k, v end end
-        local id = (best and bestV / 10000 >= goldTotal * 0.4) and ("gold:" .. best) or "gold"
-        cand[#cand + 1] = { id = id, score = goldTotal / 10000 + (a.scan or 0) / 40 }
+    add("raider", math.max(a.raid or 0, (p.rw or 0) * 2), 8, 6, "raid")                  -- raid bosses killed (this week counts double)
+    add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8, 14, "mythic", "dungeon")   -- Mythic+ keys and dungeons
+    add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 8, "delve")                 -- delves
+    add("collector", a.collect, 10, 8, "collect")                                           -- new mounts, pets, toys and appearances collected
+    add("achiever", a.achv, 30, 20, "achv")                                               -- achievements earned
+    add("pvp", a.pvp, 10, 10, "pvp")                                                     -- PvP matches
+    add("dailies", a.daily, 20, 20, "daily")                                               -- daily and world quests handed in
+    add("farmer", (a.loot or 0) + (a.session or 0) * 40, 150, 200, "loot", "session")                -- monsters looted, farm sessions
+    -- gold made THIS WEEK from monster drops and the auction house (it pays by mail); quest, world quest and vendor gold does not count. Under 60,000
+    -- gold in the week it is not a style, and the count starts again at every weekly reset
+    local weekGold = p.wgold or 0
+    if weekGold >= 60000 then
+        local id = ((a.g_trade or 0) > (a.g_loot or 0)) and "gold:trade" or "gold:loot"
+        cand[#cand + 1] = { id = id, score = weekGold / 60000 + (a.scan or 0) / 40 }
     end
     table.sort(cand, function(x, y) if x.score ~= y.score then return x.score > y.score end return x.id < y.id end)
     local out = {}
@@ -587,6 +647,7 @@ function S.MyProfile()
         rw = math.max(vaultMax("Raid", 1), S.WeekGet("raid")),
         dl = math.max(vaultMax("World", 6), S.WeekGet("delve")),
         prog = S.Progress(),   -- done out of the whole: delves, keys, raid bosses
+        wgold = S.WeekGoldGet(),   -- gold from monster drops and the auction house since the weekly reset
     }
     -- guild: guild master (rank 0) or officer
     p.role, p.guild = 0, ""
@@ -609,11 +670,11 @@ function S.MyProfile()
     end
     -- "always goes for gold": a lot of gold, farm sessions started, or many auction scans
     local st = c.stats or {}
-    -- what the player did in the last 28 days (the play style is decided from this)
+    -- what the player did this week (the play style is decided from this)
     p.act = {}
     for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan",
         "g_loot", "g_daily", "g_quest", "g_trade", "g_other" }) do
-        p.act[k] = S.ActSum(k)
+        p.act[k] = S.ActWeekSum(k)
     end
     if c.style == "auto" or not c.style then
         p.style = S.AutoStyles(p)
@@ -2010,8 +2071,9 @@ local function noteMoney()
     elseif t - ctx.questT < 3 then cat = ctx.questDaily and "daily" or "quest"
     elseif ctx.loot or t - ctx.lootT < 3 then cat = "loot"
     else cat = "other" end
-    local key = (cat == "vendor" or cat == "mail") and "g_trade" or ("g_" .. cat)
+    local key = (cat == "mail") and "g_trade" or (cat == "vendor" and "g_other") or ("g_" .. cat)   -- only monster drops and the auction house (it pays by mail) make a gold farmer
     S.Act(key, delta)
+    if key == "g_loot" or key == "g_trade" then S.WeekGoldAdd(delta) end
 end
 
 local function questTurnedIn(questID)

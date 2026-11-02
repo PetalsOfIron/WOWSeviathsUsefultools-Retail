@@ -137,7 +137,7 @@ end
 local function AddMonster(key, b)
     local cls = b.r and (" (" .. b.r .. ")") or ""
     ns:Add({
-        cat = "creature", id = "npc:" .. key, name = b.n,
+        cat = "creature", id = "npc:" .. key, name = b.n, npcID = tonumber(key),
         group = (_G.SeviathsUsefulTools and _G.SeviathsUsefulTools.ExpansionOfMap and _G.SeviathsUsefulTools:ExpansionOfMap(b.m)) or ns:MapName(b.m),
         icon = "Interface\\Icons\\Ability_Warrior_Revenge",
         sub = ns:MapName(b.m) .. cls .. (b.l and (" · level " .. b.l) or ""),

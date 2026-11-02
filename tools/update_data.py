@@ -27,7 +27,7 @@ ADDONS_DIR = os.path.dirname(ADDON)
 
 
 def tmog_dirs():
-    return sorted(d for d in os.listdir(ADDONS_DIR) if d.startswith("SeviathsUsefulTools_Transmog") and os.path.isdir(os.path.join(ADDONS_DIR, d)))
+    return sorted(d for d in os.listdir(ADDONS_DIR) if d.startswith(("SeviathsUsefulTools_Transmog", "SeviathsUsefulTools_Drops")) and os.path.isdir(os.path.join(ADDONS_DIR, d)))
 SKIP_DIRS = {".git", ".github", "tools"}
 SKIP_FILES = {".gitignore", ".gitattributes"}
 
@@ -85,7 +85,7 @@ def push_data():
         dst2 = os.path.join(DATA_REPO, "monsters")
         shutil.rmtree(dst2, ignore_errors=True)
         shutil.copytree(LOD_DIR, dst2)
-    dst3 = os.path.join(DATA_REPO, "transmog")
+    dst3 = os.path.join(DATA_REPO, "extra-addons")
     shutil.rmtree(dst3, ignore_errors=True)
     for d in tmog_dirs():
         shutil.copytree(os.path.join(ADDONS_DIR, d), os.path.join(dst3, d))
@@ -246,6 +246,7 @@ if __name__ == "__main__":
     _lock = take_lock()
     import atexit
     atexit.register(lambda: os.path.exists(_lock) and os.remove(_lock))
+    print(run(sys.executable, os.path.join(HERE, "bake_drops.py"))[1].strip())   # the monster drops, from tools/items_sources.txt
     print(run(sys.executable, os.path.join(HERE, "bake_transmog.py"))[1].strip())   # the transmog folders, from tools/transmog_items.txt
     print(run(sys.executable, os.path.join(HERE, "bake_collected.py"))[1].splitlines()[-1])
     print(run(sys.executable, os.path.join(HERE, "bake_gold.py"))[1])

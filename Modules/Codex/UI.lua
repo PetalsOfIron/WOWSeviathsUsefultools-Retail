@@ -444,6 +444,22 @@ local function DetailText(e)
             if #lines > 0 then t = t .. section("You looted it from", table.concat(lines, "\n")) end
         end
     end
+    -- a monster: the items Wowhead lists for it (gear, bags, pets, materials ...), read only for this monster
+    if (c == "creature" or c == "boss" or c == "rare") and e.npcID then
+        local S = _G.SeviathsUsefulTools
+        local list = S and S.WowheadDrops and S:WowheadDrops(e.npcID)
+        if list and #list > 0 then
+            local lines = {}
+            for i = 1, math.min(#list, 40) do
+                local id = list[i]
+                local nm = C_Item.GetItemNameByID(id)
+                if not nm then nm = "item " .. id; C_Item.RequestLoadItemDataByID(id) end
+                lines[#lines + 1] = "• " .. nm
+            end
+            if #list > 40 then lines[#lines + 1] = "|cff888888+ " .. (#list - 40) .. " more|r" end
+            t = t .. section("Drops (Wowhead)", table.concat(lines, "\n"))
+        end
+    end
     -- an item that is a transmog item: where it comes from (Wowhead's list, read only for this item)
     if c == "item" or c == "tmog" then
         local S = _G.SeviathsUsefulTools
