@@ -337,8 +337,6 @@ function SFP:RareKillTry(npcID)
         end
     end
     for _, id in ipairs(rareMounts[npcID] or {}) do mountStat(id, "npc|" .. npcID).n = mountStat(id, "npc|" .. npcID).n + 1 end
-    -- a rare killed is collecting (rares drop mounts, pets and toys): counts for the collector play style
-    if self.Social and self.Social.Act then self.Social.Act("c_rare") end
 end
 
 -- a raid of an OLD expansion: the raids of the newest expansion in the data (Midnight now) are not old, they do not count for the collector style
