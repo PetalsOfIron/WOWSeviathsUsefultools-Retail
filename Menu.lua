@@ -1029,8 +1029,8 @@ local function buildSettings(pane)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Use TradeSkillMaster prices when I have not scanned", function() return SFP.db.useTSM ~= false end,
         function(v) SFP.db.useTSM = v; SFP:RefreshAll() end, 12, -384)
     pane.checks[#pane.checks + 1] = mkCheck(pane, "Show a button for my group's makeup at the top left in a group of 5 or more", function() return SFP.db.autoGroupComp ~= false end,
-        function(v) SFP.db.autoGroupComp = v end, 12, -332)
-    mkText(pane, "Each tool has its own page in the list on the left.", 12, -418, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
+        function(v) SFP.db.autoGroupComp = v end, 12, -410)
+    mkText(pane, "Each tool has its own page in the list on the left.", 12, -444, 480, "GameFontHighlightSmall"):SetTextColor(0.7, 0.7, 0.7)
     pane.refresh = function()
         local have = {
             ["Use Auctionator prices"] = (Auctionator and Auctionator.API and Auctionator.API.v1) and true or false,
