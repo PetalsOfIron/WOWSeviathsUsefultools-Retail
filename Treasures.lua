@@ -8,6 +8,7 @@ local _, SFP = ...
 
 local SIZE = 5            -- screen pixels of the box
 local pins, used = {}, 0
+local byMapTime = {}
 local byMap = {}          -- [map] = list of { id, rec, x, y }: made when a map is asked for, dropped when the loot changes
 local layer
 
@@ -64,10 +65,17 @@ end
 function SFP.NoteOpened(id, map, x, y)
     local list = openedList()
     list[id] = list[id] or {}
+    local now = time()
     for _, o in ipairs(list[id]) do
-        if o[1] == map and math.abs(o[2] - x) < 0.003 and math.abs(o[3] - y) < 0.003 then return end
+        if o[1] == map and math.abs(o[2] - x) < 0.003 and math.abs(o[3] - y) < 0.003 then
+            -- opened again at the same place: it respawns, after about the time between the two openings
+            if o[4] and now - o[4] > 60 then o[5] = now - o[4] end
+            o[4] = now
+            wipe(byMap)
+            return
+        end
     end
-    list[id][#list[id] + 1] = { map, x, y }
+    list[id][#list[id] + 1] = { map, x, y, now }
     wipe(byMap)
 end
 
@@ -75,7 +83,8 @@ local function openedHere(id, map, x, y)
     local mine = openedList()[id]
     if not mine then return false end
     for _, o in ipairs(mine) do
-        local ox, oy = convert(o[1], o[2], o[3], map)
+        local ox, oy = nil, nil
+        if not (o[5] and o[4] and time() - o[4] >= o[5]) then ox, oy = convert(o[1], o[2], o[3], map) end   -- one that respawns is back after its time
         if ox and math.abs(ox - x) < 0.02 and math.abs(oy - y) < 0.02 then return true end
     end
     return false
@@ -83,8 +92,9 @@ end
 
 local function treasuresOf(map)
     local list = byMap[map]
-    if list then return list end
+    if list and (byMapTime[map] or 0) > time() - 120 then return list end
     list = {}
+    byMapTime[map] = time()
     local objects = SFP.db and SFP.db.objects
     if objects then
         for id, rec in (SeviathsAllPairs or pairs)(objects) do
