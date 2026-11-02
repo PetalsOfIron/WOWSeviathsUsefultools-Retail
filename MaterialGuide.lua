@@ -2066,21 +2066,6 @@ local function openGather()
     setTab("gather")
 end
 
--- Current zone materials: the Material search (crafting reagents) opened on the zone of the map you are looking at
-local function openZoneMaterials()
-    if not win then build() end
-    local map = WorldMapFrame:GetMapID()
-    if win:IsShown() and mode == "mat" and not itemMode and matTab == "monsters" and selected == map then win:Hide() return end
-    SFP.db.spotsCollapsed, SFP.db.gatherCollapsed, SFP.db.collCollapsed, SFP.db.raresCollapsed = true, true, true, true
-    SFP.RefreshWorldMap()
-    setItemMode(false)
-    if win:IsShown() then win:Hide() end
-    setMode("mat")
-    selected = map
-    win:Show()
-    setTab("monsters")
-end
-
 -- which list a button opens: its collapsed flag in the saved settings (one open at a time)
 local FLAGS = { spots = "spotsCollapsed", rares = "raresCollapsed", coll = "collCollapsed", gather = "gatherCollapsed" }
 local function openOnly(key)
@@ -2123,8 +2108,7 @@ local function refreshRow()
         makeButton("mount", "Mount search", "Every mount with where to get it, Classic to Midnight. Click a source for a waypoint.", function() openMode("mount") end)
         makeButton("hunter", "Hunter search", "Every hunter pet (spirit beasts, unique looks and the tameable beasts seen so far) with a waypoint", function() openMode("hunter") end)
         makeButton("pet", "Battle pets", "Every battle pet with its auction price - search by name, or pick a family", function() openMode("pet") end)
-        makeButton("gather", "Mining & Herbalism", "The ores and herbs of this zone and the best zone for each", openGather)
-        makeButton("zonemats", "Current zone materials", "The crafting reagents of the zone you are in: what to gather and which monsters drop them. Click a monster for a waypoint.", openZoneMaterials)
+        makeButton("gather", "Current zone materials", "The materials you can gather in the zone you are in (ores, herbs ...) and the best zone for each", openGather)
     end
     local map = WorldMapFrame:GetMapID()
     local zone = map and SFP.zoneByMap[map]
@@ -2135,7 +2119,6 @@ local function refreshRow()
         rares = true,
         coll = false,   -- Collectables is covered by Mount search and Hunter search
         search = true,
-        zonemats = true,
         items = true,
         mount = true,
         hunter = true,
@@ -2144,7 +2127,7 @@ local function refreshRow()
     }
     local x = 0
     -- right to left: the last of the line is Mining & Herbalism
-    for _, key in ipairs({ "gather", "zonemats", "pet", "hunter", "mount", "search", "coll", "rares", "items", "spots" }) do
+    for _, key in ipairs({ "gather", "pet", "hunter", "mount", "search", "coll", "rares", "items", "spots" }) do
         local b = rowBtns[key]
         b:ClearAllPoints()
         if show[key] then
