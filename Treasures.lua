@@ -194,6 +194,32 @@ local function updateMinimap()
     end
 end
 
+-- /treasures: what the boxes are made from (for when none show): the objects recorded, how many gave loot, how many are treasures, how many are on this map
+SLASH_SEVIATHSTREASURES1 = "/treasures"
+SlashCmdList["SEVIATHSTREASURES"] = function()
+    local objects = SFP.db and SFP.db.objects
+    local total, loot, tre, why = 0, 0, 0, { quest = 0, gather = 0, qitem = 0, nokill = 0, nomap = 0 }
+    for id, rec in (SeviathsAllPairs or pairs)(objects or {}) do
+        total = total + 1
+        if type(rec) == "table" and type(rec.d) == "table" and next(rec.d) then
+            loot = loot + 1
+            if type(rec.m) ~= "table" then why.nomap = why.nomap + 1
+            elseif (rec.k or 0) < 1 then why.nokill = why.nokill + 1
+            elseif rec.qs and next(rec.qs) then why.quest = why.quest + 1
+            elseif SFP.ObjectKind and SFP:ObjectKind({ d = rec.d }) then why.gather = why.gather + 1
+            elseif isTreasure(rec) then tre = tre + 1
+            else why.qitem = why.qitem + 1 end
+        end
+    end
+    local map = WorldMapFrame and WorldMapFrame:GetMapID()
+    byMap = {}
+    local onMap = map and #treasuresOf(map) or 0
+    SFP:Print(("treasures: %d objects recorded, %d gave loot, %d are treasures (left out: %d quest, %d gathering, %d quest item, %d no place)"):format(
+        total, loot, tre, why.quest, why.gather, why.qitem, why.nomap))
+    SFP:Print(("treasures on the map shown (%s): %d; boxes on the map: %d; layer: %s; show treasures: %s"):format(
+        tostring(map), onMap, used, layer and "yes" or "NO", tostring(SFP.db and SFP.db.showTreasures ~= false)))
+end
+
 SFP:OnLogin(function()
     if not (WorldMapFrame and WorldMapFrame.ScrollContainer) then return end
     local c = canvas()
