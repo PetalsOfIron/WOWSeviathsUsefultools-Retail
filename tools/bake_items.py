@@ -13,7 +13,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ADDON = os.path.dirname(HERE)
 ADDONS = os.path.dirname(ADDON)
 BLOCK = 500
-MAX_FILE = 400_000
+MAX_FILE = 200_000
 BS = chr(92)
 NL = BS + "n"
 

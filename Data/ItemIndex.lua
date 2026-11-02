@@ -3,7 +3,9 @@
 local _, SFP = ...
 
 SFP.ItemParts = {
-    { 0, 225, "SeviathsUsefulTools_Items1" },
-    { 226, 527, "SeviathsUsefulTools_Items2" },
-    { 528, 578, "SeviathsUsefulTools_Items3" },
+    { 0, 26, "SeviathsUsefulTools_Items1" },
+    { 27, 224, "SeviathsUsefulTools_Items2" },
+    { 225, 251, "SeviathsUsefulTools_Items3" },
+    { 252, 524, "SeviathsUsefulTools_Items4" },
+    { 525, 578, "SeviathsUsefulTools_Items5" },
 }
