@@ -25,7 +25,7 @@
 ### Other
 - Auction prices: a price from your own scan stays until your next scan; a battle pet the scan does not see keeps its earlier price.
 - Tooltips and lists no longer show the number of kills of a monster (it is still counted for the percentages and gold per kill).
-- Monster tooltips (the map, hovering any monster, rare or boss, and the Codex pages) show the chance of each item from your kills, with how many kills it takes: "12.5% (1 in 8 kills)" (after 3 kills of that monster), and the rest of the items Wowhead lists for it.
+- Monster tooltips (the map, hovering any monster, rare or boss, and the Codex pages) show the chance of each item from your kills, with how many kills it takes: "12% 1/8" (12%, one in 8 kills; it updates every time the item drops) (after 3 kills of that monster), and the rest of the items Wowhead lists for it.
 - The group makeup window no longer opens by itself in a dungeon: in a group of 5 or more a Group makeup button at the top left opens it.
 - Guild Directory: US and EU buttons above the realm buttons (your own region at first).
 - The shipped data is cut into small files and small load-on-demand folders; the game reads only the part you look at.
