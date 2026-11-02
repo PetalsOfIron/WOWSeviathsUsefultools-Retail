@@ -90,6 +90,30 @@ local function openedHere(id, map, x, y)
     return false
 end
 
+-- the first character that logs in after the lists were made per character is the one that opened all the chests recorded so far: they count as opened for it
+-- (the other characters start with an empty list and still see them)
+local function seedOpened()
+    if not (SFP.db and SFP.db.objects) or SFP.db.treasuresSeeded then return end
+    SFP.db.treasuresSeeded = true
+    local list = openedList()
+    local now = time()
+    for id, rec in (SeviathsAllPairs or pairs)(SFP.db.objects) do
+        if type(id) == "number" and isTreasure(rec) then
+            for from, pts in pairs(rec.m) do
+                if type(pts) == "table" and type(from) == "number" then
+                    for _, p in ipairs(pts) do
+                        if type(p) == "table" and p[1] and p[2] then
+                            list[id] = list[id] or {}
+                            list[id][#list[id] + 1] = { from, p[1], p[2], now }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    wipe(byMap)
+end
+
 local function treasuresOf(map)
     local list = byMap[map]
     if list and (byMapTime[map] or 0) > time() - 120 then return list end
@@ -301,6 +325,7 @@ SFP:OnLogin(function()
     if not (WorldMapFrame and WorldMapFrame.ScrollContainer) then return end
     local c = canvas()
     if not c then return end
+    C_Timer.After(8, function() SFP:Safe("treasures seed", seedOpened); if WorldMapFrame:IsShown() then update() end end)
     layer = CreateFrame("Frame", nil, c)
     layer:SetAllPoints(c)
     layer:SetFrameLevel(math.min((c:GetFrameLevel() or 0) + 3500, 9000))   -- above the map's own icons
