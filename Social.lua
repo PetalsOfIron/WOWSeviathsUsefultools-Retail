@@ -667,11 +667,11 @@ function S.AutoStyles(p)
     if (p.rstreak or 0) >= 4 then cand[#cand + 1] = { id = "raider", score = 1 + (p.rstreak - 4) / 8 } end                  -- raid bosses killed (this week counts double)
     add("mythic", math.max((a.mythic or 0) + (a.dungeon or 0) * 0.5, (p.dw or 0) * 2), 8, 14, "mythic", "dungeon")   -- Mythic+ keys and dungeons
     add("delver", math.max(a.delve or 0, (p.dl or 0) * 2), 8, 14, "delve")                 -- delves
-    -- the collector: any one section reaches its number - 10 mounts in 28 days; 20 battle pets, decor, old-raid mount bosses or pet battles
-    -- in the week (toys and rare kills do not count) (the weekly reset starts them again). The easiest style to get.
+    -- the collector: any one section reaches its number - 10 mounts in 28 days; 20 battle pets, toys, decor, old-raid mount bosses or pet battles
+    -- in the week (rare kills do not count) (the weekly reset starts them again). The easiest style to get.
     do
         local sections = {
-            { "c_mount", 10, false }, { "c_pet", 20, true }, { "c_decor", 20, true }, { "c_raid", 20, true }, { "c_battle", 20, true },
+            { "c_mount", 10, false }, { "c_pet", 20, true }, { "c_toy", 20, true }, { "c_decor", 20, true }, { "c_raid", 20, true }, { "c_battle", 20, true },
         }
         local top = 0
         for _, sec in ipairs(sections) do
@@ -777,7 +777,7 @@ function S.MyProfile()
     local st = c.stats or {}
     -- what the player did this week (the play style is decided from this)
     p.act = {}
-    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan", "easy", "hardcore", "quest", "c_pet", "c_decor", "c_raid", "c_battle",
+    for _, k in ipairs({ "raid", "mythic", "dungeon", "delve", "collect", "achv", "pvp", "daily", "loot", "session", "scan", "easy", "hardcore", "quest", "c_pet", "c_toy", "c_decor", "c_raid", "c_battle",
         "g_loot", "g_daily", "g_quest", "g_trade", "g_other" }) do
         p.act[k] = S.ActWeekSum(k)
     end
@@ -2356,6 +2356,7 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
         end
     elseif event == "NEW_MOUNT_ADDED" then S.Act("c_mount")       -- the collector's sections: not transmog (everyone gets that from Timewalking)
     elseif event == "NEW_PET_ADDED" then S.Act("c_pet")
+    elseif event == "NEW_TOY_ADDED" then S.Act("c_toy")
     elseif event == "ACHIEVEMENT_EARNED" then S.Act("achv")
     elseif event == "PVP_MATCH_COMPLETE" then S.Act("pvp")
     elseif event == "PET_BATTLE_CLOSE" then S.Act("c_battle")   -- battle pets: wild pet battles, the way to new pets
