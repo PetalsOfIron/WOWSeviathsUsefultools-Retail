@@ -249,54 +249,75 @@ local STAT_KINDS = {
     raid = function(l) return l:find("raid", 1, true) and (l:find("boss", 1, true) and (l:find("defeated", 1, true) or l:find("kill", 1, true))) end,
 }
 
--- { kind = { rank, value, name } } best statistic per kind; the Midnight-named one wins, then the largest value
-local function scanStats(listAll)
-    if not (GetStatisticsCategoryList and GetCategoryNumAchievements and GetAchievementInfo and GetStatistic) then return nil end
+-- { kind = { rank, value, name } } best statistic per kind; the Midnight-named one wins, then the largest value.
+-- The Statistics panel has thousands of entries: they are read a few milliseconds per frame (never all in one frame), and done(best, all) is called at the end.
+local statRunning
+local function scanStats(listAll, done)
+    if not (GetStatisticsCategoryList and GetCategoryNumAchievements and GetAchievementInfo and GetStatistic) then if done then done(nil) end return end
+    if statRunning then return end
+    statRunning = true
     local best, all = {}, {}
-    for _, cat in ipairs(GetStatisticsCategoryList() or {}) do
-        for i = 1, (GetCategoryNumAchievements(cat) or 0) do
-            local id, name = GetAchievementInfo(cat, i)
-            if type(name) == "string" and not secret(name) then
-                local l = name:lower()
-                for kind, test in pairs(STAT_KINDS) do
-                    if test(l) then
-                        local v = tonumber((tostring(GetStatistic(id) or ""):gsub("[^%d]", "")))
-                        if v then
-                            local rank = l:find("midnight", 1, true) and 2 or 1
-                            local cur = best[kind]
-                            if not cur or rank > cur.rank or (rank == cur.rank and v > cur.v) then best[kind] = { rank = rank, v = v, name = name } end
-                            if listAll then all[#all + 1] = ("%s: %s = %d"):format(kind, name, v) end
+    local cats = GetStatisticsCategoryList() or {}
+    local ci, ai = 1, 1
+    local function step()
+        local t0 = debugprofilestop()
+        while cats[ci] and debugprofilestop() - t0 < 4 do
+            local cat = cats[ci]
+            if ai > (GetCategoryNumAchievements(cat) or 0) then
+                ci, ai = ci + 1, 1
+            else
+                local id, name = GetAchievementInfo(cat, ai)
+                ai = ai + 1
+                if type(name) == "string" and not secret(name) then
+                    local l = name:lower()
+                    for kind, test in pairs(STAT_KINDS) do
+                        if test(l) then
+                            local v = tonumber((tostring(GetStatistic(id) or ""):gsub("[^%d]", "")))
+                            if v then
+                                local rank = l:find("midnight", 1, true) and 2 or 1
+                                local cur = best[kind]
+                                if not cur or rank > cur.rank or (rank == cur.rank and v > cur.v) then best[kind] = { rank = rank, v = v, name = name } end
+                                if listAll then all[#all + 1] = ("%s: %s = %d"):format(kind, name, v) end
+                            end
                         end
                     end
                 end
             end
         end
+        if cats[ci] then
+            C_Timer.After(0, step)
+        else
+            statRunning = false
+            if done then done(best, all) end
+        end
     end
-    return best, all
+    step()
 end
 
 function S.ReadStats()
-    local best = scanStats(false)
-    if not best then return end
-    local c = S.Config()
-    local okN, n = pcall(UnitName, "player")
-    local realm = GetNormalizedRealmName and GetNormalizedRealmName() or ""
-    if not okN or type(n) ~= "string" then return end
-    c.stat = c.stat or {}
-    for kind, b in pairs(best) do
-        c.stat[kind] = c.stat[kind] or {}
-        c.stat[kind][n .. "-" .. realm] = b.v
-    end
+    scanStats(false, function(best)
+        if not best then return end
+        local c = S.Config()
+        local okN, n = pcall(UnitName, "player")
+        local realm = GetNormalizedRealmName and GetNormalizedRealmName() or ""
+        if not okN or type(n) ~= "string" then return end
+        c.stat = c.stat or {}
+        for kind, b in pairs(best) do
+            c.stat[kind] = c.stat[kind] or {}
+            c.stat[kind][n .. "-" .. realm] = b.v
+        end
+    end)
 end
 S.ReadDelveStat = S.ReadStats
 
 -- /sfp stats: which statistics were found and used
 function S.StatsDebug()
-    local best, all = scanStats(true)
-    if not best then SFP:Print("the Statistics panel is not available") return end
-    for _, line in ipairs(all) do SFP:Print(line) end
-    for kind, b in pairs(best) do SFP:Print(("used for %s: %s = %d"):format(kind, b.name, b.v)) end
-    if next(best) == nil then SFP:Print("no statistic with delve / dungeon / raid boss and completed / defeated in its name was found") end
+    scanStats(true, function(best, all)
+        if not best then SFP:Print("the Statistics panel is not available") return end
+        for _, line in ipairs(all) do SFP:Print(line) end
+        for kind, b in pairs(best) do SFP:Print(("used for %s: %s = %d"):format(kind, b.name, b.v)) end
+        if next(best) == nil then SFP:Print("no statistic with delve / dungeon / raid boss and completed / defeated in its name was found") end
+    end)
 end
 
 function S.TotalGet(name)
