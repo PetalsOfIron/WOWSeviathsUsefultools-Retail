@@ -91,7 +91,7 @@ scanners.item = function(done)
         budgetLoop(#keys, 6, function(n)
             for line in blocks[keys[n]]:gmatch("[^\n]+") do
                 local r = SFP.ItemParseLine(line)
-                if r and not (db and db.knownItems and db.knownItems[r.id]) and not ns:Get("item:" .. r.id) then
+                if r and r.quality ~= 0 and not (db and db.knownItems and db.knownItems[r.id]) and not ns:Get("item:" .. r.id) then
                     local exp = r.exp and _G["EXPANSION_NAME" .. r.exp] or "No expansion set yet"
                     local cn = (r.class and GetItemClassInfo and GetItemClassInfo(r.class)) or "Other"
                     local sn = (r.class and r.sub and GetItemSubClassInfo and GetItemSubClassInfo(r.class, r.sub)) or nil
