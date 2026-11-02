@@ -1462,9 +1462,9 @@ local function collectedMonsters(map, group)
             -- a rare is listed as soon as it was seen or killed, with or without loot (the farm data does not have to know it yet)
             local isRare = rec.c == "rare" or rec.c == "rareelite"
             local hasDrops = (type(rec.d) == "table" and next(rec.d) ~= nil) or (type(rec.s) == "table" and next(rec.s) ~= nil)
-            if rec.n and not tostring(rec.n):find("^NPC %d+$") and type(rec.m) == "table" and (hasDrops or isRare) and not rec.boss then
+            if rec.n and not tostring(rec.n):find("^NPC %d+$") and type(rec.m) == "table" and (hasDrops or isRare or (rec.k or 0) > 0) and not rec.boss then
                 local cls = rec.c
-                local g = (cls == "rare" or cls == "rareelite") and "rare" or ((cls == nil or cls == "normal" or cls == "elite") and "farm" or nil)
+                local g = (cls == "rare" or cls == "rareelite") and "rare" or ((cls ~= "worldboss" and cls ~= "boss") and "farm" or nil)
                 local pts = rec.m[map]
                 local p = type(pts) == "table" and pts[1]
                 if g and p and p[1] and p[2] then
@@ -1723,7 +1723,7 @@ local function renderFarmList(group)
             end
             if #mine > 0 and found < 80 then
                 found = found + #mine
-                n = renderBlocks(n, map, mine, true)
+                n = renderBlocks(n, map, mine)
             end
         end
     else
@@ -1731,7 +1731,7 @@ local function renderFarmList(group)
         if type(map) ~= "number" then map = WorldMapFrame:GetMapID() end
         win.title:SetText(label .. "  |cffaaaaaa" .. (map and SFP:ZoneName(map) or "") .. "|r")
         -- Farm spots and Rares work the same: a row is the name and the place, and hovering it shows the map's whole tooltip of that monster
-        if map then n = renderBlocks(n, map, farmSpotsFor(map, group), true) end
+        if map then n = renderBlocks(n, map, farmSpotsFor(map, group)) end
     end
     if n == 0 then n = headerRow(0, "|cff808080Nothing recorded|r") end
     finish(list, n)

@@ -8,6 +8,7 @@
 - A treasure box leaves the map for the character that opened the chest and stays for your other characters. The first character to log in with this version gets all the chests recorded so far as opened.
 - A chest that respawns comes back to the map after the time it took to respawn the last time you opened it (one day until it has been opened twice).
 ### Items and monsters
+- Farm spots and Rares lists show all the loot of each monster again, and every monster you killed is listed, also ones with no drop recorded and trivial or low-level ones.
 - Quest items are no longer part of a monster's loot table (tooltip, map and lists) and are not recorded as drops any more.
 ### Other
 - The automatic auction house scan when you open it runs once a day instead of once an hour.
