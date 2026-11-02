@@ -125,6 +125,19 @@ def main():
     # item record. They and the monsters go to the load-on-demand folder; everything else stays in collected/
     lod = {}
     tools = data.get("SeviathsUsefulToolsDB") or {}
+    # the monsters Wowhead lists drops for, with their places (tools/npc_extra.json, made by bake_npc_spots.py): added when the player's data lacks them
+    xp = os.path.join(HERE, "npc_extra.json")
+    if os.path.exists(xp):
+        import json as _json
+        extra = _json.load(open(xp, encoding="utf8"))
+        have = tools.setdefault("npcs", {})
+        added = 0
+        for k, rec in extra.items():
+            nid = int(k)
+            if nid not in have and k not in have:
+                have[nid] = {"n": rec["n"], "k": 0, "m": {int(m): pts for m, pts in rec["m"].items()}}
+                added += 1
+        print("monsters added from Wowhead:", added)
     if "npcs" in tools:
         npcs = tools.pop("npcs")
         lod.setdefault("SeviathsUsefulToolsDB", {})["npcs"] = npcs
