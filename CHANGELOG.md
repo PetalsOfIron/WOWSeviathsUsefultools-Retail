@@ -19,7 +19,7 @@
 - Codex Monsters & Creatures: every monster the addon ships (with a place) is listed, not only the ones you have met.
 - Auction prices: a price from your own scan stays until your next scan (a newer shipped price no longer replaces it), and a battle pet the scan does not see this time keeps its earlier price.
 - Play style: the dungeon, delve and raid styles count each dungeon, delve and raid boss once a week (6 different ones); doing the same one again adds nothing.
-- Every character has its own counters: the Done line (delves, dungeons, keys, raid bosses) and the play style numbers are per character; each dungeon, delve and raid boss counts once. The first character that logs in after the update keeps what the account had counted so far.
+- The Done line (delves, dungeons, keys, raid bosses) is per character; the play style stays account wide. Each dungeon, delve and raid boss counts once. The first character that logs in after the update keeps the delves and dungeons the account had collected so far.
 ### Load
 - The shipped data is cut into small files and small load-on-demand folders (transmog and monster drops); the game reads only the part of the item or monster you look at.
 ### Play style (profile tooltip)
