@@ -1199,8 +1199,9 @@ SFP:OnLogin(function()
         for id in pairs(ids) do list[#list + 1] = id end
         local i = 1
         local function step()
-            for _ = 1, 25 do
-                if list[i] then SFP.LearnMaterial(list[i]); i = i + 1 end
+            local t0 = debugprofilestop()
+            while list[i] and debugprofilestop() - t0 < 4 do
+                SFP.LearnMaterial(list[i]); i = i + 1
             end
             if list[i] then C_Timer.After(0.2, step) end
         end
@@ -1212,9 +1213,12 @@ SFP:OnLogin(function()
         local ids = SeviathsKeys(SFP.db.knownItems)
         local i = 1
         local function step()
-            local last = math.min(#ids, i + 399)
-            for n = i, last do SFP:ClassifyItem(ids[n]) end
-            i = last + 1
+            -- a time budget per frame, not a count: a record may have to be decoded when it is read
+            local t0 = debugprofilestop()
+            while i <= #ids and debugprofilestop() - t0 < 4 do
+                SFP:ClassifyItem(ids[i])
+                i = i + 1
+            end
             if i <= #ids then C_Timer.After(0.05, step) end
         end
         step()
