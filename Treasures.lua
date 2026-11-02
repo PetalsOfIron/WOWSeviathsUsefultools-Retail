@@ -120,12 +120,15 @@ local function update()
     local w, h = c:GetWidth(), c:GetHeight()
     if not w or w <= 0 then return end
     local size = math.max(SIZE / canvasScale(), 3)
+    local hidden = SFP.db and SFP.db.hiddenTreasures
     for _, t in ipairs(treasuresOf(map)) do
+      if not (hidden and hidden[t.id]) then
         local p = getPin()
         p:SetSize(size, size)
         p:ClearAllPoints()
         p:SetPoint("CENTER", c, "TOPLEFT", t.x * w, -t.y * h)
         p.id, p.rec = t.id, t.rec
+      end
     end
 end
 
@@ -163,6 +166,20 @@ SlashCmdList["SEVIATHSTREASURES"] = function()
             tostring(p.rec and p.rec.n), x or 0, y or 0, tostring(rp), p:GetWidth() or 0, tostring(p:IsShown()), tostring(p:IsVisible()), p:GetEffectiveAlpha() or 0,
             p:GetFrameLevel() or 0, tostring(p:IsMouseEnabled()), byMap[map] and byMap[map][1] and byMap[map][1].x or -1, byMap[map] and byMap[map][1] and byMap[map][1].y or -1))
     end
+end
+
+-- for the points menu: the treasures of a map, one entry for each treasure (an object with several places counts once)
+function SFP.TreasuresOfMap(map)
+    local seen, out = {}, {}
+    for _, t in ipairs(treasuresOf(map)) do
+        if not seen[t.id] then seen[t.id] = true; out[#out + 1] = t end
+    end
+    table.sort(out, function(a, b) return tostring(a.rec.n) < tostring(b.rec.n) end)
+    return out
+end
+
+function SFP.RefreshTreasures()
+    if WorldMapFrame and WorldMapFrame:IsShown() then update() end
 end
 
 SFP:OnLogin(function()
