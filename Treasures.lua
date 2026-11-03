@@ -69,7 +69,12 @@ function SFP.NoteOpened(id, map, x, y)
     for _, o in ipairs(list[id]) do
         if o[1] == map and math.abs(o[2] - x) < 0.02 and math.abs(o[3] - y) < 0.02 then
             -- opened again at the same place: it respawns, after about the shortest time seen between two openings (a day until two openings are known)
-            if o[4] and now - o[4] > 60 then o[5] = math.min(o[5] or (now - o[4]), now - o[4]) elseif not o[4] then o[5] = 86400 end
+            if o[4] and now - o[4] > 60 then
+                o[5] = math.min(o[5] or (now - o[4]), now - o[4])
+                -- the chest itself learns it: the respawn time is kept with the chest (shipped with the addon), so every character and player uses it
+                local rec = SFP.db and SFP.db.objects and SFP.db.objects[id]
+                if type(rec) == "table" then rec.rs = math.min(rec.rs or o[5], o[5]) end
+            elseif not o[4] then o[5] = 86400 end
             o[4] = now
             wipe(byMap)
             return
@@ -84,7 +89,9 @@ local function openedHere(id, map, x, y)
     if not mine then return false end
     for _, o in ipairs(mine) do
         local ox, oy = nil, nil
-        if not (o[5] and o[4] and time() - o[4] >= o[5]) then ox, oy = convert(o[1], o[2], o[3], map) end   -- one that respawns is back after its time
+        local rec = SFP.db and SFP.db.objects and SFP.db.objects[id]
+        local iv = math.min(o[5] or math.huge, type(rec) == "table" and tonumber(rec.rs) or math.huge)   -- this character's own time, or the one learned by everybody
+        if not (iv < math.huge and o[4] and time() - o[4] >= iv) then ox, oy = convert(o[1], o[2], o[3], map) end   -- one that respawns is back after its time
         if ox and math.abs(ox - x) < 0.02 and math.abs(oy - y) < 0.02 then return true end
     end
     return false
