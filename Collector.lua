@@ -427,7 +427,9 @@ local function onLoot()
     if SFP.SessionLootOpened then SFP:SessionLootOpened() end
     lootMoneyBegin()
     local map, px, py = playerPos()
-    local skin = lastCast.name and skinNames[lastCast.name] and GetTime() - lastCast.t < 8
+    -- skinning, and the butchering of the current expansion (found by its name, its spell numbers change)
+    local castName = type(lastCast.name) == "string" and lastCast.name:lower() or nil
+    local skin = castName and (skinNames[lastCast.name] or castName:find("skinn", 1, true) or castName:find("butcher", 1, true)) and GetTime() - lastCast.t < 8
     for slot = 1, GetNumLootItems() do
         local link = GetLootSlotLink and GetLootSlotLink(slot)
         if link and issecretvalue and issecretvalue(link) then link = nil end

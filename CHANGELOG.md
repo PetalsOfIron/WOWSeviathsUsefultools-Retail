@@ -7,6 +7,8 @@
 - Farm spots and Rares lists show all the loot of each monster again, with the chance of each item like the monster tooltip ("33% 1/3 chance", a plain percentage until 3 kills).
 - Every monster you killed is listed in Farm spots and Rares, also ones with no drop recorded and trivial or low-level ones.
 - The lists update with your new kills: they are made again a moment after a loot window closes, also while the window is closed.
+- A monster's loot list shows what it drops when killed, not what skinning or butchering its body gave. Butchering is recognised as skinning when you loot.
+- The Best 15 farm spots no longer change again and again: the weekly list is kept for the whole week.
 ### Premade groups
 - The group makeup button (now "My groups setup") is always at the top left of the screen, not only in a group of 5 or more.
 - Opening the Dungeons section of Premade Groups opens the Dungeons tab below the maximum level and the Mythic+ tab at the maximum level.
