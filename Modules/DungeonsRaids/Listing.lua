@@ -235,7 +235,11 @@ function ns:Analyze(resultID)
   end
 
   -- Leader Mythic+ info
-  r.leaderScore = info.leaderOverallDungeonScore or 0
+  -- the numbers of the listing can be secret values (the game hides them): those count as nothing, the Raider.IO data below fills in
+  do
+    local ls = ns.Safe(info.leaderOverallDungeonScore)
+    r.leaderScore = type(ls) == "number" and ls or 0
+  end
   -- with Raider.IO installed its score counts too (the higher of the two), for the tags and the minimum-rating filter
   if r.kind == "mplus" or r.leaderScore > 0 or (ns.db.minLeaderScore or 0) > 0 then
     r.rioScore = RioScore(ns.Safe(info.leaderName))
@@ -252,8 +256,9 @@ function ns:Analyze(resultID)
   local ds = info.leaderDungeonScoreInfo
   if Accessible(ds) then
     if ds[1] then ds = ds[1] end
-    r.leaderBest = ds.bestRunLevel or 0
-    r.leaderTimed = ds.finishedSuccess
+    local best, timed = ns.Safe(ds.bestRunLevel), ns.Safe(ds.finishedSuccess)
+    r.leaderBest = type(best) == "number" and best or 0
+    r.leaderTimed = timed == true
   end
   -- the game gives no key info for most leaders: Raider.IO's answer (or what the addon saved from it) is used then
   if (r.leaderBest or 0) == 0 and r.kind == "mplus" then
