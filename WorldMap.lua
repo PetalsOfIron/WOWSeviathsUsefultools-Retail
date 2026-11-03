@@ -1556,7 +1556,7 @@ local function spotRow(i)
             local chance = SFP.ChanceText(drops[id], kills)
             local pct = chance ~= "" and ("  " .. chance) or ""
             local price = SFP:GetPrice(id)
-            SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. pct, price and SFP:FormatPrice(price) or "", 1, 1, 1, 1, 1, 1)
+            SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. pct, SFP.SoldTag(id) .. (price and SFP:FormatPrice(price) or ""), 1, 1, 1, 1, 1, 1)
         end
         if s.hx then SFP.Tip():AddLine(string.format("%.1f, %.1f", s.hx * 100, s.hy * 100), 1, 0.82, 0) end
         SFP.Tip():AddLine("Click: show or hide this spot on the map", 0, 0.9, 1)

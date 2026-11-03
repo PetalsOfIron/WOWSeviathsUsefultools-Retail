@@ -542,6 +542,35 @@ function SFP:Listings(itemID)
     return realm and realm[itemID] or nil
 end
 
+-- is an item sold at the auction house? Taken from the last whole-auction-house scan of this realm: true = it was listed then, false = that scan did not
+-- list it (it never sells there: bound items and the like), nil = no whole scan yet. A gray item is never judged (it is worth its vendor price).
+local soldSet, soldFor
+function SFP:SoldState(itemID)
+    if type(itemID) ~= "number" then return nil end
+    if C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0 then return true end
+    local all = self.db and self.db.ahSold
+    local rec = all and all[self:RealmKey()]
+    if type(rec) ~= "table" or type(rec.s) ~= "string" then return nil end
+    if soldFor ~= rec.s then
+        soldFor, soldSet = rec.s, {}
+        for id in rec.s:gmatch("%d+") do soldSet[tonumber(id)] = true end
+    end
+    if soldSet[itemID] then return true end
+    local info = self.Items and self.Items[itemID]
+    if info and info.tiers then
+        for _, t in ipairs(info.tiers) do if soldSet[t] then return true end end
+    end
+    return false
+end
+
+-- the little text after an item of a monster's loot: "sold" / "not sold" (nothing for a gray item or before the first whole scan)
+function SFP.SoldTag(itemID)
+    local st = SFP:SoldState(itemID)
+    if st == nil then return "" end
+    if C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0 then return "" end
+    return st and "|cff40ff40sold|r  " or "|cff808080not sold|r  "
+end
+
 -- the price of every item of the last whole-auction-house scan on this realm: [itemID] = copper (compact, replaced by each fast scan)
 function SFP:AllPrices(create)
     local all = self.db.ahAll

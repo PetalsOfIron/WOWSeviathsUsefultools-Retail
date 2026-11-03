@@ -49,10 +49,10 @@ end
 local function priceText(id)
     if not id then return "" end
     local ah = SFP:GetPrice(id)
-    if ah then return SFP:FormatPrice(ah) end
+    if ah then return SFP.SoldTag(id) .. SFP:FormatPrice(ah) end
     local cost = vendorCost(id)
-    if cost then return "|cff808080vendor|r " .. cost end
-    return ""
+    if cost then return SFP.SoldTag(id) .. "|cff808080vendor|r " .. cost end
+    return SFP.SoldTag(id)
 end
 
 SFP.PriceText = priceText   -- the other lists (the map tooltips) use it too
@@ -1663,7 +1663,7 @@ local function renderTop()
         local val = 0
         for _, d in ipairs(loot) do
             local price = SFP:GetPrice(d.id)
-            if price and d.q > 0 then val = val + price * d.q / kills end
+            if price and d.q > 0 and SFP:SoldState(d.id) ~= false then val = val + price * d.q / kills end   -- an item that never sells at the auction house is left out
         end
         local gold = SFP.MonsterGold and SFP.MonsterGold(s)
         if gold then val = val + gold end

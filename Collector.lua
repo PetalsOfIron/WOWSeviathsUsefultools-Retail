@@ -1033,7 +1033,7 @@ local function unitTip(tt, data)
         -- the chance from your own kills with how many kills it takes: "12.5% (1 in 8)"; the number of kills itself is not shown
         local chance = SFP.ChanceText(e[2], kills)
         tt:AddDoubleLine("|T" .. SFP:ItemIcon(e[1]) .. ":12|t " .. SFP:ItemName(e[1]),
-            chance ~= "" and chance or string.format("%d%%", min(100, floor(e[2] * 100 / kills + 0.5))), 1, 1, 1, 0.7, 0.7, 0.7)
+            SFP.SoldTag(e[1]) .. (chance ~= "" and chance or string.format("%d%%", min(100, floor(e[2] * 100 / kills + 0.5)))), 1, 1, 1, 0.7, 0.7, 0.7)
     end
     -- and what Wowhead lists for this monster (rares, bosses, any monster), the rest of its loot table
     do

@@ -379,11 +379,22 @@ function S.MineDone()
             for n in pairs((c.done and c.done.delve) or {}) do m.delve[tostring(n):lower()] = true end
         end
     end
+    -- once: the dungeons of the list counted every dungeon entered; now only Mythic+ ones do, so the old entries are dropped and the list starts again
+    if not m.dunMplus then m.dunMplus = true; m.dungeon = {} end
     return m
 end
 
 -- The instances you enter are collected (all your characters): raids, dungeons and delves, with how often and on which difficulty.
 -- c.lib = { raid = { [name] = { id, n (visits), t (last), diffs = { [difficulty name] = true } } }, dungeon = {...}, delve = {...} }
+-- the Done list counts only the real content: a dungeon only as a Mythic+ (the keystone difficulty), raid bosses only from Heroic, and only at the maximum level
+local HEROIC_RAID = { [15] = true, [16] = true, [5] = true, [6] = true, [193] = true, [194] = true }
+local function atMaxLevel()
+    local lvl = UnitLevel and UnitLevel("player")
+    local max = (GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion()) or (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 90
+    return type(lvl) == "number" and not secret(lvl) and lvl >= max
+end
+S.AtMaxLevel = atMaxLevel
+
 function S.NoteInstance()
     local ok, name, itype, diffID, diffName, maxPlayers, _, _, instID = pcall(GetInstanceInfo)
     if not ok or type(name) ~= "string" or secret(name) or name == "" then return end
@@ -397,7 +408,8 @@ function S.NoteInstance()
         rec = { id = instID, n = 0, diffs = {}, first = time() }
         c.lib[kind][name] = rec
     end
-    if kind == "dungeon" or kind == "delve" then S.MineDone()[kind][name:lower()] = true end   -- this character's own list
+    -- this character's own list: delves, and the dungeons run as Mythic+ (not normal or heroic ones, not while leveling)
+    if kind == "delve" or (kind == "dungeon" and diffID == 8 and atMaxLevel()) then S.MineDone()[kind][name:lower()] = true end
     -- a reload inside the same instance is not a new visit
     if not (rec.t and time() - rec.t < 120) then rec.n = rec.n + 1 end
     rec.t = time()
@@ -545,7 +557,7 @@ function S.Progress()
         end
         for _ in pairs(matched) do out.dun[1] = out.dun[1] + 1 end
     end
-    if dr and dr.GetBosses and dr.ResolveInstance and dr.PlaceTier and dr.GetMyKills and dr.db and dr.db.raid and GetServerExpansionLevel then
+    if atMaxLevel() and dr and dr.GetBosses and dr.ResolveInstance and dr.PlaceTier and dr.GetMyKills and dr.db and dr.db.raid and GetServerExpansionLevel then
         local cur = GetServerExpansionLevel() + 1
         if dr.LoadEJPlaces then pcall(dr.LoadEJPlaces, dr, "raid") end   -- the raid list with its expansions, read once
         for name in pairs(dr.db.raid.known or {}) do
@@ -557,7 +569,7 @@ function S.Progress()
                         usedLibrary = true
                         out.raid[2] = out.raid[2] + #bosses
                         local killed = {}
-                        for _, diff in ipairs({ "N", "H", "M" }) do
+                        for _, diff in ipairs({ "H", "M" }) do   -- from Heroic: Normal and the finder do not count
                             local okK, k = pcall(dr.GetMyKills, dr, inst.name, diff)
                             if okK and type(k) == "table" then for b in pairs(k) do killed[b] = true end end
                         end
@@ -567,10 +579,10 @@ function S.Progress()
             end
         end
     end
-    if not usedLibrary and GetNumSavedInstances then
+    if not usedLibrary and atMaxLevel() and GetNumSavedInstances then
         for i = 1, GetNumSavedInstances() do
-            local _, _, _, _, locked, _, _, isRaid, _, _, numEnc, encProg = GetSavedInstanceInfo(i)
-            if isRaid and locked and type(numEnc) == "number" and type(encProg) == "number" then
+            local _, _, _, savedDiff, locked, _, _, isRaid, _, _, numEnc, encProg = GetSavedInstanceInfo(i)
+            if isRaid and locked and HEROIC_RAID[savedDiff] and type(numEnc) == "number" and type(encProg) == "number" then
                 out.raid[2] = out.raid[2] + numEnc
                 out.raid[1] = out.raid[1] + encProg
             end
