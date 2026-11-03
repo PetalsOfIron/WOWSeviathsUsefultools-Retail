@@ -100,7 +100,17 @@ local function MyZone()
 end
 
 -- The Raider.IO Mythic+ score of a player (needs the Raider.IO addon); nil when it has none
-local function RioScore(fullName)
+local rioMemo = {}   -- the answers are kept for a minute: the list is analyzed again at every filter change and refresh
+local function Memo(key, fn)
+  local e = rioMemo[key]
+  local now = GetTime()
+  if e and now - e.t < 60 then return e.a, e.b, e.c end
+  local a, b, c = fn()
+  rioMemo[key] = { t = now, a = a, b = b, c = c }
+  return a, b, c
+end
+
+local function RioScoreRaw(fullName)
   local RIO = _G.RaiderIO
   if not (RIO and RIO.GetProfile) or type(fullName) ~= "string" or fullName == "" then return nil end
   local name, realm = fullName:match("^([^-]+)-(.+)$")
@@ -111,9 +121,13 @@ local function RioScore(fullName)
   return type(s) == "number" and s > 0 and s or nil
 end
 
+local function RioScore(fullName)
+  return Memo("s|" .. tostring(fullName), function() return RioScoreRaw(fullName) end)
+end
+
 -- The best key of a player in one dungeon, from Raider.IO (the addon, else the best key overall that the addon saved from earlier Raider.IO answers):
 -- level, timed (a run in time), and whether it is for that dungeon. nil when Raider.IO has nothing
-local function RioBest(fullName, names)
+local function RioBestRaw(fullName, names)
   local RIO = _G.RaiderIO
   if type(fullName) ~= "string" or fullName == "" then return nil end
   local name, realm = fullName:match("^([^-]+)-(.+)$")
@@ -143,6 +157,10 @@ local function RioBest(fullName, names)
   local lvl = okP and type(rec) == "table" and tonumber(type(rec.best) == "string" and rec.best:match("%+(%d+)") or nil)
   if lvl and lvl > 0 then return lvl, true, false end
   return nil
+end
+
+local function RioBest(fullName, names)
+  return Memo("b|" .. tostring(fullName) .. "|" .. tostring(names[1]) .. "|" .. tostring(names[2]), function() return RioBestRaw(fullName, names) end)
 end
 
 ---------------------------------------------------------------------------
