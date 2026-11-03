@@ -203,8 +203,16 @@ function ns:Analyze(resultID)
   -- Leader Mythic+ info
   r.leaderScore = info.leaderOverallDungeonScore or 0
   -- with Raider.IO installed its score counts too (the higher of the two), for the tags and the minimum-rating filter
-  if r.kind == "mplus" or r.leaderScore > 0 then
+  if r.kind == "mplus" or r.leaderScore > 0 or (ns.db.minLeaderScore or 0) > 0 then
     r.rioScore = RioScore(ns.Safe(info.leaderName))
+    -- the score the addon scanned and saved (Raider.IO answers of every player it has seen) counts when the Raider.IO addon has no answer
+    if not r.rioScore then
+      local api = _G.SeviathsUsefulToolsAPI
+      local leaderName = ns.Safe(info.leaderName)
+      local okP, rec = pcall(function() return api and type(leaderName) == "string" and api.GetPlayer(leaderName) end)
+      local saved = okP and type(rec) == "table" and tonumber(rec.mplus)
+      if saved and saved > 0 then r.rioScore = saved end
+    end
     if r.rioScore and r.rioScore > r.leaderScore then r.leaderScore = math.floor(r.rioScore) end
   end
   local ds = info.leaderDungeonScoreInfo
