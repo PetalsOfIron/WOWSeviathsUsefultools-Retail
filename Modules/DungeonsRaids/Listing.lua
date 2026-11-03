@@ -262,13 +262,13 @@ function ns:Analyze(resultID)
   local mo = ns.db.mplus or {}
   if r.kind == "mplus" or r.leaderScore > 0 then
     r.rioScore = RioScore(ns.Safe(info.leaderName))
-    -- the score the addon scanned and saved (Raider.IO answers of every player it has seen) counts when the Raider.IO addon has no answer
-    if not r.rioScore and (mo.minLeaderScore or 0) > 0 then   -- only while the filter is used: it costs time for every listing
+    -- the collected data on players (Raider.IO answers the addon scanned and the data shipped with it) counts too
+    if (mo.minLeaderScore or 0) > 0 then   -- only while the filter is used: it costs time for every listing
       local api = _G.SeviathsUsefulToolsAPI
       local leaderName = ns.Safe(info.leaderName)
       local okP, rec = pcall(function() return api and type(leaderName) == "string" and api.GetPlayer(leaderName) end)
       local saved = okP and type(rec) == "table" and tonumber(rec.mplus)
-      if saved and saved > 0 then r.rioScore = saved end
+      if saved and saved > 0 and saved > (r.rioScore or 0) then r.rioScore = saved end   -- the highest of the Raider.IO addon and the collected data
     end
     if r.rioScore and r.rioScore > r.leaderScore then r.leaderScore = math.floor(r.rioScore) end
   end
