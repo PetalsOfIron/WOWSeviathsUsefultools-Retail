@@ -68,8 +68,8 @@ function SFP.NoteOpened(id, map, x, y)
     local now = time()
     for _, o in ipairs(list[id]) do
         if o[1] == map and math.abs(o[2] - x) < 0.02 and math.abs(o[3] - y) < 0.02 then
-            -- opened again at the same place: it respawns, after about the time between the two openings (one day until two openings of it are known)
-            if o[4] and now - o[4] > 60 then o[5] = now - o[4] elseif not o[4] then o[5] = 86400 end
+            -- opened again at the same place: it respawns, after about the shortest time seen between two openings (a day until two openings are known)
+            if o[4] and now - o[4] > 60 then o[5] = math.min(o[5] or (now - o[4]), now - o[4]) elseif not o[4] then o[5] = 86400 end
             o[4] = now
             wipe(byMap)
             return

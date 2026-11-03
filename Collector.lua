@@ -538,11 +538,13 @@ local function onLoot()
                 if not rec.ot then rec.ot = SFP:RecentObjectKind() or SFP:ObjectKind(rec) end
                 local qt = SFP:RecentObjectQuest()
                 if qt then rec.qs = rec.qs or {}; rec.qs[qt] = true end
+                -- this character has opened it: its box leaves the map for this character, and a chest opened again at the same place is noted as respawning
+                -- (a respawned chest keeps its guid, so this is not only for a new guid)
+                if map and px and py and SFP.NoteOpened and itemID then SFP.NoteOpened(id, map, px, py) end
                 if not seenGuid[guid] then
                     seenGuid[guid] = true
                     rec.k = (rec.k or 0) + 1
                     if map then addPoint(rec, map, px, py) end
-                    if map and px and py and SFP.NoteOpened then SFP.NoteOpened(id, map, px, py) end   -- this character has opened it: its box leaves the map for this character
                     -- a treasure: the game shows it as a loot icon (a vignette) right where you stand; a quest objective or a plain object is not
                     if map and px and py and C_VignetteInfo and C_VignetteInfo.GetVignettes then
                         local okV, vigs = pcall(C_VignetteInfo.GetVignettes)
