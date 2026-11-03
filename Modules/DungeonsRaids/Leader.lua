@@ -125,13 +125,11 @@ ns:RequestHook("LFGListApplicationViewer_UpdateApplicantMember", function(member
   member.SDRText:SetText(table.concat(parts, " "))
 end)
 
--- the makeup no longer opens by itself (it covered the screen when a dungeon was entered): in a group of 5 or more a small button at the top left of the
--- screen opens it, and it goes away when the group is smaller
+-- the makeup does not open by itself (it covered the screen when a dungeon was entered): a small button at the top left of the screen opens it, always
 local autoPending, groupButton
 local function AutoComp()
   local S = _G.SeviathsUsefulTools
-  local n = IsInGroup() and GetNumGroupMembers() or 0
-  local want = n >= 5 and not (S and S.db and S.db.autoGroupComp == false)
+  local want = not (S and S.db and S.db.autoGroupComp == false)   -- always there, whatever the size of the group (the setting can switch it off)
   if not want then
     if groupButton then groupButton:Hide() end
     return
@@ -141,13 +139,13 @@ local function AutoComp()
     groupButton:SetSize(120, 24)
     groupButton:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 12, -12)
     groupButton:SetFrameStrata("MEDIUM")
-    groupButton:SetText("Group makeup")
+    groupButton:SetText("My groups setup")
     groupButton:SetScript("OnClick", function()
       if ns.UI and ns.UI.Show then ns.UI:Show("group") end
     end)
     groupButton:SetScript("OnEnter", function(self)
       GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-      GameTooltip:AddLine("Group makeup")
+      GameTooltip:AddLine("My groups setup")
       GameTooltip:AddLine("Raid buffs, bloodlust, battle res and tier tokens of your group.", 1, 1, 1, true)
       GameTooltip:Show()
     end)

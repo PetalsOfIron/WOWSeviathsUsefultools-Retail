@@ -8,6 +8,13 @@
 - Every monster you killed is listed in Farm spots and Rares, also ones with no drop recorded and trivial or low-level ones.
 - The lists update with your new kills: they are made again a moment after a loot window closes, also while the window is closed.
 
+### Premade groups
+- The group makeup button (now "My groups setup") is always at the top left of the screen, not only in a group of 5 or more.
+- Opening the Dungeons section of Premade Groups opens the Dungeons tab below the maximum level and the Mythic+ tab at the maximum level.
+- Renamed: Listed is now "Listed group overview", My Group is "My groups setup", Notes is "Application note Autofill". The Members tab is gone. The tabs are as wide as their names and use a second row when needed.
+- Tagged players list: click a tag to change it (toxic to good and so on), type in the note to edit it, x removes the player.
+- Tag a player from a portrait: right-click a player in your group or your target or focus and choose "Tag a player".
+
 ## 2.2
 ### World map
 - Herb and ore nodes: the addon records the kind of node and the smallest and largest amount of each pickup. The nodes you have gathered show on the map as small icons; hover one to see what it gave, with the amounts. The Herb nodes and Mining nodes switches of the points menu show or hide them.

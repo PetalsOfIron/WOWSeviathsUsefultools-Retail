@@ -208,18 +208,17 @@ local TABS = {
   { key = "raid",      label = "Raids" },
   { key = "custom",    label = "Custom" },
   -- the group selected in the list: one tab of its own in every section (docked: next to the section's tab)
-  { key = "listed_quest",   label = "Listed", row = 3, listedFor = "quest" },
-  { key = "listed_delve",   label = "Listed", row = 3, listedFor = "delve" },
-  { key = "listed_dungeon", label = "Listed", row = 3, listedFor = "dungeon" },
-  { key = "listed_mplus",   label = "Listed", row = 3, listedFor = "mplus" },
-  { key = "listed_raid",    label = "Listed", row = 3, listedFor = "raid" },
-  { key = "listed_custom",  label = "Listed", row = 3, listedFor = "custom" },
+  { key = "listed_quest",   label = "Listed group overview", row = 3, listedFor = "quest" },
+  { key = "listed_delve",   label = "Listed group overview", row = 3, listedFor = "delve" },
+  { key = "listed_dungeon", label = "Listed group overview", row = 3, listedFor = "dungeon" },
+  { key = "listed_mplus",   label = "Listed group overview", row = 3, listedFor = "mplus" },
+  { key = "listed_raid",    label = "Listed group overview", row = 3, listedFor = "raid" },
+  { key = "listed_custom",  label = "Listed group overview", row = 3, listedFor = "custom" },
   -- row 2: tools
   { key = "players",   label = "Players",  row = 2 },
-  { key = "templates", label = "Notes",    row = 2 },
-  { key = "group",     label = "My Group", row = 2 },
-  { key = "members",   label = "Members",  row = 2 },
-  { key = "listed",    label = "Listed",   row = 2, generic = true },   -- free-floating window: whichever group is selected
+  { key = "templates", label = "Application note Autofill", row = 2 },
+  { key = "group",     label = "My groups setup", row = 2 },
+  { key = "listed",    label = "Listed group overview", row = 2, generic = true },   -- free-floating window: whichever group is selected
   { key = "settings",  label = "Settings", row = 2 },
 }
 
@@ -633,7 +632,7 @@ local function BuildPlayers(p)
     x = x + 86
   end
   Header(p, "Tagged players", 16, -112)
-  Label(p, "|cff999999Tip: right-click any player and use \"Group Finder tag\".|r", 140, -113, "GameFontHighlightSmall")
+  Label(p, "|cff999999Click a tag to change it, type in a note to edit it, x removes the player. Right-click a player portrait and use \"Tag a player\".|r", 140, -113, "GameFontHighlightSmall")
   local _, content = UI.ScrollList(p, 12, -134, 530, 300)
   p.content = content
   p.rows = {}
@@ -647,32 +646,67 @@ function UI:RefreshPlayers()
     local row = p.rows[i]
     if not row then
       row = CreateFrame("Frame", nil, p.content)
-      row:SetSize(500, 20)
+      row:SetSize(500, 22)
       row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-      row.name:SetPoint("LEFT", 2, 0) row.name:SetWidth(160) row.name:SetJustifyH("LEFT")
-      row.tag = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-      row.tag:SetPoint("LEFT", 166, 0) row.tag:SetWidth(80) row.tag:SetJustifyH("LEFT")
-      row.note = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-      row.note:SetPoint("LEFT", 250, 0) row.note:SetWidth(190) row.note:SetJustifyH("LEFT")
+      row.name:SetPoint("LEFT", 2, 0) row.name:SetWidth(150) row.name:SetJustifyH("LEFT")
+      -- the tag: click it to change it (toxic -> good ...)
+      row.tagBtn = UI.Button(row, "", 84, 18, function(self)
+        if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
+        MenuUtil.CreateContextMenu(self, function(_, root)
+          root:CreateTitle(row.player or "")
+          for _, key in ipairs(ns.TAG_ORDER) do
+            local t = ns.TAGS[key]
+            root:CreateRadio("|cff" .. t.color .. t.label .. "|r", function() return ns:TagOf(row.player) == key end, function() ns:SetTag(row.player, key) end)
+          end
+        end)
+      end)
+      row.tagBtn:SetPoint("LEFT", 156, 0)
+      -- the note: type in it, it is saved when you leave the box or press Enter
+      row.note = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+      row.note:SetSize(190, 18)
+      row.note:SetPoint("LEFT", 250, 0)
+      row.note:SetAutoFocus(false)
+      row.note:SetMaxLetters(120)
+      row.note:SetFontObject("GameFontHighlightSmall")
+      row.note:SetScript("OnEscapePressed", function(s) s:ClearFocus() end)
+      local function save(s)
+        local rec = row.player and ns.db.players[row.player]
+        if rec then
+          local text = strtrim(s:GetText() or "")
+          rec.note = text ~= "" and text or nil
+        end
+      end
+      row.note:SetScript("OnEditFocusLost", save)
+      row.note:SetScript("OnEnterPressed", function(s) save(s) s:ClearFocus() end)
       row.del = UI.Button(row, "x", 20, 18, function() ns:SetTag(row.player, nil) end)
       row.del:SetPoint("RIGHT", -4, 0)
+      row:EnableMouse(true)
+      row:SetScript("OnEnter", function(self)
+        local rec = self.player and ns.db.players[self.player]
+        if rec and (rec.runs or 0) > 0 then
+          GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+          GameTooltip:AddLine(self.player)
+          GameTooltip:AddLine(rec.runs .. " runs together" .. (rec.where and (", last in " .. rec.where) or ""), 1, 1, 1, true)
+          GameTooltip:Show()
+        end
+      end)
+      row:SetScript("OnLeave", function() GameTooltip:Hide() end)
       p.rows[i] = row
     end
-    row:SetPoint("TOPLEFT", p.content, "TOPLEFT", 0, -(i - 1) * 22)
+    row:SetPoint("TOPLEFT", p.content, "TOPLEFT", 0, -(i - 1) * 24)
     row.player = item.name
     row.name:SetText(item.name)
-    row.tag:SetText(ns:TagLabel(item.rec.tag))
-    local extra = (item.rec.runs or 0) > 0 and ("  (" .. item.rec.runs .. " runs" .. (item.rec.where and (", " .. item.rec.where) or "") .. ")") or ""
-    row.note:SetText((item.rec.note or "") .. extra)
+    row.tagBtn.text:SetText(ns:TagLabel(item.rec.tag))
+    if not row.note:HasFocus() then row.note:SetText(item.rec.note or ""); row.note:SetCursorPosition(0) end
     row:Show()
   end
   for i = #list + 1, #p.rows do p.rows[i]:Hide() end
-  p.content:SetHeight(math.max(1, #list * 22))
+  p.content:SetHeight(math.max(1, #list * 24))
 end
 
 local function BuildTemplates(p)
   local t = ns.db.templates
-  Header(p, "Application notes", 16, -10)
+  Header(p, "Application note Autofill", 16, -10)
   UI.Check(p, "Fill the application note automatically", ns.db, "useTemplates", 16, -32)
   Label(p, "|cff999999Only fills an empty note box. You can still edit it before applying.|r", 20, -58, "GameFontHighlightSmall")
   local rows = {
@@ -693,7 +727,7 @@ local function BuildTemplates(p)
 end
 
 local function BuildGroup(p)
-  Header(p, "My group", 16, -10)
+  Header(p, "My groups setup", 16, -10)
   p.SDRHeight = 720   -- the page is long: let the window scroll
   p.text = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
   p.text:SetPoint("TOPLEFT", 20, -66)
@@ -706,7 +740,7 @@ local function BuildGroup(p)
   -- the window opens by itself in a group of 5 or more; close it with the X, or switch that off here
   local S = _G.SeviathsUsefulTools
   if S and S.db then
-    UI.Check(p, "Show a button for this at the top left in a group of 5 or more", S.db, "autoGroupComp", 16, -34)
+    UI.Check(p, "Always show a button for this at the top left of the screen", S.db, "autoGroupComp", 16, -34)
   end
 end
 
@@ -728,37 +762,6 @@ local function BuildListed(p)
   p.text:SetSpacing(2)
   local b = UI.Button(p, "Refresh", 80, 20, function() UI:RefreshListed() end)
   b:SetPoint("TOPRIGHT", -16, -8)
-end
-
-local function BuildMembers(p)
-  Header(p, "Group members", 16, -10)
-  -- every player is written out with the whole tooltip: name, guild, level, faction, item level, talents, gear, collectables, done
-  p.SDRHeight = 720
-  p.text = p:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  p.text:SetPoint("TOPLEFT", 20, -40)
-  p.text:SetPoint("RIGHT", -20, 0)
-  p.text:SetJustifyH("LEFT")
-  p.text:SetJustifyV("TOP")
-  p.text:SetSpacing(2)
-  local b = UI.Button(p, "Refresh", 80, 20, function() UI:RefreshMembers() end)
-  b:SetPoint("TOPRIGHT", -16, -8)
-end
-
-function UI:RefreshMembers()
-  local p = pages.members
-  if not (p and p.text and p:IsVisible()) then return end
-  local parts = {}
-  local S = _G.SeviathsUsefulTools
-  if S and S.Social and S.Social.GroupMembersText then
-    local ok, members = pcall(S.Social.GroupMembersText)
-    if ok and members then parts[#parts + 1] = "|cff00e5ffMy group|r\n\n" .. members end
-  end
-  if #parts == 0 then parts[1] = "|cff808080Not in a group.|r" end
-  p.text:SetText(table.concat(parts, "\n\n\n"))
-  p.SDRHeight = math.max(720, p.text:GetStringHeight() + 110)
-  if UI.frame and UI.current and pages[UI.current] == p then
-    UI.frame.content:SetHeight(math.max(p.SDRHeight, 410))
-  end
 end
 
 -- the group you selected in the Premade Groups list: its leader and every player, each with the whole tooltip; follows every click
@@ -838,7 +841,7 @@ end
 local BUILDERS = {
   quest = BuildQuest, delve = BuildDelve, dungeon = BuildDungeon, mplus = BuildMPlus,
   raid = BuildRaid, custom = BuildCustom, players = BuildPlayers,
-  templates = BuildTemplates, group = BuildGroup, members = BuildMembers, listed = BuildListed, settings = BuildSettings,
+  templates = BuildTemplates, group = BuildGroup, listed = BuildListed, settings = BuildSettings,
   listed_quest = BuildListed, listed_delve = BuildListed, listed_dungeon = BuildListed,
   listed_mplus = BuildListed, listed_raid = BuildListed, listed_custom = BuildListed,
 }
@@ -930,11 +933,10 @@ function UI:Build()
     BUILDERS[tab.key](p)
   end
   pages.group:HookScript("OnShow", function() UI:RefreshGroup() end)
-  pages.members:HookScript("OnShow", function() UI:RefreshMembers() end)
   for key, page in pairs(pages) do
     if key == "listed" or key:find("^listed_") then page:HookScript("OnShow", function() UI:RefreshListed() end) end
   end
-  C_Timer.NewTicker(4, function() UI:RefreshMembers() UI:RefreshListed() end)   -- answers from the players' addons arrive later
+  C_Timer.NewTicker(4, function() UI:RefreshListed() end)   -- answers from the players' addons arrive later
   pages.players:HookScript("OnShow", function() UI:RefreshPlayers() end)
   self.frame = f
   self:Layout(nil)
@@ -947,37 +949,44 @@ end
 function UI:Layout(section)
   local f = self.frame
   self.section = section
-  local col = { 0, 0 }
-  -- one row of tabs when docked: they share the width of the window
-  local count = 0
-  for _, b in ipairs(f.tabButtons) do
-    if section and ((b.row == 2 and not b.generic) or b.key == section or (section == "dungeon" and b.key == "mplus") or b.listedFor == section) then count = count + 1 end
-  end
-  local step = section and math.min(92, math.floor(520 / math.max(count, 1))) or 92
-  for _, b in ipairs(f.tabButtons) do
-    b:ClearAllPoints()
-    if section then
-      -- one row: [current section] [Players] [Notes] [My Group] [Members] [Settings]
+  local function tabWidth(b) return math.max(64, math.ceil(b.text:GetStringWidth()) + 18) end
+  local rows = 1
+  if section then
+    -- docked: [current section] [Mythic+] [Listed group overview] [Players] [Application note Autofill] [My groups setup] [Settings], on a second row when they do not fit
+    local x, row = 14, 0
+    for _, b in ipairs(f.tabButtons) do
+      b:ClearAllPoints()
       local show = (b.row == 2 and not b.generic) or b.key == section or (section == "dungeon" and b.key == "mplus") or b.listedFor == section
       b:SetShown(show)
       if show then
-        b:SetWidth(step - 4)
-        b:SetPoint("TOPLEFT", 14 + col[1] * step, -40)
-        col[1] = col[1] + 1
+        local w = tabWidth(b)
+        if x + w > 556 then row = row + 1; x = 14 end
+        b:SetWidth(w)
+        b:SetPoint("TOPLEFT", x, -40 - row * 26)
+        x = x + w + 4
       end
-    elseif b.row == 3 then
-      b:Hide()   -- a free-floating window has the one "Listed" tab of the tool row
-    else
-      b:Show()
-      b:SetPoint("TOPLEFT", 14 + col[b.row] * 92, b.row == 1 and -40 or -66)
-      col[b.row] = col[b.row] + 1
+    end
+    rows = row + 1
+  else
+    local x = { 14, 14 }
+    for _, b in ipairs(f.tabButtons) do
+      b:ClearAllPoints()
+      if b.row == 3 then
+        b:Hide()   -- a free-floating window has the one "Listed group overview" tab of the tool row
+      else
+        b:Show()
+        local w = b.row == 1 and 88 or tabWidth(b)
+        b:SetWidth(w)
+        b:SetPoint("TOPLEFT", x[b.row], b.row == 1 and -40 or -66)
+        x[b.row] = x[b.row] + w + 4
+      end
     end
   end
-  local top = section and -70 or -96
+  local top = section and -(44 + rows * 26) or -96
   f.scroll:ClearAllPoints()
   f.scroll:SetPoint("TOPLEFT", 4, top)
   f.scroll:SetPoint("BOTTOMRIGHT", -28, 8)
-  f:SetHeight((section and 70 or 96) + 418)
+  f:SetHeight(-top + 418)
   if section then
     f.title:SetText("Seviath's Dungeons & Raids |cffffffff- " .. (TAB_LABEL[section] or "") .. "|r")
   else
@@ -1032,13 +1041,23 @@ local function CurrentSection()
   return kind and pages[kind] and kind or nil
 end
 
+-- the tab a section opens with: the Dungeons section opens Mythic+ at the maximum level, Dungeons (normal) below it
+local function OpeningTab(section)
+  if section == "dungeon" and pages.mplus then
+    local max = (GetMaxLevelForPlayerExpansion and GetMaxLevelForPlayerExpansion()) or (GetMaxPlayerLevel and GetMaxPlayerLevel()) or 90
+    local level = UnitLevel and UnitLevel("player")
+    if type(level) == "number" and level >= max then return "mplus" end
+  end
+  return section
+end
+
 -- Called when you click into a section: docked window shows that section only
 function UI:SyncTab()
   if not self.frame or not self.frame:IsShown() or not self.docked then return end
   local section = CurrentSection()
   if section and section ~= self.section then
     self:Layout(section)
-    self:Select(section)
+    self:Select(OpeningTab(section))
   end
 end
 
@@ -1081,7 +1100,7 @@ function UI:Dock()
   end
   f:SetFrameStrata(PVEFrame:GetFrameStrata() or "HIGH")
   self.docked = true
-  self:Select(section)
+  self:Select(OpeningTab(section))
   f:Show()
   self:UpdateStatus()
 end

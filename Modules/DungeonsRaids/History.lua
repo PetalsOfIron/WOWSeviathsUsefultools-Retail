@@ -227,12 +227,19 @@ local function AddMenu(menuTag)
   Menu.ModifyMenu(menuTag, function(_, root, contextData)
     if not contextData or not ns.db then return end
     local name = ns.Safe(contextData.name)
-    if type(name) ~= "string" then return end
     local server = ns.Safe(contextData.server)
+    -- a portrait (the target, the focus, a party member) gives the unit, not the name
+    local unit = ns.Safe(contextData.unit)
+    if type(unit) == "string" and UnitExists(unit) and UnitIsPlayer(unit) then
+      local un, ur = UnitFullName(unit)
+      un, ur = ns.Safe(un), ns.Safe(ur)
+      if type(un) == "string" and un ~= "" then name, server = un, ur end
+    end
+    if type(name) ~= "string" then return end
     local full = (server and server ~= "") and (name .. "-" .. server) or ns.FullName(name)
     if not full then return end
     root:CreateDivider()
-    local sub = root:CreateButton("|cff" .. ns.CYAN_HEX .. "Group Finder tag|r")
+    local sub = root:CreateButton("|cff" .. ns.CYAN_HEX .. "Tag a player|r")
     for _, key in ipairs(ns.TAG_ORDER) do
       local t = ns.TAGS[key]
       sub:CreateButton("|cff" .. t.color .. t.label .. "|r", function()
@@ -245,7 +252,8 @@ local function AddMenu(menuTag)
 end
 
 if Menu and Menu.ModifyMenu then
-  for _, t in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER", "MENU_UNIT_FRIEND", "MENU_UNIT_ENEMY_PLAYER" }) do
+  for _, t in ipairs({ "MENU_UNIT_PLAYER", "MENU_UNIT_PARTY", "MENU_UNIT_RAID_PLAYER", "MENU_UNIT_FRIEND", "MENU_UNIT_ENEMY_PLAYER",
+      "MENU_UNIT_TARGET", "MENU_UNIT_FOCUS", "MENU_UNIT_RAID", "MENU_UNIT_OTHERPLAYER", "MENU_UNIT_FRIEND_OFFLINE" }) do
     pcall(AddMenu, t)
   end
 end
