@@ -1173,6 +1173,7 @@ events:SetScript("OnEvent", function(_, event, arg1)
         local freshInstall = next(SeviathsUsefulToolsDB) == nil
         copyDefaults(defaults, SeviathsUsefulToolsDB)
         SFP.db = SeviathsUsefulToolsDB
+        if freshInstall then SFP.db.treasuresSeeded = true end   -- a new install has no chests opened yet: the first character sees them all
         -- the map texts (names and coordinates next to the markers) are hidden again after every update and on a new install;
         -- they can be turned on again in the map's layer menu ("Labels")
         if SFP.db.labelsVersion ~= SFP.VERSION then
