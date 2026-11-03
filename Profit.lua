@@ -39,7 +39,8 @@ local function dropValue(drops, count)
     -- few kills: do not trust "dropped every time" (1 of 1 kills counts as 50%)
     local n = count < 5 and count + 1 or count
     for id, c in pairs(drops) do
-        v = v + (c / n) * (price(id))
+        -- an item that never sells at the auction house is worth nothing here (a gray item is always counted: the vendor pays for it)
+        if SFP:SoldState(id) ~= false then v = v + (c / n) * (price(id)) end
     end
     return v
 end

@@ -10,6 +10,12 @@
 - Butchering is recognised as skinning when you loot.
 - The Best 15 farm spots no longer change again and again: the weekly list is kept for the whole week.
 - Area looting (several corpses in one loot window): an item is only credited to the monsters that gave it, not to every corpse of the window. /sut cleardrops forgets the recorded drops of the monster you target, for monsters that were given other monsters' items before.
+### Monsters and prices
+- The addon tracks which items are sold at the auction house (from the whole-auction-house scan). The monster loot tooltip, the Farm spots lists and the Rares lists show "sold" or "not sold" before the price; gray items are never judged.
+- Worth grinding and the loot worth of a monster ignore items that never sell at the auction house.
+- The Best 15 farm spots are worked out the same way: items that never sell are left out.
+### Done list
+- The Done list counts dungeons only when they are run as Mythic+, and raid bosses only from Heroic difficulty. Normal and finder runs and characters below the maximum level are ignored. The dungeon list of each character starts again with this.
 ### Premade groups
 - The group makeup button (now "My groups setup") is always at the top left of the screen, not only in a group of 5 or more.
 - Opening the Dungeons section of Premade Groups opens the Dungeons tab below the maximum level and the Mythic+ tab at the maximum level.
