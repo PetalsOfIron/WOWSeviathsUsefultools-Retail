@@ -13,6 +13,7 @@
 - Renamed: Listed is now "Listed group overview", My Group is "My groups setup", Notes is "Application note Autofill". The Members tab is gone. The tabs are as wide as their names and use a second row when needed.
 - Tagged players list: click a tag to change it (toxic to good and so on), type in the note to edit it, x removes the player.
 - Tag a player from a portrait: right-click a player in your group or your target or focus and choose "Tag a player".
+- Min leader Mythic+ rating filter also uses the Raider.IO scores the addon scanned and saved, not only the Raider.IO addon and the game's own number.
 
 ## 2.2
 ### World map
