@@ -542,33 +542,40 @@ function SFP:Listings(itemID)
     return realm and realm[itemID] or nil
 end
 
--- is an item sold at the auction house? Taken from the last whole-auction-house scan of this realm: true = it was listed then, false = that scan did not
--- list it (it never sells there: bound items and the like), nil = no whole scan yet. A gray item is never judged (it is worth its vendor price).
-local soldSet, soldFor
+-- does an item sell at the auction house? From what happened to the auctions of it (AuctionSold.lua; the data of other players ships with the addon):
+-- true = it sold, false = it never sold (its auctions ran out and came back in the mailbox), nil = nothing known. A gray item is never judged (it is
+-- worth its vendor price).
 function SFP:SoldState(itemID)
     if type(itemID) ~= "number" then return nil end
     if C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0 then return true end
-    local all = self.db and self.db.ahSold
-    local rec = all and all[self:RealmKey()]
-    if type(rec) ~= "table" or type(rec.s) ~= "string" then return nil end
-    if soldFor ~= rec.s then
-        soldFor, soldSet = rec.s, {}
-        for id in rec.s:gmatch("%d+") do soldSet[tonumber(id)] = true end
+    local all = self.db and self.db.ahOutcome
+    local function state(id)
+        local o = all and all[id]
+        if type(o) ~= "table" then return nil end
+        if (o.s or 0) > 0 then return true end
+        if (o.e or 0) > 0 then return false end
     end
-    if soldSet[itemID] then return true end
+    local st = state(itemID)
+    if st ~= nil then return st end
     local info = self.Items and self.Items[itemID]
     if info and info.tiers then
-        for _, t in ipairs(info.tiers) do if soldSet[t] then return true end end
+        local any
+        for _, t in ipairs(info.tiers) do
+            local ts = state(t)
+            if ts == true then return true end
+            if ts == false then any = false end
+        end
+        return any
     end
-    return false
+    return nil
 end
 
--- the little text after an item of a monster's loot: "sold" / "not sold" (nothing for a gray item or before the first whole scan)
+-- the little text after an item of a monster's loot: "sold" / "never sold" (nothing for a gray item or an item nothing is known about)
 function SFP.SoldTag(itemID)
     local st = SFP:SoldState(itemID)
     if st == nil then return "" end
     if C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) == 0 then return "" end
-    return st and "|cff40ff40sold|r  " or "|cff808080not sold|r  "
+    return st and "|cff40ff40sold|r  " or "|cffff6040never sold|r  "
 end
 
 -- the price of every item of the last whole-auction-house scan on this realm: [itemID] = copper (compact, replaced by each fast scan)
