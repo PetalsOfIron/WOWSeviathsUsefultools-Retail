@@ -548,7 +548,8 @@ local function BuildMPlus(p)
     "Only leaders who have TIMED this dungeon at this key level or higher. 0 = off.")
   UI.Number(p, "up to +", o, "maxTimedLevel", COL2 + 4, -174,
     "Hide leaders whose best timed key here is above this - they usually run higher keys than you want. 0 = off.")
-  Label(p, "|cff999999Exact key level: type it into Blizzard's search box (\"Search key numbers...\"), e.g. 16, and press Enter.|r", 20, -202, "GameFontHighlightSmall")
+  Label(p, "|cffffd100Type a number in a box and press Enter to apply it (0 = off).|r", 20, -190, "GameFontHighlightSmall")
+  Label(p, "|cff999999Exact key level: type it into Blizzard's search box (\"Search key numbers...\"), e.g. 16, and press Enter.|r", 20, -204, "GameFontHighlightSmall")
 
   BuildClassPicks(p, o, -228)
   Legend(p, -384, "|cff40ff60BL|r / |cffff5050BL|r group has / lacks Bloodlust     |cff40ff60BR|r / |cffff5050BR|r battle res\n" .. LOOT_TAGS .. "\n" .. COMMON_TAGS .. "\n|cff999999Mythic+ unlocks at max level.|r")
