@@ -1672,7 +1672,8 @@ local function renderTop()
     -- the ranking is made once a week, at the weekly reset (with that day's prices), and kept for the week; a spot learned later is in
     -- the database and the search at once, and can be in the next week's ranking
     local resetIn = C_DateAndTime and C_DateAndTime.GetSecondsUntilWeeklyReset and C_DateAndTime.GetSecondsUntilWeeklyReset()
-    local weekKey = resetIn and math.floor((time() + resetIn) / 3600) or nil
+    -- the hour of the next reset, rounded: the seconds left jitter by one, which would flip a plain floor at the hour and remake the ranking again and again
+    local weekKey = resetIn and math.floor((time() + resetIn) / 3600 + 0.5) or nil
     local saved = SFP.db.topSpots
     if not (saved and weekKey and saved.week == weekKey and saved.list and #saved.list > 0) then
         local maps, seenMap = {}, {}
