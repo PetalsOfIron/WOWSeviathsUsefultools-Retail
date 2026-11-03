@@ -7,7 +7,7 @@
 - Farm spots and Rares lists show all the loot of each monster again, with the chance of each item like the monster tooltip ("33% 1/3 chance", a plain percentage until 3 kills).
 - Every monster you killed is listed in Farm spots and Rares, also ones with no drop recorded and trivial or low-level ones.
 - The lists update with your new kills: they are made again a moment after a loot window closes, also while the window is closed.
-- A monster's loot list shows what it drops when killed, not what skinning or butchering its body gave. Butchering is recognised as skinning when you loot.
+- Butchering is recognised as skinning when you loot.
 - The Best 15 farm spots no longer change again and again: the weekly list is kept for the whole week.
 - Area looting (several corpses in one loot window): an item is only credited to the monsters that gave it, not to every corpse of the window. /sut cleardrops forgets the recorded drops of the monster you target, for monsters that were given other monsters' items before.
 ### Premade groups
