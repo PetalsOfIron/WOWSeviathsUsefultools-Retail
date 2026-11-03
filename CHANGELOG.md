@@ -32,7 +32,7 @@
 - Nodes of the same kind gathered from the same spot are one place on the map with their loot put together.
 - The old herb and ore symbols with no data are gone.
 - A treasure box leaves the map for the character that opened the chest and stays for your other characters. The first character to log in with this version gets all the chests recorded so far as opened.
-- A chest that respawns comes back to the map after the time it took to respawn the last time you opened it (one day until it has been opened twice).
+- A chest that respawns comes back to the map after the time it took to respawn the last time you opened it (one day until it has been opened twice). A chest opened again at the same place is noted as respawning at once, also in the same session, and the shortest time between two openings counts.
 ### Items and monsters
 - Quest items are no longer part of a monster's loot table (tooltip, map and lists) and are not recorded as drops any more.
 ### Other
