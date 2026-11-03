@@ -244,6 +244,17 @@ SlashCmdList.SEVIATHSDUNGEONSRAIDS = function(msg)
       ns:SetTag(full, tag, note)
       ns.Print(full .. " tagged " .. ns.TAGS[tag].label)
     end
+  elseif cmd == "why" then
+    -- what the filters see for the first listings of the open Premade Groups list (for when a filter does nothing)
+    local ids = ns.originalResults or {}
+    ns.Print(("%d listings, filter %s, Mythic+ filters %s; min rating %s, timed from %s up to %s"):format(#ids, ns.db.enabled and "on" or "off",
+      (ns.db.mplus and ns.db.mplus.enabled) and "on" or "off", tostring(ns.db.mplus and ns.db.mplus.minLeaderScore), tostring(ns.db.mplus and ns.db.mplus.minTimedLevel), tostring(ns.db.mplus and ns.db.mplus.maxTimedLevel)))
+    for i = 1, math.min(6, #ids) do
+      local ok, r = pcall(ns.Analyze, ns, ids[i])
+      if not ok then ns.Print(i .. ": Analyze failed: " .. tostring(r))
+      elseif not r then ns.Print(i .. ": no data (hidden by the game)")
+      else ns.Print(("%d: kind %s, leader %s, score %s (Raider.IO %s), best +%s timed %s"):format(i, tostring(r.kind), tostring(r.leader), tostring(r.leaderScore), tostring(r.rioScore), tostring(r.leaderBest), tostring(r.leaderTimed))) end
+    end
   elseif cmd == "rate" then
     ns:ShowLastRate()
   elseif cmd == "comp" then
