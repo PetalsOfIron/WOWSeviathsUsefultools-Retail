@@ -2153,8 +2153,10 @@ local function monsterLoot(s)
     local rec = s.npc and SFP.Npc and SFP:Npc(s.npc)
     if type(rec) == "table" then
         kills = math.max(kills, rec.k or 0)
-        -- what it drops when killed: not what skinning, butchering or herb-gathering its body gave (rec.s)
-        for id, q in pairs(rec.d or {}) do if type(q) == "number" then drops[id] = (drops[id] or 0) + q end end
+        -- the same as the hover on the map: what was looted from its kills and from its body
+        for _, src in ipairs({ rec.d or {}, rec.s or {} }) do
+            for id, q in pairs(src) do if type(q) == "number" then drops[id] = (drops[id] or 0) + q end end
+        end
     end
     for id, q in pairs(s.counts or {}) do drops[id] = math.max(drops[id] or 0, q) end
     for _, id in ipairs(s.items or {}) do if not drops[id] then drops[id] = 0 end end
