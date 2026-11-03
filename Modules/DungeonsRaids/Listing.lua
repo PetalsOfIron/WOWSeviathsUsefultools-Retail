@@ -259,10 +259,11 @@ function ns:Analyze(resultID)
     r.leaderScore = type(ls) == "number" and ls or 0
   end
   -- with Raider.IO installed its score counts too (the higher of the two), for the tags and the minimum-rating filter
-  if r.kind == "mplus" or r.leaderScore > 0 or (ns.db.minLeaderScore or 0) > 0 then
+  local mo = ns.db.mplus or {}
+  if r.kind == "mplus" or r.leaderScore > 0 then
     r.rioScore = RioScore(ns.Safe(info.leaderName))
     -- the score the addon scanned and saved (Raider.IO answers of every player it has seen) counts when the Raider.IO addon has no answer
-    if not r.rioScore then
+    if not r.rioScore and (mo.minLeaderScore or 0) > 0 then   -- only while the filter is used: it costs time for every listing
       local api = _G.SeviathsUsefulToolsAPI
       local leaderName = ns.Safe(info.leaderName)
       local okP, rec = pcall(function() return api and type(leaderName) == "string" and api.GetPlayer(leaderName) end)
@@ -279,7 +280,7 @@ function ns:Analyze(resultID)
     r.leaderTimed = timed == true
   end
   -- the game gives no key info for most leaders: Raider.IO's answer (or what the addon saved from it) is used then
-  if (r.leaderBest or 0) == 0 and r.kind == "mplus" then
+  if (r.leaderBest or 0) == 0 and r.kind == "mplus" and ((mo.minTimedLevel or 0) > 0 or (mo.maxTimedLevel or 0) > 0 or (mo.minLeaderBestLevel or 0) > 0) then
     local lvl, timed, here = RioBest(ns.Safe(info.leaderName), { act and ns.Safe(act.fullName), groupName })
     if lvl then r.leaderBest, r.leaderTimed, r.leaderBestHere = lvl, timed, here end
   end
