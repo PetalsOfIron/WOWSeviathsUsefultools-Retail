@@ -9,6 +9,7 @@
 - The lists update with your new kills: they are made again a moment after a loot window closes, also while the window is closed.
 - A monster's loot list shows what it drops when killed, not what skinning or butchering its body gave. Butchering is recognised as skinning when you loot.
 - The Best 15 farm spots no longer change again and again: the weekly list is kept for the whole week.
+- Area looting (several corpses in one loot window): an item is only credited to the monsters that gave it, not to every corpse of the window. /sut cleardrops forgets the recorded drops of the monster you target, for monsters that were given other monsters' items before.
 ### Premade groups
 - The group makeup button (now "My groups setup") is always at the top left of the screen, not only in a group of 5 or more.
 - Opening the Dungeons section of Premade Groups opens the Dungeons tab below the maximum level and the Mythic+ tab at the maximum level.

@@ -460,7 +460,19 @@ local function onLoot()
                 SFP:SessionItem(itemID, qty)
             end
         end
-        local sources = { GetLootSourceInfo(slot) }
+        -- an area loot window lists every corpse for a slot: only the corpses that gave something to this slot count (a quantity of 0 is a corpse
+        -- that gave nothing here, its monster must not get the item)
+        local sources = {}
+        do
+            local raw = { GetLootSourceInfo(slot) }
+            for i = 1, #raw, 2 do
+                local q = raw[i + 1]
+                if not (type(q) == "number" and not (issecretvalue and issecretvalue(q)) and q <= 0) then
+                    sources[#sources + 1] = raw[i]
+                    sources[#sources + 1] = q
+                end
+            end
+        end
         for i = 1, #sources, 2 do
             local guid, qty = sources[i], sources[i + 1] or 1
             local kind, id = guidInfo(guid)
