@@ -14,6 +14,7 @@
 - Tagged players list: click a tag to change it (toxic to good and so on), type in the note to edit it, x removes the player.
 - Tag a player from a portrait: right-click a player in your group or your target or focus and choose "Tag a player".
 - Min leader Mythic+ rating filter also uses the Raider.IO scores the addon scanned and saved, not only the Raider.IO addon and the game's own number.
+- Leader timed this key from / up to: uses Raider.IO's best run of the leader in that dungeon (and whether it was timed) when the game gives none; without a run in that dungeon the leader's best key overall.
 
 ## 2.2
 ### World map

@@ -111,6 +111,40 @@ local function RioScore(fullName)
   return type(s) == "number" and s > 0 and s or nil
 end
 
+-- The best key of a player in one dungeon, from Raider.IO (the addon, else the best key overall that the addon saved from earlier Raider.IO answers):
+-- level, timed (a run in time), and whether it is for that dungeon. nil when Raider.IO has nothing
+local function RioBest(fullName, names)
+  local RIO = _G.RaiderIO
+  if type(fullName) ~= "string" or fullName == "" then return nil end
+  local name, realm = fullName:match("^([^-]+)-(.+)$")
+  if RIO and RIO.GetProfile then
+    local ok, prof = pcall(RIO.GetProfile, name or fullName, realm)
+    local mk = ok and type(prof) == "table" and prof.mythicKeystoneProfile
+    if type(mk) == "table" then
+      local wanted = {}
+      for _, n in ipairs(names) do if type(n) == "string" and n ~= "" then wanted[#wanted + 1] = n:lower() end end
+      for _, e in ipairs(type(mk.sortedDungeons) == "table" and mk.sortedDungeons or {}) do
+        local d = type(e) == "table" and e.dungeon
+        local dn = type(d) == "table" and (d.name or d.shortNameLocale) or nil
+        if type(dn) == "string" and type(e.level) == "number" and e.level > 0 then
+          dn = dn:lower()
+          for _, w in ipairs(wanted) do
+            if w:find(dn, 1, true) or dn:find(w, 1, true) then return e.level, (e.chests or 0) > 0, true end
+          end
+        end
+      end
+      if type(mk.maxDungeonLevel) == "number" and mk.maxDungeonLevel > 0 then
+        return mk.maxDungeonLevel, (mk.maxDungeonUpgrades or 1) > 0, false
+      end
+    end
+  end
+  local api = _G.SeviathsUsefulToolsAPI
+  local okP, rec = pcall(function() return api and api.GetPlayer(fullName) end)
+  local lvl = okP and type(rec) == "table" and tonumber(type(rec.best) == "string" and rec.best:match("%+(%d+)") or nil)
+  if lvl and lvl > 0 then return lvl, true, false end
+  return nil
+end
+
 ---------------------------------------------------------------------------
 -- Analyze one listing
 ---------------------------------------------------------------------------
@@ -220,6 +254,11 @@ function ns:Analyze(resultID)
     if ds[1] then ds = ds[1] end
     r.leaderBest = ds.bestRunLevel or 0
     r.leaderTimed = ds.finishedSuccess
+  end
+  -- the game gives no key info for most leaders: Raider.IO's answer (or what the addon saved from it) is used then
+  if (r.leaderBest or 0) == 0 and r.kind == "mplus" then
+    local lvl, timed, here = RioBest(ns.Safe(info.leaderName), { act and ns.Safe(act.fullName), groupName })
+    if lvl then r.leaderBest, r.leaderTimed, r.leaderBestHere = lvl, timed, here end
   end
 
   -- Boss progress (raids and dungeons): which bosses this group already killed
@@ -741,7 +780,7 @@ local function AddTooltip(tooltip, resultID)
   if r.kind == "mplus" then
     tooltip:AddLine("Leader rating: " .. (r.leaderScore or 0) .. (r.rioScore and "  (Raider.IO)" or ""), 1, 1, 1)
     if r.leaderBest and r.leaderBest > 0 then
-      tooltip:AddLine("Leader best here: +" .. r.leaderBest .. (r.leaderTimed and " (timed)" or " (not timed)"), 1, 1, 1)
+      tooltip:AddLine((r.leaderBestHere == false and "Leader best key (any dungeon): +" or "Leader best here: +") .. r.leaderBest .. (r.leaderTimed and " (timed)" or " (not timed)"), 1, 1, 1)
     end
     tooltip:AddLine("Bloodlust: " .. YN(r.hasLust) .. "   Battle res: " .. YN(r.hasBrez), 1, 1, 1)
   elseif r.kind == "dungeon" then
