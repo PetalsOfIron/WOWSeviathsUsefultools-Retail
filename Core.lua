@@ -1238,6 +1238,19 @@ SlashCmdList["SEVIATHSUSEFULTOOLS"] = function(msg)
         SFP:ToggleBrowser()
     elseif cmd == "rio" then
         if SFP.Social and SFP.Social.RioDebug then SFP.Social.RioDebug((rawMsg:gsub("^%s*[Rr][Ii][Oo]%s*", ""))) else SFP:Print("not loaded yet") end
+    elseif cmd == "cleardrops" then
+        -- forgets the recorded drops of the monster you target (for a monster that was given items of other monsters by an old bug)
+        local guid = UnitGUID and UnitGUID("target")
+        local id = type(guid) == "string" and not (issecretvalue and issecretvalue(guid)) and tonumber(guid:match("^Creature%-%d+%-%d+%-%d+%-%d+%-(%d+)"))
+        local rec = id and SFP.db and SFP.db.npcs and SFP.db.npcs[id]
+        if type(rec) == "table" then
+            rec.d, rec.s = nil, nil
+            SFP.dropIndex = nil
+            SFP:Print("Recorded drops of " .. tostring(rec.n or id) .. " cleared - kill it again and its loot is recorded.")
+            if SFP.RefreshAll then SFP:RefreshAll() end
+        else
+            SFP:Print("Target a monster first.")
+        end
     elseif cmd == "near" then
         if SFP.Social and SFP.Social.NearDebug then SFP.Social.NearDebug(rest) else SFP:Print("not loaded yet") end
     elseif cmd == "stats" then
