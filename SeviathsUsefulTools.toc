@@ -89,6 +89,7 @@ collected\tools.nameRealms.lua
 collected\tools.nameplateText.1.lua
 collected\tools.nameplateText.10.lua
 collected\tools.nameplateText.11.lua
+collected\tools.nameplateText.12.lua
 collected\tools.nameplateText.2.lua
 collected\tools.nameplateText.3.lua
 collected\tools.nameplateText.4.lua
@@ -106,7 +107,8 @@ collected\tools.petSpots.lua
 collected\tools.playerIDs.lua
 collected\tools.rareSeen.lua
 collected\tools.realmGroups.lua
-collected\tools.rioCache.lua
+collected\tools.rioCache.1.lua
+collected\tools.rioCache.2.lua
 collected\tools.seenBuilds.lua
 collected\tools.seenInfo.1.lua
 collected\tools.seenInfo.2.lua
