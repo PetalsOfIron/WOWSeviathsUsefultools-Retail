@@ -88,6 +88,7 @@ collected\tools.nameRealm.lua
 collected\tools.nameRealms.lua
 collected\tools.nameplateText.1.lua
 collected\tools.nameplateText.10.lua
+collected\tools.nameplateText.11.lua
 collected\tools.nameplateText.2.lua
 collected\tools.nameplateText.3.lua
 collected\tools.nameplateText.4.lua
