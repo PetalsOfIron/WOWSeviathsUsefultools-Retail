@@ -65,12 +65,14 @@ collected\gold.DarkmoonFaire_DefiasBrotherhood_EarthenRing_Ravenholdt_Scarshield
 collected\gold.Kazzak.lua
 collected\gold.Ravencrest.lua
 collected\gold.Silvermoon.lua
+collected\tools.ahOutcome.lua
 collected\tools.bestSpots.lua
 collected\tools.guildDir.lua
 collected\tools.hiddenSpots.lua
 collected\tools.inspected.1.lua
 collected\tools.inspected.2.lua
 collected\tools.inspected.3.lua
+collected\tools.inspected.4.lua
 collected\tools.instanceEntrances.lua
 collected\tools.itemExp.lua
 collected\tools.itemFrom.lua
