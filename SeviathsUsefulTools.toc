@@ -118,6 +118,7 @@ collected\tools.seenBuilds.lua
 collected\tools.seenInfo.1.lua
 collected\tools.seenInfo.2.lua
 collected\tools.seenInfo.3.lua
+collected\tools.seenInfo.4.lua
 collected\tools.seenPlayers.lua
 collected\tools.towns.lua
 collected\tools.vendorLearned.lua
