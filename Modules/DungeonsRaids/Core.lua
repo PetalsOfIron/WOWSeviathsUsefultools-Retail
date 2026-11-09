@@ -2,8 +2,8 @@
 local ADDON, ns = SFP_Module("DungeonsRaids")
 
 ns.VERSION = "1.12.4"
-ns.CYAN = { 0.2, 0.9, 1.0 }
-ns.CYAN_HEX = "33e6ff"
+ns.CYAN = { 0.9, 0.28, 0.24 }
+ns.CYAN_HEX = "e6483d"
 
 local defaults = {
   enabled = true,          -- master switch for list filtering

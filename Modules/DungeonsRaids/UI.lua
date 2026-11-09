@@ -247,7 +247,7 @@ function UI:UpdateStatus()
   if UI.panelStatus then
     if ns.originalResults and ns.db.enabled then
       local total = #ns.originalResults
-      UI.panelStatus:SetText(string.format("|cff33e6ffFiltered:|r %d of %d shown", total - (ns.hiddenCount or 0), total))
+      UI.panelStatus:SetText(string.format("|cffffd100Filtered:|r %d of %d shown", total - (ns.hiddenCount or 0), total))
     elseif ns.originalResults then
       UI.panelStatus:SetText("|cff999999Filters off|r")
     else
@@ -455,7 +455,7 @@ local function BuildQuest(p)
   UI.Check(p, "Hide full groups", o, "hideFull", COL2, -112)
   UI.Check(p, "Only auto-accept groups", o, "autoAcceptOnly", 16, -138)
   UI.Check(p, "Hide blocked leaders", o, "hideBlocked", COL2, -138)
-  Legend(p, -176, "|cff40ff60ON QUEST|r in your log (sorted first)   |cff888888DONE|r already completed   |cffffd040WQ|r world quest\n|cff33e6ffHERE|r in your current zone\n" .. COMMON_TAGS)
+  Legend(p, -176, "|cff40ff60ON QUEST|r in your log (sorted first)   |cff888888DONE|r already completed   |cffffd040WQ|r world quest\n|cffffd100HERE|r in your current zone\n" .. COMMON_TAGS)
   Footer(p, -276)
   BuildPicker(p, "quest", -308, "Zones")
 end
@@ -1203,7 +1203,7 @@ ns:WhenReady(function()
   if not panel or not PVEFrame then return false end
 
   -- Small button in the panel's top-right corner, clear of the search box
-  local b = UI.Button(panel, "|cff33e6ffSDR|r", 40, 18, function() UI:Toggle() end)
+  local b = UI.Button(panel, "|cffffd100SDR|r", 40, 18, function() UI:Toggle() end)
   b:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -8)
   -- "Filtered: 12 of 23 shown" next to the button, so you see the filters working
   local st = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")

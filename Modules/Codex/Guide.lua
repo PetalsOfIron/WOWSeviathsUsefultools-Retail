@@ -3,7 +3,7 @@
 -- and names that change every season live in the live journals, not here.
 
 local ADDON, ns = SFP_Module("Codex")
-local C = "|cff33e6ff"   -- cyan headings
+local C = "|cffffd100"   -- cyan headings
 local R = "|r"
 
 ns.GUIDE = {

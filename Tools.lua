@@ -328,7 +328,7 @@ function SFP:ShowWeekly()
     for _, key in ipairs(keys) do
         local r = self.db.weekly[key]
         local age = math.floor((time() - (r.t or 0)) / 3600)
-        lines[#lines + 1] = "|cff00e5ff" .. key .. "|r  |cff808080(" .. (age < 1 and "now" or (age .. " h ago")) .. ")|r"
+        lines[#lines + 1] = "|cffffd100" .. key .. "|r  |cff808080(" .. (age < 1 and "now" or (age .. " h ago")) .. ")|r"
         lines[#lines + 1] = "  Great Vault: " .. (#r.vault > 0 and table.concat(r.vault, "   ") or "no data")
         lines[#lines + 1] = "  Rares killed today: " .. (r.rares or 0)
         lines[#lines + 1] = "  |cffffd100Raids this week|r"
@@ -446,7 +446,7 @@ local function renderDeals(self)
     end
     -- items that have a price now but nothing to compare with yet
     if #nohist > 0 then
-        lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cff00e5ffBoE prices now|r  |cff808080(no price history yet - the addon keeps one from now on, so this fills in over a few days)|r"
+        lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cffffd100BoE prices now|r  |cff808080(no price history yet - the addon keeps one from now on, so this fills in over a few days)|r"
         for i, d in ipairs(nohist) do
             if i > 30 then break end
             lines[#lines + 1] = ("  %s   %s"):format(self:ItemName(d.id), money(d.now))
@@ -621,7 +621,7 @@ shopRefresh = function()
         lines[1] = "Type part of a recipe name above and click a result to add it. The list is saved: you can add, remove or change the amount of each entry whenever you want. The recipes are the ones the addon learned when you opened your professions."
     else
         local need, order, products, productValue = shopTotals()
-        lines[#lines + 1] = "|cff00e5ffMaking:|r " .. (#products > 0 and table.concat(products, ", ") or "|cff808080nothing ticked - tick the recipes you want in the list above|r")
+        lines[#lines + 1] = "|cffffd100Making:|r " .. (#products > 0 and table.concat(products, ", ") or "|cff808080nothing ticked - tick the recipes you want in the list above|r")
         lines[#lines + 1] = ""
         local total, unknown = 0, 0
         for _, id in ipairs(order) do
@@ -636,9 +636,9 @@ shopRefresh = function()
             lines[#lines + 1] = ("%dx %s   %s each = %s%s%s"):format(need[id], SFP:ItemName(id), unit > 0 and money(unit) or "|cffff6060no price|r", unit > 0 and money(cost) or "?", stackText, farm)
         end
         lines[#lines + 1] = ""
-        lines[#lines + 1] = "|cff00e5ffBuying all reagents:|r " .. money(total) .. (unknown > 0 and ("  |cffff6060(" .. unknown .. " without a price)|r") or "")
+        lines[#lines + 1] = "|cffffd100Buying all reagents:|r " .. money(total) .. (unknown > 0 and ("  |cffff6060(" .. unknown .. " without a price)|r") or "")
         if productValue > 0 then
-            lines[#lines + 1] = "|cff00e5ffThe crafts sell for about:|r " .. money(productValue) .. " (after the 5% auction cut)  ->  " ..
+            lines[#lines + 1] = "|cffffd100The crafts sell for about:|r " .. money(productValue) .. " (after the 5% auction cut)  ->  " ..
                 (productValue - total >= 0 and ("|cff40ff40profit " .. money(productValue - total)) or ("|cffff6060loss " .. money(total - productValue))) .. "|r"
         end
         lines[#lines + 1] = ""
@@ -834,7 +834,7 @@ function SFP:ShowShop()
         expl:SetPoint("TOPLEFT", 22, -454)
         expl:SetWidth(560)
         expl:SetJustifyH("LEFT")
-        expl:SetText("|cff00e5ffTick a recipe|r to show the reagents to buy for it below. Tick one for that recipe alone, several for those together, or press |cff00e5ffTick all|r for everything on the list.")
+        expl:SetText("|cffffd100Tick a recipe|r to show the reagents to buy for it below. Tick one for that recipe alone, several for those together, or press |cffffd100Tick all|r for everything on the list.")
         bar("Tick all", 70, 380, -286, 20, function() wipe(shopOff); shopRefresh() end)
         bar("Tick none", 70, 454, -286, 20, function()
             for _, e in ipairs(shopData()) do shopOff[e.key] = true end

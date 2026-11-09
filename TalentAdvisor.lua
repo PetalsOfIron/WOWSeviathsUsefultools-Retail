@@ -637,7 +637,7 @@ local function refresh()
         return
     end
     local lines = {}
-    lines[#lines + 1] = ("|cff00e5ff%s|r  best build: |cffffd100%s|r  (%d build%s counted)"):format(CONTENTS[c], s.best or "?", s.builds, s.builds == 1 and "" or "s")
+    lines[#lines + 1] = ("|cffffd100%s|r  best build: |cffffd100%s|r  (%d build%s counted)"):format(CONTENTS[c], s.best or "?", s.builds, s.builds == 1 and "" or "s")
     -- what you chose (the hero talents in the middle) and the best build of each content, side by side
     lines[#lines + 1] = ("You chose: hero talents |cffffd100%s|r"):format(s.heroChosen and s.hero or "none yet")
     if s.matchName and (s.matchPct or 0) >= 0.4 then
@@ -676,9 +676,9 @@ local function refresh()
         return ("%d class (left), %d spec (right), %d hero (middle)"):format(per.class, per.spec, per.hero)
     end
     if #s.nextPicks > 0 then
-        lines[#lines + 1] = "|cff00e5ffFlashing in the tree, take these:|r " .. flashAll(s.nextPicks)
+        lines[#lines + 1] = "|cffffd100Flashing in the tree, take these:|r " .. flashAll(s.nextPicks)
     elseif #s.wanted > 0 then
-        lines[#lines + 1] = "|cff00e5ffNo point to spend on these yet, flashing the ones still missing:|r " .. flashAll(s.wanted)
+        lines[#lines + 1] = "|cffffd100No point to spend on these yet, flashing the ones still missing:|r " .. flashAll(s.wanted)
     else
         lines[#lines + 1] = "|cff40ff40Nothing to add: everything the builds take, you have.|r"
     end
@@ -896,7 +896,7 @@ local function updateHeroDialog()
         heroLabel:SetJustifyH("CENTER")
         heroLabel:SetSpacing(3)
     end
-    local lines = { "|cff00e5ffSeviaths advisor - the better hero tree:|r" }
+    local lines = { "|cffffd100Seviaths advisor - the better hero tree:|r" }
     for _, key in ipairs({ "raid", "mythic", "delves" }) do
         local okC, sc = pcall(A.Suggest, key)
         if okC and sc and sc.heroShares and #sc.heroShares > 0 then

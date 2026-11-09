@@ -7,7 +7,7 @@
 ---------------------------------------------------------------
 local ADDON_NAME = "SeviathsUsefulTools" -- merged into the Farm Pack
 local VERSION = "1.7.1"
-local CY = "|cff00e5ff"
+local CY = "|cffffd100"
 local function P(msg) print(CY .. "SGH:|r " .. tostring(msg)) end
 
 ---------------------------------------------------------------
@@ -350,7 +350,7 @@ end
 local function IsGuilded(e) return e.guild and e.guild ~= "" end
 
 local STATUS = {
-    ready     = { order = 1, label = "Ready",          color = "ff00e5ff", tip = "Can be whispered now." },
+    ready     = { order = 1, label = "Ready",          color = "ffffd100", tip = "Can be whispered now." },
     pending   = { order = 2, label = "Waiting reply",  color = "ffffd200", tip = "Whispered. If they answer yes within 10 minutes they are invited automatically." },
     invited   = { order = 3, label = "Invited",        color = "ff40ff80", tip = "Guild invite (or group invite in charter mode) was sent." },
     signed    = { order = 3, label = "Signed charter", color = "ff40ff80", tip = "Signed your guild charter." },
@@ -571,7 +571,7 @@ local function GroupInvite(target, reason)
         if C_PartyInfo and C_PartyInfo.InviteUnit then C_PartyInfo.InviteUnit(full) else InviteUnit(full) end
         pending[plain] = nil
         SetRecord(plain, "G", time(), Me())
-        P("Group invite sent to " .. CY .. plain .. "|r" .. (reason and (" (" .. reason .. ")") or "") .. ". Target them when they arrive and click |cff00e5ffAsk target to sign|r.")
+        P("Group invite sent to " .. CY .. plain .. "|r" .. (reason and (" (" .. reason .. ")") or "") .. ". Target them when they arrive and click |cffffd100Ask target to sign|r.")
         if Refresh then Refresh() end
     end, 0.5)
     Enqueue(function() SendWhisperRaw(full, BuildMessage(full, CHARTER_THANKS)) end)
@@ -736,34 +736,17 @@ local function ShowTip(owner, title, body)
 end
 
 local function MakeButton(parent, text, w, h, tip, onClick)
-    local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    -- the game's own red panel button
+    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     b:SetSize(w, h)
-    Skin(b, 0, 0.22, 0.27, 0.75, 0, 0.9, 1, 0.7)
-    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    b.text:SetPoint("CENTER")
-    b.text:SetText(text)
+    b:SetText(text)
+    b.text = b:GetFontString()
     b.label = text
-    function b:SetLabel(t) self.label = t; self.text:SetText(t) end
-    function b:Paint()
-        if self.active then
-            self:SetBackdropColor(0, 0.75, 0.85, 0.95)
-            self:SetBackdropBorderColor(0.6, 1, 1, 1)
-        else
-            self:SetBackdropColor(0, 0.22, 0.27, 0.75)
-            self:SetBackdropBorderColor(0, 0.9, 1, 0.7)
-        end
-    end
+    function b:SetLabel(t) self.label = t; self:SetText(t) end
+    function b:Paint() if self.active then self:LockHighlight() else self:UnlockHighlight() end end
     function b:SetActive(v) self.active = v and true or false; self:Paint() end
-    b:SetScript("OnEnter", function(self)
-        if not self.active then self:SetBackdropColor(0, 0.45, 0.55, 0.9) end
-        if tip then ShowTip(self, self.label, tip) end
-    end)
-    b:SetScript("OnLeave", function(self)
-        self:Paint()
-        GameTooltip:Hide()
-    end)
-    b:SetScript("OnMouseDown", function(self) self.text:SetPoint("CENTER", 1, -1) end)
-    b:SetScript("OnMouseUp", function(self) self.text:SetPoint("CENTER", 0, 0) end)
+    b:HookScript("OnEnter", function(self) if tip then ShowTip(self, self.label, tip) end end)
+    b:HookScript("OnLeave", function() GameTooltip:Hide() end)
     b:SetScript("OnClick", onClick)
     return b
 end
@@ -1238,7 +1221,7 @@ Refresh = function()
     UI.slider:SetShown(max > 0)
     UI.slider:SetValue(UI.offset)
     UI.hint:SetShown(#scanned == 0)
-    UI.counts:SetText(("|cff00e5ff%d ready|r  ·  |cffffd200%d waiting|r  ·  |cff40ff80%d invited|r  ·  |cff8a9aa0%d skipped|r"):format(
+    UI.counts:SetText(("|cffffd100%d ready|r  ·  |cffffd200%d waiting|r  ·  |cff40ff80%d invited|r  ·  |cff8a9aa0%d skipped|r"):format(
         counts.ready, counts.pending, counts.invited + counts.signed,
         counts.contacted + counts.declined + counts.guilded + counts.instance))
     UI.scanInfo:SetText(lastScanText)
@@ -1377,7 +1360,7 @@ UI.charter.askBtn = MakeButton(UI.charter, "Ask target to sign", 130, 24,
         local tname = UnitName("target")
         if GetGuildInfo("target") then P(tname .. " is in a guild — only players without a guild can sign.") return end
         if not petitionOpen then
-            P("Open your charter first: |cff00e5ffright-click the Guild Charter in your bags|r, then click this button again.")
+            P("Open your charter first: |cffffd100right-click the Guild Charter in your bags|r, then click this button again.")
             return
         end
         if OfferPetition then
@@ -1405,7 +1388,7 @@ local function UpdateCharter()
     UI.charter.askBtn:SetShown(have and n < need)
     if not have then
         UI.charter.title:SetText("|cffff9933No Guild Charter in your bags|r")
-        UI.charter.info:SetText("Buy one from a |cff00e5ffGuild Master|r NPC in any capital city (10 silver), name your guild, then come back here.")
+        UI.charter.info:SetText("Buy one from a |cffffd100Guild Master|r NPC in any capital city (10 silver), name your guild, then come back here.")
         for _, pip in ipairs(UI.charter.pips) do pip:Hide() end
     elseif n >= need then
         UI.charter.title:SetText(CY .. "Guild Charter:|r |cffffffff" .. (c.title ~= "" and c.title or "your guild") .. "|r  |cff40ff80" .. n .. "/" .. need .. " — complete!|r")
@@ -1722,7 +1705,7 @@ local function HandleAddon(prefix, msg, channel, sender)
             if st.syncMessage and (st.messageEdited or 0) <= st.messageTS then
                 UI.UseShared(true)
             elseif not seen then
-                P("Officer " .. who .. " shared a new message. Yours is kept — click |cff00e5ffUse shared|r in the window if you want theirs.")
+                P("Officer " .. who .. " shared a new message. Yours is kept — click |cffffd100Use shared|r in the window if you want theirs.")
             end
             if UI:IsShown() then UpdatePreview() end
         end
@@ -1842,7 +1825,7 @@ ev:SetScript("OnEvent", function(_, event, ...)
             C_Timer.After(3, function()
                 if IsInGuild() then return end
                 if HasCharterItem() then
-                    P("You have a Guild Charter — /gi opens |cff00e5ffCharter mode|r to collect signatures.")
+                    P("You have a Guild Charter — /gi opens |cffffd100Charter mode|r to collect signatures.")
                 else
                     P("You are not in a guild. Buy a Guild Charter from a Guild Master NPC and /gi will help you collect signatures.")
                 end

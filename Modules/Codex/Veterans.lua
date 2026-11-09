@@ -3,7 +3,7 @@
 -- move between patches, so the pages say to check the game.
 
 local ADDON, ns = SFP_Module("Codex")
-local C = "|cff33e6ff"
+local C = "|cffffd100"
 local R = "|r"
 
 ns.VETERAN = {

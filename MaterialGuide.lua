@@ -440,14 +440,14 @@ local function addItem(n, mapID, id, withZone)
         place(list, m, n, 30)
         m.icon:SetTexture(nil)
         if type(spot) == "table" and spot.m and spot.x then
-            m.text:SetText("|cff00e5ffcollected at|r " .. SFP:ZoneName(spot.m) .. "  |cff808080" .. string.format("%.1f, %.1f", spot.x * 100, spot.y * 100) .. "|r")
+            m.text:SetText("|cffffd100collected at|r " .. SFP:ZoneName(spot.m) .. "  |cff808080" .. string.format("%.1f, %.1f", spot.x * 100, spot.y * 100) .. "|r")
             m.right:SetText("|cffff3030WAYPOINT|r")
             m.hint = "Click: set a waypoint where you collected it and open the map there"
             m.click = function() goToMonster(spot.m, { hx = spot.x, hy = spot.y, name = iname(id) }) end
             if not r.click then r.click = m.click end
         else
             -- no exact spot: the waypoint leads to the zone (the monsters there, or where it is gathered)
-            m.text:SetText("|cff00e5ff" .. SFP:ZoneName(mapID) .. "|r  |cff808080whole zone, no exact spot known yet|r")
+            m.text:SetText("|cffffd100" .. SFP:ZoneName(mapID) .. "|r  |cff808080whole zone, no exact spot known yet|r")
             m.right:SetText("|cffff3030WAYPOINT|r")
             m.hint = "Click: open the map on " .. SFP:ZoneName(mapID)
             m.click = function() goToMonster(mapID, { name = iname(id) }) end
@@ -459,7 +459,7 @@ local function addItem(n, mapID, id, withZone)
         local m = rowOf(list, n)
         place(list, m, n, 30)
         m.icon:SetTexture(MONSTER_ICON)
-        m.text:SetText("|cff00e5ff" .. tostring(sp.name) .. "|r")
+        m.text:SetText("|cffffd100" .. tostring(sp.name) .. "|r")
         local drops = sp.counts and sp.counts[id] and sp.kills and sp.kills > 0
         local wpct = sp.drop and sp.drop[id]
         if wpct == 0 then wpct = nil end
@@ -562,7 +562,7 @@ local function addGatherItem(n, id, withKind)
             local m = rowOf(list, n)
             place(list, m, n, 30)
             m.icon:SetTexture("Interface\\Icons\\INV_Misc_Map_01")
-            m.text:SetText("|cff00e5ff" .. (s.area and (s.area .. " - ") or "") .. SFP:ZoneName(s.map) .. "|r  |cff808080" ..
+            m.text:SetText("|cffffd100" .. (s.area and (s.area .. " - ") or "") .. SFP:ZoneName(s.map) .. "|r  |cff808080" ..
                 string.format("%.1f, %.1f", s.x * 100, s.y * 100) .. "|r")
             m.right:SetText("|cffff3030WAYPOINT|r")
             m.hint = "A spot where gathering was recorded. Click: set a waypoint there and open the map"
@@ -611,7 +611,7 @@ end
 local function renderGather(q)
     local n = 0
     local ql = q and q:lower() or nil
-    win.title:SetText("|cff33e6ffGathering|r" .. (ql and ("  |cffffd100" .. q .. "|r") or ""))
+    win.title:SetText("|cffffd100Gathering|r" .. (ql and ("  |cffffd100" .. q .. "|r") or ""))
     learnedCache = learnedGatherSpots()
     local ids = gatherItems()
     local zoneMap = (gatherExp == "zone" and not ql) and WorldMapFrame:GetMapID() or nil
@@ -624,7 +624,7 @@ local function renderGather(q)
         end
         for _, id in ipairs(ids) do if here[id] then keep[#keep + 1] = id end end
         ids = keep
-        win.title:SetText("|cff33e6ff" .. SFP:ZoneName(zoneMap) .. "|r  |cffaaaaaaMining & Herbalism|r")
+        win.title:SetText("|cffffd100" .. SFP:ZoneName(zoneMap) .. "|r  |cffaaaaaaMining & Herbalism|r")
     end
     local expOf = {}
     for _, g in ipairs(SFP.Gather or {}) do expOf[g.item] = expOf[g.item] or g.exp end
@@ -673,7 +673,7 @@ local function renderZone()
         win.title:SetText("Pick a zone on the left, or search for a material")
         return
     end
-    win.title:SetText("|cff33e6ff" .. SFP:ZoneName(selected) .. "|r")
+    win.title:SetText("|cffffd100" .. SFP:ZoneName(selected) .. "|r")
     local ids = zoneItems(selected)
     for _, sec in ipairs(SECTIONS) do
         local mine = {}
@@ -838,8 +838,8 @@ local function renderModeTree()
         local r = rowOf(tree, i)
         place(tree, r, i, indent)
         r.icon:SetTexture(nil)
-        r.text:SetText((expSel == key and "|cff33e6ff" or "|cffffffff") .. text .. "|r")
-        r.bg:SetColorTexture(0, 0.9, 1, expSel == key and 0.15 or 0.06)
+        r.text:SetText((expSel == key and "|cffffd100" or "|cffffffff") .. text .. "|r")
+        r.bg:SetColorTexture(0.9, 0.28, 0.24, expSel == key and 0.15 or 0.06)
         r.click = function()
             expSel = key
             search:SetText("")
@@ -1080,8 +1080,8 @@ renderPetTree = function()
         local r = rowOf(tree, n)
         place(tree, r, n, key == "all" and 0 or 12)
         r.icon:SetTexture(nil)
-        r.text:SetText((expSel == key and "|cff33e6ff" or "|cffffffff") .. text .. "|r")
-        r.bg:SetColorTexture(0, 0.9, 1, expSel == key and 0.15 or 0.06)
+        r.text:SetText((expSel == key and "|cffffd100" or "|cffffffff") .. text .. "|r")
+        r.bg:SetColorTexture(0.9, 0.28, 0.24, expSel == key and 0.15 or 0.06)
         r.click = function()
             expSel = key
             search:SetText("")
@@ -1144,7 +1144,7 @@ local function renderPets(q)
         elseif e.tradeable == false then priceStr = "|cffff8080not tradeable|r"
         else priceStr = "|cff808080no price yet|r" end
         r.right:SetText(((e.map or e.zoneMap) and "|cffff3030WAYPOINT|r   " or "") .. priceStr)
-        r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cff33e6ffClick: waypoint at the place and open the map there|r" or "")
+        r.hint = plain(e.source or "") .. (e.tradeable and "" or "\n|cffff8080Not tradeable|r") .. (e.map and "\n|cffffd100Click: waypoint at the place and open the map there|r" or "")
         if e.map then r.click = function() openWaypoint(e.map, e.x, e.y, e.vendorName or e.dropName or e.name) end
         elseif e.zoneMap then
             -- no exact spot known: the waypoint opens the map of the zone
@@ -1368,7 +1368,7 @@ local function renderMounts(q)
             local m = rowOf(list, n)
             place(list, m, n, 30)
             m.icon:SetTexture(nil)
-            m.text:SetText("|cff00e5ff" .. s.text .. "|r")
+            m.text:SetText("|cffffd100" .. s.text .. "|r")
             local located = s.map or s.zoneMap
             m.right:SetText(located and ("|cffff3030WAYPOINT|r" .. (s.zone and ("   |cff808080" .. s.zone .. "|r") or "")) or (s.zone and ("|cff808080" .. s.zone .. "|r") or "|cff808080no place known|r"))
             if s.map then
@@ -1415,7 +1415,7 @@ local function renderHunters(q)
         local r = rowOf(list, n)
         place(list, r, n, 8)
         r.icon:SetTexture("Interface\\Icons\\ClassIcon_Hunter")
-        r.text:SetText("|cff00e5ff" .. tostring(e.name) .. "|r")
+        r.text:SetText("|cffffd100" .. tostring(e.name) .. "|r")
         r.right:SetText("|cffff3030WAYPOINT|r   |cff808080" .. SFP:ZoneName(e.map) .. "|r   |cffabd473" .. e.kind .. "|r")
         r.hint = (e.x and "Click: set a waypoint and open the map there") or "Click: open the map"
         r.click = function() openWaypoint(e.map, e.x, e.y, tostring(e.name)) end
@@ -1533,7 +1533,7 @@ local function renderBlocks(n, map, spots, compact)
         local r = rowOf(list, n)
         place(list, r, n, 8)
         r.icon:SetTexture(MONSTER_ICON)
-        r.text:SetText((s.rank and ("|cffffd100" .. s.rank .. ".|r  ") or "") .. "|cff00e5ff" .. tostring(s.name) .. "|r")
+        r.text:SetText((s.rank and ("|cffffd100" .. s.rank .. ".|r  ") or "") .. "|cffffd100" .. tostring(s.name) .. "|r")
         r.right:SetText("|cffff3030WAYPOINT|r")
         r.hint = "Click: set a waypoint on " .. tostring(s.name) .. " and open the map there"
         r.click = function() goToMonster(map, s) end
@@ -1767,8 +1767,8 @@ local function renderTreeMat()
         local r = rowOf(tree, 1)
         place(tree, r, 1, 0)
         r.icon:SetTexture(nil)
-        r.text:SetText("|cff33e6ffCurrent zone|r" .. (cur and ("  |cffaaaaaa" .. SFP:ZoneName(cur) .. "|r") or ""))
-        r.bg:SetColorTexture(0, 0.9, 1, 0.18)
+        r.text:SetText("|cffffd100Current zone|r" .. (cur and ("  |cffaaaaaa" .. SFP:ZoneName(cur) .. "|r") or ""))
+        r.bg:SetColorTexture(0.9, 0.28, 0.24, 0.18)
         r.click = function()
             selected = WorldMapFrame:GetMapID()
             search:SetText("")
@@ -1782,8 +1782,8 @@ local function renderTreeMat()
             local r = rowOf(tree, n)
             place(tree, r, n, indent)
             r.icon:SetTexture(nil)
-            r.text:SetText((gatherExp == key and "|cff33e6ff" or "|cffffffff") .. text .. "|r")
-            r.bg:SetColorTexture(0, 0.9, 1, gatherExp == key and 0.15 or 0.06)
+            r.text:SetText((gatherExp == key and "|cffffd100" or "|cffffffff") .. text .. "|r")
+            r.bg:SetColorTexture(0.9, 0.28, 0.24, gatherExp == key and 0.15 or 0.06)
             r.click = function() gatherExp = key; search:SetText(""); renderTree(); renderList() end
         end
         local cur = WorldMapFrame:GetMapID()
@@ -1817,8 +1817,8 @@ local function renderTreeMat()
                     local z = rowOf(tree, n)
                     place(tree, z, n, 12)
                     z.icon:SetTexture(nil)
-                    z.text:SetText((selected == map and "|cff33e6ff" or "|cffffffff") .. SFP:ZoneName(map) .. "|r")
-                    if selected == map then z.bg:SetColorTexture(0, 0.9, 1, 0.15) end
+                    z.text:SetText((selected == map and "|cffffd100" or "|cffffffff") .. SFP:ZoneName(map) .. "|r")
+                    if selected == map then z.bg:SetColorTexture(0.9, 0.28, 0.24, 0.15) end
                     z.click = function()
                         if mode == "top" then setMode("farm") end
                         selected = map

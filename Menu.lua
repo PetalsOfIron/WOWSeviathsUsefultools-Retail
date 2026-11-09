@@ -57,22 +57,20 @@ local function backdrop(f, r, g, b, a, br, bg_, bb, ba)
 end
 
 local function mkButton(parent, text, w, fn, tip)
-    local b = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    -- the game's own red panel button (the look of the Hunter search / Waypoint buttons)
+    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
     b:SetSize(w, 22)
-    backdrop(b, 0.06, 0.18, 0.22, 0.95, CY.r, CY.g, CY.b, 0.6)
-    b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    b.text:SetPoint("CENTER")
-    b.text:SetText(text)
+    b:SetText(text)
+    b.text = b:GetFontString()
     b:SetScript("OnClick", function(self) fn(self) end)
     b:SetScript("OnEnter", function(self)
-        self:SetBackdropColor(0.1, 0.35, 0.42, 1)
         if tip then
             SFP.Tip():SetOwner(self, "ANCHOR_RIGHT")
             SFP.Tip():AddLine(tip, 1, 1, 1, true)
             SFP.Tip():Show()
         end
     end)
-    b:SetScript("OnLeave", function(self) self:SetBackdropColor(0.06, 0.18, 0.22, 0.95); SFP.Tip():Hide() end)
+    b:SetScript("OnLeave", function() SFP.Tip():Hide() end)
     return b
 end
 
@@ -210,7 +208,7 @@ local buildKilled = simplePage("Killed Today",
             local lines, last = {}, nil
             for _, k in ipairs(list) do
                 if k.char ~= last then
-                    lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cff00e5ff" .. k.char .. "|r"
+                    lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cffffd100" .. k.char .. "|r"
                     last = k.char
                 end
                 lines[#lines + 1] = ("  %s%s  |cff808080%s  -  %s|r"):format(k.name, k.rare and "  |cffff9933[rare]|r" or "", k.zone, date("%H:%M", k.t))
@@ -738,7 +736,7 @@ local buildDelve = simplePage("Delve Planner",
                     if tips.where then lines[#lines + 1] = "Where: " .. tips.where end
                     if #tips.variants > 0 then lines[#lines + 1] = "Story variants: " .. table.concat(tips.variants, ", ") end
                     if #tips.tips > 0 then
-                        lines[#lines + 1] = "|cff00e5ffAbout Valeera here (from the guide):|r"
+                        lines[#lines + 1] = "|cffffd100About Valeera here (from the guide):|r"
                         for i = 1, math.min(8, #tips.tips) do lines[#lines + 1] = "  - " .. tips.tips[i] end
                     else
                         lines[#lines + 1] = "The guide has no special advice for Valeera in this delve."
@@ -775,7 +773,7 @@ local buildDelve = simplePage("Delve Planner",
             end
             local zone
             for _, dv in ipairs(list) do
-                if dv.zone ~= zone then zone = dv.zone; row("|cff00e5ff" .. zone .. "|r", nil, true) end
+                if dv.zone ~= zone then zone = dv.zone; row("|cffffd100" .. zone .. "|r", nil, true) end
                 row(dv.name .. (dv.bountiful and "  |cffffd100bountiful today|r" or ""), dv.name)
             end
             for i = n + 1, #delveRows do delveRows[i]:Hide(); if delveRows[i].hdr then delveRows[i].hdr:Hide() end end
@@ -1191,7 +1189,7 @@ local function buildKnow(pane)
         local b = mkButton(pane, m[2], 70, function()
             know.mode, know.sel = m[1], nil
             knowRebuild(pane); knowRefresh(pane)
-            for _, t in ipairs(pane.tabs) do t:SetBackdropBorderColor(CY.r, CY.g, CY.b, t.mode == m[1] and 1 or 0.4) end
+            for _, t in ipairs(pane.tabs) do if t.mode == m[1] then t:LockHighlight() else t:UnlockHighlight() end end
         end)
         b.mode = m[1]
         b:SetPoint("TOPLEFT", 12 + (i - 1) * 74, -36)
@@ -1397,6 +1395,8 @@ local BUILDERS = {
     gems = buildGems, social = buildSocial, guilds = buildGuilds,
 }
 
+SFP.MenuKit = { builders = BUILDERS, sections = SECTIONS, simplePage = simplePage, mkButton = mkButton, mkText = mkText, mkCheck = mkCheck }
+
 ---------------------------------------------------------------------------
 -- Window
 ---------------------------------------------------------------------------
@@ -1406,7 +1406,7 @@ function SFP:ShowMenuSection(key)
     current = key
     for _, s in ipairs(SECTIONS) do
         local b = navButtons[s.key]
-        b:SetBackdropColor(s.key == key and 0.1 or 0.03, s.key == key and 0.35 or 0.1, s.key == key and 0.42 or 0.13, 0.95)
+        if s.key == key then b:LockHighlight() else b:UnlockHighlight() end
         if panes[s.key] then panes[s.key]:Hide() end
     end
     local pane = panes[key]
