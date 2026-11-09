@@ -50,8 +50,162 @@ SFP.NAME    = "SeviathsUsefulTools"
 SFP.VERSION = meta("Version") or "dev"
 SFP.AUTHOR  = meta("Author") or "Seviath"
 
-SFP.CYAN = { r = 0.0, g = 0.9, b = 1.0 }
-SFP.CYAN_HEX = "ff00e5ff"
+SFP.CYAN = { r = 1, g = 0.82, b = 0 }   -- the gold of the game's own titles
+
+
+-- the word WAYPOINT in a row of a list is a real red button (the look of the map buttons): the row's text is written as before, the word is taken out of it and
+-- the button shown at the right edge; pressing it does what a click on the row does
+function SFP.AttachWaypointButton(r)
+    if not r or not r.right or r.wpButton then return end
+    local btn = CreateFrame("Button", nil, r, "UIPanelButtonTemplate")
+    btn:SetSize(84, 18)
+    btn:SetPoint("RIGHT", r, "RIGHT", -4, 0)
+    btn:SetText("Waypoint")
+    btn:SetScript("OnClick", function()
+        if r.click then r.click(r)
+        else local h = r:GetScript("OnClick"); if h then h(r) end end
+    end)
+    btn:Hide()
+    r.wpButton = btn
+    local fs = r.right
+    local raw = fs.SetText
+    fs.SetText = function(self, text)
+        if type(text) == "string" and text:find("WAYPOINT", 1, true) then
+            local rest = text:gsub("|c%x%x%x%x%x%x%x%x?WAYPOINT|r", ""):gsub("WAYPOINT", ""):gsub("^%s+", ""):gsub("%s+$", "")
+            btn:Show()
+            self:ClearAllPoints()
+            self:SetPoint("RIGHT", btn, "LEFT", -8, 0)
+            raw(self, rest)
+        else
+            btn:Hide()
+            self:ClearAllPoints()
+            self:SetPoint("RIGHT", r, "RIGHT", -6, 0)
+            raw(self, text)
+        end
+    end
+end
+
+-- the look of the windows: the dark dialog background of the game (red tinted), a red tooltip-style border, and the snake in a corner
+local SNAKE = "Interface\\AddOns\\SeviathsUsefulTools\\Media\\snake_tile.tga"
+-- opens the game's own Looking For Group window (the call that does it differs between versions of the game: the first one that exists is used)
+function SFP.OpenGroupFinder()
+    for _, name in ipairs({ "PVEFrame_ToggleFrame", "ToggleLFGParentFrame", "ToggleLFDParentFrame", "LFGParentFrame_Toggle", "ToggleGroupFinder" }) do
+        local fn = _G[name]
+        if type(fn) == "function" and pcall(fn) then return true end
+    end
+    for _, name in ipairs({ "PVEFrame", "LFGParentFrame", "LFGListFrame" }) do
+        local fr = _G[name]
+        if fr and fr.Show then
+            local ok = pcall(function() if fr:IsShown() then fr:Hide() else fr:Show() end end)
+            if ok then return true end
+        end
+    end
+    SFP:Print("Could not open the Looking For Group window: open it with its key (default I).")
+end
+
+function SFP.BlizzardFrame(f, big)
+    if not f or not f.SetBackdrop then return end
+    if big == "inset" then
+        -- a panel inside a window: the game's own inset art (the rock background and the inset frame of the quest log / map)
+        f:SetBackdrop(nil)
+        if not f.seviathMarble then
+            local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
+            bg:SetAllPoints()
+            bg:SetTexture("Interface\\FrameGeneral\\UI-Background-Rock", "REPEAT", "REPEAT")
+            bg:SetHorizTile(true)
+            bg:SetVertTile(true)
+            bg:SetVertexColor(0.62, 0.62, 0.62, 1)   -- darker, like the inset of the quest log
+            f.seviathMarble = bg
+            local ok = NineSliceUtil and NineSliceUtil.ApplyLayoutByName and pcall(NineSliceUtil.ApplyLayoutByName, f, "InsetFrameTemplate")
+            if not ok then
+                f:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+                f:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+            end
+            f.SetBackdropColor = function() end
+            f.SetBackdropBorderColor = function() end
+        end
+        return
+    end
+    if big == "small" then
+        -- a small window (the farm session controls): the marble of the game's windows with a gold edge
+        f:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+        f:SetBackdropBorderColor(0.8, 0.65, 0.3, 1)
+        if not f.seviathBase then
+            local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
+            bg:SetPoint("TOPLEFT", 3, -3)
+            bg:SetPoint("BOTTOMRIGHT", -3, 3)
+            bg:SetTexture("Interface\\FrameGeneral\\UI-Background-Marble", "REPEAT", "REPEAT")
+            bg:SetHorizTile(true)
+            bg:SetVertTile(true)
+            f.seviathBase = bg
+            f.SetBackdropColor = function() end
+            f.SetBackdropBorderColor = function() end
+        end
+        return
+    end
+    if not big then
+        -- a small frame (a button, a row, a panel): flat and red
+        f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+        f:SetBackdropColor(0.09, 0.04, 0.04, 0.95)
+        f:SetBackdropBorderColor(0.9, 0.28, 0.24, 0.8)
+        return
+    end
+    -- a window: the game's own frame art, the way the quest log and the map are made: the marble background and the metal frame (nine slice), and the
+    -- snake in a corner. Later color calls on a window (old per-window tints) are ignored.
+    f:SetBackdrop(nil)
+    if not f.seviathBase then
+        local bg = f:CreateTexture(nil, "BACKGROUND", nil, -8)
+        bg:SetAllPoints()
+        bg:SetTexture("Interface\\FrameGeneral\\UI-Background-Marble", "REPEAT", "REPEAT")
+        bg:SetHorizTile(true)
+        bg:SetVertTile(true)
+        f.seviathBase = bg
+        local ok = NineSliceUtil and NineSliceUtil.ApplyLayoutByName and pcall(NineSliceUtil.ApplyLayoutByName, f, "ButtonFrameTemplateNoPortrait")
+        if not ok then
+            f:SetBackdrop({ edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Gold-Border", edgeSize = 24, insets = { left = 6, right = 6, top = 6, bottom = 6 } })
+        end
+        f.SetBackdropColor = function() end
+        f.SetBackdropBorderColor = function() end
+    end
+    -- the window's title sits on the top bar of the frame
+    -- (the title is made after the frame is styled, so it is placed a moment later)
+    -- the close (X) button sits in the top bar of the frame like the game's own windows, in every window of the addon
+    C_Timer.After(0, function()
+        for _, c in ipairs({ f:GetChildren() }) do
+            if c.GetObjectType and c:GetObjectType() == "Button" and c.GetNormalTexture then
+                local nt = c:GetNormalTexture()
+                local path = nt and nt.GetTexture and nt:GetTexture()
+                if type(path) == "string" and path:find("MinimizeButton", 1, true) then
+                    c:ClearAllPoints()
+                    c:SetPoint("TOPRIGHT", f, "TOPRIGHT", -3, 5)
+                end
+            end
+        end
+    end)
+    C_Timer.After(0, function()
+        for _, key in ipairs({ "title", "header", "Title" }) do
+            local t = rawget(f, key)
+            if type(t) == "table" and t.GetObjectType and t:GetObjectType() == "FontString" then
+                -- a title at the top left: a little higher, onto the bar (the other texts stay where they are)
+                local p, rel, rp, x, y = t:GetPoint(1)
+                if p == "TOPLEFT" and type(y) == "number" and y <= -6 and y >= -14 and not t.seviathNudged then
+                    t.seviathNudged = true
+                    t:SetPoint(p, rel, rp, x, y + 5)
+                end
+            end
+        end
+    end)
+    if not f.seviathSnake then
+        local tex = f:CreateTexture(nil, "BACKGROUND", nil, 2)
+        tex:SetTexture(SNAKE)
+        tex:SetSize(190, 190)
+        tex:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -8, 8)
+        tex:SetVertexColor(0.95, 0.2, 0.18)
+        tex:SetAlpha(0.22)
+        f.seviathSnake = tex
+    end
+end
+SFP.CYAN_HEX = "ffffd100"
 SFP.WOWHEAD_ITEM = "https://www.wowhead.com/item=%d"
 
 local defaults = {
@@ -1127,7 +1281,7 @@ local function OnItemTooltip(tooltip, data)
     -- what crafting orders pay for this item (read from the orders the game listed), like the auction price above
     local tip, orders = SFP.OrderPrice and SFP:OrderPrice(itemID)
     if tip then
-        tooltip:AddDoubleLine(("Crafting orders (%d):"):format(orders), SFP:FormatPrice(tip), 0.8, 0.8, 0.8, 0.4, 0.8, 1)
+        tooltip:AddDoubleLine(("Crafting orders (%d):"):format(orders), SFP:FormatPrice(tip), 0.8, 0.8, 0.8, 1, 0.55, 0.5)
     end
     local extra = SFP:ItemExtra(base)
     if extra then tooltip:AddLine(extra, 1, 1, 1, true) end

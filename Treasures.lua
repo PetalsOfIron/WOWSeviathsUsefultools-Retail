@@ -241,17 +241,17 @@ local function getPin()
         p = CreateFrame("Button", nil, layer)
         p.edge = p:CreateTexture(nil, "BACKGROUND")
         p.edge:SetAllPoints()
-        p.edge:SetColorTexture(0, 0.08, 0.14, 0.85)
+        p.edge:SetColorTexture(0.14, 0.03, 0.03, 0.85)
         p.fill = p:CreateTexture(nil, "ARTWORK")
         p.fill:SetPoint("TOPLEFT", 1, -1)
         p.fill:SetPoint("BOTTOMRIGHT", -1, 1)
-        local cy = SFP.CYAN or { 0, 0.9, 1 }
+        local cy = SFP.CYAN or { 0.9, 0.28, 0.24 }
         p.fill:SetColorTexture((cy[1] or cy.r or 0) * 0.55, (cy[2] or cy.g or 0.9) * 0.6, (cy[3] or cy.b or 1) * 0.8, 0.8)   -- a softer blue
         p:SetScript("OnEnter", function(self)
             local t = SFP.Tip and SFP.Tip() or GameTooltip
             t:SetOwner(self, "ANCHOR_RIGHT")
             t:ClearLines()
-            t:AddLine(tostring(self.rec.n or ("Treasure " .. tostring(self.id))), 0, 0.9, 1)
+            t:AddLine(tostring(self.rec.n or ("Treasure " .. tostring(self.id))), 0.9, 0.28, 0.24)
             if SFP.ObjectLootLines then SFP.ObjectLootLines(t, self.rec) end
             t:Show()
         end)

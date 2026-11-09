@@ -23,9 +23,9 @@ local function makeWindow(name, title, w, h)
     f:SetPoint("CENTER")
     f:SetFrameStrata("DIALOG")
     SFP.RegisterWindow(f)
-    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    f:SetBackdropColor(0.03, 0.05, 0.07, 0.95)
-    f:SetBackdropBorderColor(0, 0.9, 1, 0.8)
+    SFP.BlizzardFrame(f, true)
+    f:SetBackdropColor(0.08, 0.03, 0.03, 0.95)
+    f:SetBackdropBorderColor(0.9, 0.28, 0.24, 0.8)
     f:SetMovable(true); f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", f.StartMoving)
@@ -434,7 +434,7 @@ local function renderDeals(self)
     local list, nohist = self:BoeDeals()
     local lines = {}
     for i, d in ipairs(list) do
-        if i > 40 then break end
+        if i > 60 then break end
         local pct = math.floor(d.cut * 100 + 0.5)
         local color = pct >= 20 and "|cff40ff40" or (pct <= -20 and "|cffff6060" or "|cffffffff")
         lines[#lines + 1] = ("%s%s%d%%|r  %s   now %s   typical %s  |cff808080(%s)|r"):format(
@@ -802,8 +802,8 @@ end
 function SFP:ShowShop()
     if not shopWin then
         local acc = 0
-        shopWin = makeWindow("SeviathsUsefulToolsShop", "Recipe planner", 540, 740)
-        shopWin.scroll:SetPoint("TOPLEFT", 12, -520)
+        shopWin = makeWindow("SeviathsUsefulToolsShop", "Recipe planner", 620, 880)
+        shopWin.scroll:SetPoint("TOPLEFT", 12, -700)
         shopBox = CreateFrame("EditBox", nil, shopWin, "InputBoxTemplate")
         shopBox:SetSize(240, 22)
         shopBox:SetPoint("TOPLEFT", 22, -34)
@@ -826,13 +826,13 @@ function SFP:ShowShop()
         end)
         bar("Remove all", 100, 386, -34, 22, function() wipe(shopData()); wipe(shopOff); shopRefresh() end)
         shopWin.tabs = {}
-        shopResRows = SFP.MakeRowList(shopWin, 18, -118, 510, 160, 20)
+        shopResRows = SFP.MakeRowList(shopWin, 18, -152, 590, 270, 22)
         local label = shopWin:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        label:SetPoint("TOPLEFT", 22, -290)
+        label:SetPoint("TOPLEFT", 22, -436)
         label:SetText("Your list (saved)")
         local expl = shopWin:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        expl:SetPoint("TOPLEFT", 22, -308)
-        expl:SetWidth(490)
+        expl:SetPoint("TOPLEFT", 22, -454)
+        expl:SetWidth(560)
         expl:SetJustifyH("LEFT")
         expl:SetText("|cff00e5ffTick a recipe|r to show the reagents to buy for it below. Tick one for that recipe alone, several for those together, or press |cff00e5ffTick all|r for everything on the list.")
         bar("Tick all", 70, 380, -286, 20, function() wipe(shopOff); shopRefresh() end)
@@ -840,7 +840,7 @@ function SFP:ShowShop()
             for _, e in ipairs(shopData()) do shopOff[e.key] = true end
             shopRefresh()
         end)
-        shopRows = SFP.MakeRowList(shopWin, 18, -342, 510, 170, 20)
+        shopRows = SFP.MakeRowList(shopWin, 18, -496, 590, 190, 22)
         -- prices come from the auction scans and from Auctionator / TSM: redraw every few seconds while it is open
         shopWin:SetScript("OnUpdate", function(_, dt)
             acc = acc + dt
@@ -870,7 +870,7 @@ function SFP:ShowShop()
             local special = type(nm) == "string" and nm:sub(1, 1) == "@" and nm or nil
             local label = special and specialLabel(special) or (nm or "All")
             local width = math.max(54, #label * 7 + 16)
-            if x + width > 520 then x, y = 22, y - 26 end
+            if x + width > 600 then x, y = 22, y - 26 end
             local tb = shopWin.tabs[i]
             if not tb then
                 tb = CreateFrame("Button", nil, shopWin, "UIPanelButtonTemplate")

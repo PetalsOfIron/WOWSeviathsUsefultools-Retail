@@ -85,7 +85,7 @@ SFP:OnLogin(function()
         SFP.Tip():SetOwner(self, "ANCHOR_LEFT")
         SFP.Tip():AddDoubleLine("|c" .. SFP.CYAN_HEX .. "SeviathsUsefulTools|r", "|cff808080v" .. SFP.VERSION .. "|r")
         if self.inFarm then
-            SFP.Tip():AddLine("You're in a farm zone: " .. SFP:ZoneName(self.inFarm), 0, 0.9, 1)
+            SFP.Tip():AddLine("You're in a farm zone: " .. SFP:ZoneName(self.inFarm), 0.9, 0.28, 0.24)
             local zone = SFP.zoneByMap[self.inFarm]
             for _, id in ipairs(zone.items) do
                 SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":14|t " .. SFP:ItemName(id),

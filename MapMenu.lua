@@ -10,7 +10,7 @@ local GLOW = "Interface\\CHARACTERFRAME\\TempPortraitAlphaMask"
 -- key, label, icon texture or colour {r,g,b}, tooltip
 local LAYERS = {
     { "mapOverlay",   "Show SeviathsUsefulTools", "Interface\\Icons\\INV_Misc_Map_01", "Master switch for everything below" },
-    { "showSpawns",   "Farm spots",    { 0.0, 0.9, 1.0 },  "Cyan markers: mobs that drop cloth, leather, elements, meat, BoEs (one marker per area)" },
+    { "showSpawns",   "Farm spots",    { 0.9, 0.28, 0.24 },  "Cyan markers: mobs that drop cloth, leather, elements, meat, BoEs (one marker per area)" },
     { "showRares",    "Rares",         { 1.0, 0.5, 0.0 },  "Orange markers: rares with mounts, pets and toys" },
     { "showSpecial",  "Special materials", { 1.0, 0.25, 0.85 }, "Magenta markers: rare hides, lure beasts, special cloth (Sunfire Silk, Arcanoweave)" },
     { "showHunter",   "Hunter tames",  "Interface\\Icons\\ClassIcon_Hunter", "Spirit beasts and unique-looking pets" },
@@ -53,7 +53,7 @@ local function buildPanel(sc)
     panel:SetFrameStrata("HIGH")
     panel:SetPoint("TOPLEFT", button, "BOTTOMLEFT", 0, -4)
     panel:SetWidth(186)
-    panel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    SFP.BlizzardFrame(panel, true)
     panel:SetBackdropColor(0, 0.04, 0.07, 0.92)
     panel:SetBackdropBorderColor(SFP.CYAN.r, SFP.CYAN.g, SFP.CYAN.b, 0.9)
     panel:EnableMouse(true) -- clicks on the panel don't fall through to the map
@@ -128,7 +128,7 @@ SFP:OnLogin(function()
 
     local bg = button:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
-    bg:SetColorTexture(0, 0.04, 0.07, 0.85)
+    bg:SetColorTexture(0.07, 0.02, 0.02, 0.85)
     local icon = button:CreateTexture(nil, "ARTWORK")
     icon:SetPoint("TOPLEFT", 3, -3)
     icon:SetPoint("BOTTOMRIGHT", -3, 3)

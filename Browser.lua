@@ -39,7 +39,7 @@ local function getRow(i)
         if self.itemID then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:SetItemByID(self.itemID)
-            GameTooltip:AddLine("Shift-click: link in chat   Right-click: Wowhead link", 0, 0.9, 1)
+            GameTooltip:AddLine("Shift-click: link in chat   Right-click: Wowhead link", 0.9, 0.28, 0.24)
             GameTooltip:Show()
         elseif self.hint then
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -159,7 +159,7 @@ local function render()
         local name = (lit and ("|c" .. SFP.CYAN_HEX) or "|cff9d9d9d") .. SFP:ZoneName(zone.map) .. "|r"
         local v = SFP:ZoneValue(zone)
         local right = (v > 0 and ("best " .. SFP:FormatPrice(v) .. "  ") or "") .. "|cffffd100[map]|r"
-        header(name, right, lit and { 0, 0.9, 1, 0.16 } or { 0.4, 0.4, 0.4, 0.12 },
+        header(name, right, lit and { 0.9, 0.28, 0.24, 0.16 } or { 0.4, 0.4, 0.4, 0.12 },
             function() SFP:OpenMapTo(zone.map) end, "Click: open this zone on the world map")
         for _, id in ipairs(sortedItems(zone.items)) do item(id) end
         if not zone.rareOnly then -- general line for random green/blue BoE world drops
@@ -209,7 +209,7 @@ local function render()
                     bestTxt = "  |cff40ff40best spot: " .. table.concat(bn, ", ") .. "|r"
                 end
                 header((s.grind and (SFP.STAR .. " ") or "") .. "|c" .. SFP.CYAN_HEX .. "Farm spot: " .. s.name .. "|r  |cffaaaaaa" .. table.concat(names, ", ") .. "|r" .. bestTxt,
-                    string.format("|cffffd100%.1f, %.1f|r  [waypoint]", s.hx * 100, s.hy * 100), { 0, 0.9, 1, 0.05 },
+                    string.format("|cffffd100%.1f, %.1f|r  [waypoint]", s.hx * 100, s.hy * 100), { 0.9, 0.28, 0.24, 0.05 },
                     function() SFP:SetWaypoint(zone.map, s.hx, s.hy, s.name) end,
                     "Click: waypoint to this farm spot (all spawn points glow cyan on the zone map)")
             end
@@ -300,13 +300,13 @@ local function build()
     frame:SetScript("OnDragStart", frame.StartMoving)
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
     frame:SetClampedToScreen(true)
-    frame:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    SFP.BlizzardFrame(frame, true)
     frame:SetBackdropColor(0.02, 0.04, 0.06, 0.95)
     frame:SetBackdropBorderColor(c.r, c.g, c.b, 0.9)
     tinsert(UISpecialFrames, "SeviathsUsefulToolsBrowser")
 
     local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", 12, -10)
+    title:SetPoint("TOPLEFT", 12, -5)
     title:SetText("|c" .. SFP.CYAN_HEX .. "Seviaths|rFarmPack  |cff808080v" .. SFP.VERSION .. "|r")
     local sub = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
     sub:SetPoint("LEFT", title, "RIGHT", 8, -1)

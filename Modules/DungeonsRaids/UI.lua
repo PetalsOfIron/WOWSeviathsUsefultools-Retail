@@ -10,7 +10,7 @@ local C = ns.CYAN
 ---------------------------------------------------------------------------
 function UI.Skin(f, alpha)
   f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-  f:SetBackdropColor(0.03, 0.05, 0.07, alpha or 0.95)
+  f:SetBackdropColor(0.08, 0.03, 0.03, alpha or 0.95)
   f:SetBackdropBorderColor(C[1], C[2], C[3], 0.9)
 end
 
@@ -29,7 +29,7 @@ function UI.Paint(b)
     b:SetBackdropColor(C[1] * 0.5, C[2] * 0.5, C[3] * 0.5, 1)
     b:SetBackdropBorderColor(C[1], C[2], C[3], 1)
   else
-    b:SetBackdropColor(0.03, 0.05, 0.07, 0.9)
+    b:SetBackdropColor(0.08, 0.03, 0.03, 0.9)
     b:SetBackdropBorderColor(C[1], C[2], C[3], b.hover and 1 or 0.4)
   end
 end
@@ -853,11 +853,12 @@ local BUILDERS = {
 function UI:Build()
   if self.frame then return end
   local f = CreateFrame("Frame", "SeviathsDungeonsRaidsFrame", UIParent, "BackdropTemplate")
-  f:SetSize(580, 520)
+  f:SetSize(700, 680)
   f:SetPoint("CENTER")
   f:SetFrameStrata("DIALOG")
   if _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.RegisterWindow then _G.SeviathsUsefulTools.RegisterWindow(f) end
   UI.Skin(f)
+  if _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.BlizzardFrame then _G.SeviathsUsefulTools.BlizzardFrame(f, true) end   -- the red dialog look
   UI.Movable(f)
   -- Dragging a docked window frees it for the rest of the session
   f:SetScript("OnDragStart", function(s)
@@ -902,7 +903,7 @@ function UI:Build()
   more:SetPoint("BOTTOMRIGHT", -30, 8)
   more:SetHeight(20)
   more:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
-  more:SetBackdropColor(0.02, 0.12, 0.16, 0.95)
+  more:SetBackdropColor(0.16, 0.05, 0.05, 0.95)
   more:SetFrameLevel(scroll:GetFrameLevel() + 20)
   more.text = more:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   more.text:SetPoint("CENTER")
@@ -961,7 +962,7 @@ function UI:Layout(section)
       b:SetShown(show)
       if show then
         local w = tabWidth(b)
-        if x + w > 556 then row = row + 1; x = 14 end
+        if x + w > 676 then row = row + 1; x = 14 end
         b:SetWidth(w)
         b:SetPoint("TOPLEFT", x, -40 - row * 26)
         x = x + w + 4

@@ -1567,7 +1567,7 @@ local function renderBlocks(n, map, spots, compact)
                     t:AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. iname(id), priceText(id), 1, 1, 1, 1, 1, 1)
                 end
             end
-            t:AddLine("Click: set a waypoint", 0, 0.9, 1)
+            t:AddLine("Click: set a waypoint", 0.9, 0.28, 0.24)
         end
         r.spotTip = { s, map }   -- hovering the name shows the map's whole tooltip of that monster
         n = n + 1
@@ -1887,9 +1887,9 @@ local function build()
     fit()
     win.fit = fit
     sc:HookScript("OnSizeChanged", fit)
-    win:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    SFP.BlizzardFrame(win, true)
     win:SetBackdropColor(0.02, 0.03, 0.05, 0.96)
-    win:SetBackdropBorderColor(0, 0.9, 1, 0.9)
+    win:SetBackdropBorderColor(0.9, 0.28, 0.24, 0.9)
     win:EnableMouse(true)
     win:Hide()
 
@@ -1965,7 +1965,7 @@ local function build()
     win.refreshList = renderList
     win.curBtn = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
     win.curBtn:SetSize(170, 24)
-    win.curBtn:SetPoint("TOPLEFT", win, "TOPLEFT", 200, -8)
+    win.curBtn:SetPoint("TOPLEFT", win, "TOPLEFT", 200, -3)
     win.curBtn:SetText("Show current zone")
     win.curBtn:SetScript("OnClick", function()
         selected = WorldMapFrame:GetMapID()
@@ -1979,7 +1979,7 @@ local function build()
         local key, text = def[1], def[2]
         local tb = CreateFrame("Button", nil, win, "UIPanelButtonTemplate")
         tb:SetSize(k == 1 and 90 or 150, 24)
-        tb:SetPoint("TOPLEFT", win, "TOPLEFT", 200 + (k - 1) * 94, -8)
+        tb:SetPoint("TOPLEFT", win, "TOPLEFT", 200 + (k - 1) * 94, -3)
         tb:SetText(text)
         tb:SetScript("OnClick", function() setTab(key) end)
         win.tabs[key] = tb
