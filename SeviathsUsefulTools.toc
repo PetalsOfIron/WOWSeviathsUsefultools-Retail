@@ -152,8 +152,6 @@ Scanner.lua
 WorldMap.lua
 Treasures.lua
 PointsMenu.lua
-Roleplay.lua
-RPBridge.lua
 MapMenu.lua
 MaterialGuide.lua
 Minimap.lua
@@ -199,4 +197,6 @@ Modules\Codex\UI.lua
 Modules\Codex\Hooks.lua
 Hub.lua
 Menu.lua
+Roleplay.lua
+RPBridge.lua
 SavedPackLogout.lua
