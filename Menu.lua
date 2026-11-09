@@ -51,7 +51,7 @@ do
 end
 
 local function backdrop(f, r, g, b, a, br, bg_, bb, ba)
-    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Buttons\\WHITE8X8", edgeSize = 1 })
+    SFP.BlizzardFrame(f)
     f:SetBackdropColor(r, g, b, a)
     f:SetBackdropBorderColor(br, bg_, bb, ba)
 end
@@ -158,7 +158,7 @@ end
 -- a simple page: title, a short explanation, then whatever the page adds
 local function pageHead(pane, title, desc)
     mkText(pane, CYHEX .. title .. "|r", 12, -10, 480, "GameFontNormalLarge")
-    local fs = mkText(pane, desc, 12, -38, 500, "GameFontHighlightSmall")
+    local fs = mkText(pane, desc, 12, -38, 700, "GameFontHighlightSmall")
     fs:SetTextColor(0.85, 0.85, 0.85)
     fs:SetSpacing(2)
     return -38 - math.max(30, fs:GetStringHeight() or 30) - 14
@@ -1343,15 +1343,15 @@ local buildSocial = simplePage("Players & Party",
         mkButton(pane, "Open my group", 130, function() S.ShowGroup() end, "Item level, profile, sockets and enchants of everyone in your group"):SetPoint("TOPLEFT", 322, y - 84)
         styleInfo = mkText(pane, "", 12, y - 112, 500, "GameFontHighlightSmall")
 
-        mkText(pane, CYHEX .. "What I dislike in a group|r  (others who have the addon see it on my tooltip)", 12, y - 140, 500, "GameFontNormal")
+        mkText(pane, CYHEX .. "What I dislike in a group|r  (others who have the addon see it on my tooltip)", 12, y - 372, 500, "GameFontNormal")
         for i, d in ipairs(S.DISLIKES) do
             local col = (i - 1) % 2
             local row = math.floor((i - 1) / 2)
             local id = d[1]
             checks[#checks + 1] = mkCheck(pane, d[2], function() return S.Config().dislikes[id] end,
-                function(v) S.Config().dislikes[id] = v and true or nil end, 12 + col * 255, y - 164 - row * 24)
+                function(v) S.Config().dislikes[id] = v and true or nil end, 12 + col * 255, y - 396 - row * 24)
         end
-        local preview = mkText(pane, "", 12, y - 316, 500, "GameFontHighlightSmall")
+        local preview = mkText(pane, "", 12, y - 552, 640, "GameFontHighlightSmall")
         preview:SetTextColor(0.8, 0.8, 0.8)
         return function()
             local cfg = S.Config()
@@ -1427,7 +1427,7 @@ function SFP:MenuFrame() return frame end
 
 local function build()
     frame = CreateFrame("Frame", "SeviathsUsefulToolsMenu", UIParent, "BackdropTemplate")
-    frame:SetSize(710, 540)
+    frame:SetSize(960, 700)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
     frame:SetToplevel(true)
@@ -1435,7 +1435,7 @@ local function build()
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
-    backdrop(frame, 0.03, 0.06, 0.08, 0.97, CY.r, CY.g, CY.b, 0.6)
+    SFP.BlizzardFrame(frame, true)
     tinsert(UISpecialFrames, "SeviathsUsefulToolsMenu")
 
     local title = CreateFrame("Frame", nil, frame)
@@ -1457,9 +1457,9 @@ local function build()
     local navScroll = CreateFrame("ScrollFrame", nil, frame)
     navScroll:SetPoint("TOPLEFT", 4, -34)
     navScroll:SetPoint("BOTTOMLEFT", 4, 8)
-    navScroll:SetWidth(150)
+    navScroll:SetWidth(194)
     local navChild = CreateFrame("Frame", nil, navScroll)
-    navChild:SetSize(150, #SECTIONS * 25 + 8)
+    navChild:SetSize(194, #SECTIONS * 28 + 8)
     navScroll:SetScrollChild(navChild)
     navScroll:EnableMouseWheel(true)
     navScroll:SetScript("OnMouseWheel", function(self, delta)
@@ -1467,15 +1467,15 @@ local function build()
         self:SetVerticalScroll(math.min(maxScroll, math.max(0, self:GetVerticalScroll() - delta * 50)))
     end)
     for i, s in ipairs(SECTIONS) do
-        local b = mkButton(navChild, s.label, 138, function() SFP:ShowMenuSection(s.key) end)
-        b:SetHeight(22)
-        b:SetPoint("TOPLEFT", 6, -2 - (i - 1) * 25)
+        local b = mkButton(navChild, s.label, 184, function() SFP:ShowMenuSection(s.key) end)
+        b:SetHeight(24)
+        b:SetPoint("TOPLEFT", 6, -2 - (i - 1) * 28)
         navButtons[s.key] = b
     end
     frame.content = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    frame.content:SetPoint("TOPLEFT", 156, -34)
+    frame.content:SetPoint("TOPLEFT", 202, -34)
     frame.content:SetPoint("BOTTOMRIGHT", -8, 8)
-    backdrop(frame.content, 0.02, 0.04, 0.06, 0.6, CY.r, CY.g, CY.b, 0.25)
+    SFP.BlizzardFrame(frame.content, "inset")
 end
 
 function SFP:ToggleMenu(section)

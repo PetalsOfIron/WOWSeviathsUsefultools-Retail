@@ -190,7 +190,7 @@ local function showMultiTip(h)
     tip:AddLine(string.format("approx. %.1f, %.1f", h.zx * 100, h.zy * 100), 1, 0.82, 0)
     for i, s in ipairs(h.spawns) do
         if i > 6 then tip:AddLine("+" .. (#h.spawns - 6) .. " more - zoom in to see them", 0.6, 0.6, 0.6); break end
-        local col = s.hunter and { 0.67, 0.83, 0.45 } or s.rare and { 1, 0.6, 0.2 } or s.special and { 1, 0.3, 0.85 } or { 0, 0.9, 1 }
+        local col = s.hunter and { 0.67, 0.83, 0.45 } or s.rare and { 1, 0.6, 0.2 } or s.special and { 1, 0.3, 0.85 } or { 0.9, 0.28, 0.24 }
         local title = s.name
         if s.hunter then title = SFP.HUNTER_ICON .. " " .. title .. "  |c" .. SFP.HUNTER_HEX .. "(Hunter tame)|r" end
         if s.rare then title = title .. "  |cffff8000(Rare)|r" end
@@ -202,7 +202,7 @@ local function showMultiTip(h)
         else
             local best = {}
             for _, id in ipairs(s.bestFor or {}) do best[id] = true end
-            if s.learned then tip:AddLine("learned from your loot", 0.4, 0.8, 1) end
+            if s.learned then tip:AddLine("learned from your loot", 1, 0.55, 0.5) end
             for _, id in ipairs(sortedItems(s.items)) do lootLine(id, best[id], s) end
         end
     end
@@ -247,7 +247,7 @@ local function showSpotTip(h, owner)
     for _, id in ipairs(s.bestFor or {}) do best[id] = true end
     local function line(id) lootLine(id, best[id], s) end
     if s.learned then
-        tip:AddLine("Learned from your own loot", 0.4, 0.8, 1, true)
+        tip:AddLine("Learned from your own loot", 1, 0.55, 0.5, true)
     end
     if s.bestFor and not s.rare then
         local names = {}
@@ -481,7 +481,7 @@ local function placeFarmPin(p, x, y, h)
     if not p.pinTex then
         p.pinTex = p:CreateTexture(nil, "OVERLAY")
         p.pinTex:SetAtlas("Waypoint-MapPin-Untracked")
-        p.pinTex:SetVertexColor(0.3, 0.95, 1, 1)
+        p.pinTex:SetVertexColor(1, 0.5, 0.45, 1)
         p.ring = p:CreateTexture(nil, "ARTWORK")
         p.ring:SetTexture("Interface\\CHARACTERFRAME\\TempPortraitAlphaMask")
         p.ring:SetBlendMode("BLEND")
@@ -1099,7 +1099,7 @@ local function panelRow(i)
         if self.itemID then
             SFP.Tip():SetOwner(self, "ANCHOR_LEFT")
             SFP.Tip():SetItemByID(self.itemID)
-            SFP.Tip():AddLine("Right-click: Wowhead link", 0, 0.9, 1)
+            SFP.Tip():AddLine("Right-click: Wowhead link", 0.9, 0.28, 0.24)
             SFP.Tip():Show()
         end
     end)
@@ -1186,8 +1186,8 @@ local function buildGatherPanel()
     f:SetFrameStrata("HIGH")
     f:SetWidth(262)
     f:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -8, 8)
-    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    f:SetBackdropColor(0.05, 0.04, 0.02, 0.88)
+    SFP.BlizzardFrame(f, true)
+    f:SetBackdropColor(0.05, 0.04, 0.02, 0.95)
     f:SetBackdropBorderColor(1, 0.7, 0.35, 0.8)
     f:EnableMouse(true)
 
@@ -1236,7 +1236,7 @@ local function gatherRow(i)
         SFP.Tip():SetItemByID(self.item)
         SFP.Tip():AddLine(" ")
         SFP.Tip():AddLine(self.bestText, 0.25, 1, 0.25, true)
-        if self.target then SFP.Tip():AddLine("Click: open that zone", 0, 0.9, 1) end
+        if self.target then SFP.Tip():AddLine("Click: open that zone", 0.9, 0.28, 0.24) end
         SFP.Tip():Show()
     end)
     r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
@@ -1427,9 +1427,9 @@ local function buildSpotPanel()
     f:SetFrameStrata("HIGH")
     f:SetWidth(250)
     f:SetPoint("TOPLEFT", sc, "TOPLEFT", 8, -8)
-    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    f:SetBackdropColor(0.02, 0.05, 0.06, 0.88)
-    f:SetBackdropBorderColor(0, 0.9, 1, 0.8)
+    SFP.BlizzardFrame(f, true)
+    f:SetBackdropColor(0.02, 0.05, 0.06, 0.95)
+    f:SetBackdropBorderColor(0.9, 0.28, 0.24, 0.8)
     f:EnableMouse(true)
     f:EnableMouseWheel(true)
     f:SetScript("OnMouseWheel", function(self, delta)
@@ -1559,7 +1559,7 @@ local function spotRow(i)
             SFP.Tip():AddDoubleLine("|T" .. SFP:ItemIcon(id) .. ":12|t " .. SFP:ItemName(id) .. pct, SFP.SoldTag(id) .. (price and SFP:FormatPrice(price) or ""), 1, 1, 1, 1, 1, 1)
         end
         if s.hx then SFP.Tip():AddLine(string.format("%.1f, %.1f", s.hx * 100, s.hy * 100), 1, 0.82, 0) end
-        SFP.Tip():AddLine("Click: show or hide this spot on the map", 0, 0.9, 1)
+        SFP.Tip():AddLine("Click: show or hide this spot on the map", 0.9, 0.28, 0.24)
         SFP.Tip():Show()
     end)
     r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
@@ -1785,8 +1785,8 @@ local function buildCollPanel()
     f:SetFrameStrata("HIGH")
     f:SetWidth(262)
     f:SetPoint("TOPRIGHT", sc, "TOPRIGHT", -8, -8)
-    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    f:SetBackdropColor(0.05, 0.04, 0.02, 0.88)
+    SFP.BlizzardFrame(f, true)
+    f:SetBackdropColor(0.05, 0.04, 0.02, 0.95)
     f:SetBackdropBorderColor(0.64, 0.21, 0.93, 0.8)
     f:EnableMouse(true)
     f.head = CreateFrame("Button", nil, f)
@@ -1831,7 +1831,7 @@ local function collRow(f, i)
         t:SetOwner(self, "ANCHOR_LEFT")
         if self.item then t:SetItemByID(self.item) end
         for _, l in ipairs(self.lines or {}) do t:AddLine(l, 1, 1, 1, true) end
-        t:AddLine("Click: set a waypoint and open the map there", 0, 0.9, 1)
+        t:AddLine("Click: set a waypoint and open the map there", 0.9, 0.28, 0.24)
         t:Show()
     end)
     r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
@@ -2018,7 +2018,7 @@ local function buildSimplePanel(key, color)
     f:SetFrameStrata("HIGH")
     f:SetWidth(262)
     f:SetPoint("BOTTOMRIGHT", sc, "BOTTOMRIGHT", -8, 8)
-    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    SFP.BlizzardFrame(f, true)
     f:SetBackdropColor(0.05, 0.04, 0.02, 0.9)
     f:SetBackdropBorderColor(color[1], color[2], color[3], 0.8)
     f:EnableMouse(true)
@@ -2062,7 +2062,7 @@ local function simpleRow(f, i)
         t:SetOwner(self, "ANCHOR_LEFT")
         t:AddLine(self.label or "?", 1, 0.82, 0)
         if self.spot then addSpotDrops(t, self.spot) end
-        t:AddLine("Click: set a waypoint on it", 0, 0.9, 1)
+        t:AddLine("Click: set a waypoint on it", 0.9, 0.28, 0.24)
         t:Show()
     end)
     r:SetScript("OnLeave", function() SFP.Tip():Hide() end)
@@ -2179,9 +2179,9 @@ local function buildFarmPanel()
     local f = CreateFrame("Frame", "SeviathsUsefulToolsFarmList", WorldMapFrame, "BackdropTemplate")
     f:SetFrameStrata("HIGH")
     f:SetSize(420, 520)
-    f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
+    SFP.BlizzardFrame(f, true)
     f:SetBackdropColor(0.02, 0.03, 0.05, 0.96)
-    f:SetBackdropBorderColor(0, 0.9, 1, 0.9)
+    f:SetBackdropBorderColor(0.9, 0.28, 0.24, 0.9)
     f:EnableMouse(true)
     f.head = CreateFrame("Button", nil, f)
     f.head:SetPoint("TOPLEFT", 0, 0)
@@ -2685,8 +2685,8 @@ SFP:OnLogin(function()
     panel:SetWidth(240)
     panel:SetPoint("TOPRIGHT", sc, "TOPRIGHT", -10, -10)
     panel:SetFrameStrata("HIGH")
-    panel:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
-    panel:SetBackdropColor(0, 0.05, 0.08, 0.85)
+    SFP.BlizzardFrame(panel, true)
+    panel:SetBackdropColor(0, 0.05, 0.08, 0.95)
     panel:SetBackdropBorderColor(c.r, c.g, c.b, 0.9)
     panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     panel.title:SetPoint("TOPLEFT", 8, -7)

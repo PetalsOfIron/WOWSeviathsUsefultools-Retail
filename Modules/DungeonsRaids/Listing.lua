@@ -858,7 +858,7 @@ local function AddTooltip(tooltip, resultID)
   local S = _G.SeviathsUsefulTools and _G.SeviathsUsefulTools.Social
   if S and S.AddByName and r.leader then
     tooltip:AddLine(" ")
-    tooltip:AddLine("Leader: " .. tostring(r.leader), 0.0, 0.9, 1.0)
+    tooltip:AddLine("Leader: " .. tostring(r.leader), 0.9, 0.28, 0.24)
     pcall(S.AddByName, tooltip, r.leader)
     -- the other players of the group, when the game gives their names: one short line each
     if C_LFGList.GetSearchResultPlayerInfo then
@@ -868,7 +868,7 @@ local function AddTooltip(tooltip, resultID)
         local pname = okP and type(pinfo) == "table" and ns.Safe(pinfo.name)
         if pname and ns.FullName(pname) ~= r.leader then
           local okL, line = pcall(S.OneLine, ns.FullName(pname))
-          if okL and line and shown < 5 then
+          if okL and line and shown < 10 then
             tooltip:AddLine(line, 0.8, 0.8, 0.8, true)
             shown = shown + 1
           end
