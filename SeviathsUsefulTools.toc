@@ -152,6 +152,8 @@ Scanner.lua
 WorldMap.lua
 Treasures.lua
 PointsMenu.lua
+Roleplay.lua
+RPBridge.lua
 MapMenu.lua
 MaterialGuide.lua
 Minimap.lua

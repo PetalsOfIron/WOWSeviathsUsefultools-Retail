@@ -2,7 +2,7 @@
 local _, ns = SFP_Module("DungeonsRaids")
 
 ns.TAGS = {
-  fav   = { label = "Favorite",   short = "FAV",   color = "33e6ff" },
+  fav   = { label = "Favorite",   short = "FAV",   color = "e6483d" },
   good  = { label = "Good run",   short = "GOOD",  color = "40ff60" },
   bad   = { label = "Failed run", short = "FAIL",  color = "ffd040" },
   left  = { label = "Left early", short = "LEFT",  color = "ff9040" },

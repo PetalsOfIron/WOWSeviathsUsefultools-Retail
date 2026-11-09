@@ -191,7 +191,7 @@ local function items(realm, gpage)
             local rio = g1
             -- the row shows only the Mythic+ score and the raid progress (Raider.IO's); everything else is in the tooltip on hover
             local function tip(tt)
-                tt:AddLine(("%s  |cff808080%s, %s|r"):format(name, role, pretty(realm)), 0.0, 0.9, 1.0)
+                tt:AddLine(("%s  |cff808080%s, %s|r"):format(name, role, pretty(realm)), 0.9, 0.28, 0.24)
                 S.AddByName(tt, full)
             end
             -- the row: the role and the name as the nameplate wrote it; hover: the nameplate and everything recorded about this player

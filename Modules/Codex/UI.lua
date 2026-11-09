@@ -218,7 +218,7 @@ local function UpdateList()
                 row.icon:SetPoint("LEFT", 4 + (item.indent or 0) * 14, 0)
                 local name = e.name
                 if e.collected == false then name = "|cff9a9a9a" .. name .. "|r" end
-                if item.showCat then name = name .. "  |cff5fa8b8" .. catName(e.cat) .. "|r" end
+                if item.showCat then name = name .. "  |cffff6a60" .. catName(e.cat) .. "|r" end
                 row.text:SetText(name)
                 row.check:SetShown(e.collected == true)
                 if e.key == state.selected then
@@ -648,7 +648,7 @@ function ns:ShowEntry(key, noHistory)
                 end
                 b.key = r.key
                 b.icon:SetTexture(r.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
-                b.text:SetText(r.name .. "  |cff5fa8b8" .. catName(r.cat) .. "|r")
+                b.text:SetText(r.name .. "  |cffff6a60" .. catName(r.cat) .. "|r")
                 b:Show()
             end
         end
