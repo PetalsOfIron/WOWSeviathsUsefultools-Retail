@@ -96,6 +96,7 @@ collected\tools.nameplateText.13.lua
 collected\tools.nameplateText.14.lua
 collected\tools.nameplateText.15.lua
 collected\tools.nameplateText.16.lua
+collected\tools.nameplateText.17.lua
 collected\tools.nameplateText.2.lua
 collected\tools.nameplateText.3.lua
 collected\tools.nameplateText.4.lua
