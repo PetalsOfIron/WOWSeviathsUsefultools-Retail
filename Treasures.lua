@@ -262,8 +262,34 @@ local function getPin()
     return p
 end
 
+-- profession trainers and auction houses (the NPCs you spoke to, saved by NpcSpots.lua, also the ones other players shared)
+local spins, sused = {}, 0
+local function getServicePin()
+    sused = sused + 1
+    local p = spins[sused]
+    if not p then
+        p = CreateFrame("Button", nil, layer)
+        p.icon = p:CreateTexture(nil, "ARTWORK")
+        p.icon:SetAllPoints()
+        p:SetScript("OnEnter", function(self)
+            local t = SFP.Tip and SFP.Tip() or GameTooltip
+            t:SetOwner(self, "ANCHOR_RIGHT")
+            t:ClearLines()
+            t:AddLine(tostring(self.name or "?"), 1, 0.82, 0.2)
+            t:AddLine(self.what or "", 0.75, 0.75, 0.75)
+            t:Show()
+        end)
+        p:SetScript("OnLeave", function() (SFP.Tip and SFP.Tip() or GameTooltip):Hide() end)
+        spins[sused] = p
+    end
+    p:Show()
+    return p
+end
+
 local function update()
     if not layer then return end
+    for i = 1, #spins do spins[i]:Hide() end
+    sused = 0
     for i = 1, #pins do pins[i]:Hide() end
     for i = 1, #npins do npins[i]:Hide() end
     used, nused = 0, 0
@@ -286,6 +312,26 @@ local function update()
         p:SetPoint("CENTER", c, "TOPLEFT", t.x * w, -t.y * h)
         p.id, p.rec = t.id, t.rec
       end
+    end
+    -- profession trainers and auctioneers
+    if SFP.db.showServices ~= false and SFP.db.npcPos then
+        for id, r in pairs(SFP.db.npcPos) do
+            local what, icon
+            if r.k and r.k.auctioneer then what, icon = "Auction house", 133784
+            elseif r.k and r.k.proftrainer then what, icon = r.prof or "Profession trainer", 133739 end
+            if what and type(r.m) == "number" and r.x and r.y then
+                local x, y = convert(r.m, r.x, r.y, map)
+                if x then
+                    local p = getServicePin()
+                    p:SetSize(size * 2.6, size * 2.6)
+                    p:ClearAllPoints()
+                    p:SetPoint("CENTER", c, "TOPLEFT", x * w, -y * h)
+                    p.name, p.what = r.n, what
+                    p.icon:SetTexture(icon)
+                    p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+                end
+            end
+        end
     end
     -- the herb and ore nodes (the switches are the Herbalism and Mining ones of the map layers)
     local showH, showO = SFP.db and SFP.db.showHerbs, SFP.db and SFP.db.showMining

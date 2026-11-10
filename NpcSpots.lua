@@ -32,6 +32,9 @@ local function npcIDFromGUID(guid)
     return tonumber(id)
 end
 
+SFP.PROFESSION_WORDS = { "alchemy", "blacksmith", "enchant", "engineer", "inscription", "jewelcraft", "leatherwork", "tailor", "herbalism", "mining",
+    "skinning", "cooking", "fishing", "archaeology", "first aid" }
+
 local nameIndex   -- lowercase name -> npcID, rebuilt when a new NPC is added
 
 local function record(what)
@@ -65,6 +68,19 @@ local function record(what)
     end
     rec.n = name
     if what then rec.k[what] = true end
+    -- a trainer of a profession (Alchemy Trainer, Blacksmithing Trainer ...): its second tooltip line says what it trains
+    if what == "trainer" then
+        pcall(function()
+            local data = C_TooltipInfo and C_TooltipInfo.GetUnit and C_TooltipInfo.GetUnit("npc")
+            local line = data and data.lines and data.lines[2] and data.lines[2].leftText
+            if type(line) == "string" and not secret(line) then
+                local low = line:lower()
+                for _, prof in ipairs(SFP.PROFESSION_WORDS) do
+                    if low:find(prof, 1, true) then rec.prof = line; rec.k.proftrainer = true; return end
+                end
+            end
+        end)
+    end
     -- the area of this NPC (the sub-zone): an area with NPCs is a town, also when it is no rest area (db.towns, see below)
     do
         local okS, sub = pcall(GetSubZoneText)
