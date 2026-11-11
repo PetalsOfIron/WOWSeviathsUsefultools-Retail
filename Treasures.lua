@@ -143,8 +143,35 @@ local function treasuresOf(map)
             end
         end
     end
-    byMap[map] = list
-    return list
+    -- treasures at the same spot are one pin: their loot is put together
+    local merged = {}
+    for _, t in ipairs(list) do
+        local into
+        for _, m in ipairs(merged) do
+            if math.abs(m.x - t.x) < 0.01 and math.abs(m.y - t.y) < 0.01 then into = m break end
+        end
+        if not into then
+            into = { id = t.id, x = t.x, y = t.y, rec = { n = t.rec.n, k = 0, d = {}, q = {}, ids = {}, count = 0 } }
+            merged[#merged + 1] = into
+        end
+        local r, tr = t.rec, into.rec
+        if not tr.ids[t.id] then
+            tr.ids[t.id] = true
+            tr.count = tr.count + 1
+            tr.k = tr.k + (r.k or 0)
+            for item, c in pairs(r.d or {}) do tr.d[item] = (tr.d[item] or 0) + c end
+            for item, qr in pairs(r.q or {}) do
+                local e = tr.q[item]
+                if type(qr) == "table" and type(qr[1]) == "number" and type(qr[2]) == "number" then
+                    if not e then tr.q[item] = { qr[1], qr[2] }
+                    else e[1] = math.min(e[1], qr[1]); e[2] = math.max(e[2], qr[2]) end
+                end
+            end
+            if tr.count > 1 and r.n and tr.n ~= r.n then tr.n = tr.n .. " / " .. r.n end
+        end
+    end
+    byMap[map] = merged
+    return merged
 end
 
 -- the recorded herb and ore nodes: an object that gave something and is a gathering node (rec.gt "herb" or "ore", else by what it gave or its type text)
@@ -185,7 +212,7 @@ local function nodesOf(map)
     for _, n in ipairs(list) do
         local into
         for _, m in ipairs(merged) do
-            if m.kind == n.kind and math.abs(m.x - n.x) < 0.004 and math.abs(m.y - n.y) < 0.004 then into = m break end
+            if m.kind == n.kind and math.abs(m.x - n.x) < 0.01 and math.abs(m.y - n.y) < 0.01 then into = m break end
         end
         if not into then
             into = { id = n.id, x = n.x, y = n.y, kind = n.kind, rec = { n = n.rec.n, k = 0, d = {}, q = {}, ids = {} } }
@@ -241,12 +268,12 @@ local function getPin()
         p = CreateFrame("Button", nil, layer)
         p.edge = p:CreateTexture(nil, "BACKGROUND")
         p.edge:SetAllPoints()
-        p.edge:SetColorTexture(0.14, 0.03, 0.03, 0.85)
+        p.edge:SetColorTexture(0.02, 0.06, 0.16, 0.9)
         p.fill = p:CreateTexture(nil, "ARTWORK")
         p.fill:SetPoint("TOPLEFT", 1, -1)
         p.fill:SetPoint("BOTTOMRIGHT", -1, 1)
-        local cy = SFP.CYAN or { 0.9, 0.28, 0.24 }
-        p.fill:SetColorTexture((cy[1] or cy.r or 0) * 0.55, (cy[2] or cy.g or 0.9) * 0.6, (cy[3] or cy.b or 1) * 0.8, 0.8)   -- a softer blue
+        -- always blue, whatever colour the addon theme has
+        p.fill:SetColorTexture(0.2, 0.55, 1, 0.95)
         p:SetScript("OnEnter", function(self)
             local t = SFP.Tip and SFP.Tip() or GameTooltip
             t:SetOwner(self, "ANCHOR_RIGHT")
