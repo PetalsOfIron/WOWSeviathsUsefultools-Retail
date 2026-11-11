@@ -290,6 +290,37 @@ local function getPin()
 end
 
 -- profession trainers and auction houses (the NPCs you spoke to, saved by NpcSpots.lua, also the ones other players shared)
+
+-- the points of interest of the map itself (the game lists the Auction House and the profession trainers of a city): pins for them even when you never visited them
+local poiCache = {}
+local function poiServices(map)
+    local c = poiCache[map]
+    if c and c.t > time() - 60 then return c.list end
+    local list = {}
+    if C_AreaPoiInfo and C_AreaPoiInfo.GetAreaPOIForMap and C_AreaPoiInfo.GetAreaPOIInfo then
+        local okL, ids = pcall(C_AreaPoiInfo.GetAreaPOIForMap, map)
+        for _, pid in ipairs(okL and type(ids) == "table" and ids or {}) do
+            local okI, info = pcall(C_AreaPoiInfo.GetAreaPOIInfo, map, pid)
+            if okI and type(info) == "table" and type(info.name) == "string" and info.position and info.position.GetXY then
+                local low = info.name:lower()
+                local what
+                if low:find("auction house", 1, true) then what = "Auction house"
+                elseif low:find("trainer", 1, true) then
+                    for _, prof in ipairs(SFP.PROFESSION_WORDS or {}) do
+                        if low:find(prof, 1, true) then what = info.name break end
+                    end
+                end
+                if what then
+                    local x, y = info.position:GetXY()
+                    list[#list + 1] = { n = info.name, x = x, y = y, what = what }
+                end
+            end
+        end
+    end
+    poiCache[map] = { t = time(), list = list }
+    return list
+end
+
 local spins, sused = {}, 0
 local function getServicePin()
     sused = sused + 1
@@ -340,6 +371,21 @@ local function update()
         p.id, p.rec = t.id, t.rec
       end
     end
+    -- profession trainers and auctioneers: the ones from the points of interest of the map first
+    do
+        local have = {}
+        for _, e in ipairs(poiServices(map)) do
+            local p = getServicePin()
+            p:SetSize(size * 2.6, size * 2.6)
+            p:ClearAllPoints()
+            p:SetPoint("CENTER", c, "TOPLEFT", e.x * w, -e.y * h)
+            p.name, p.what = e.n, e.what
+            p.icon:SetTexture(e.what == "Auction house" and 133784 or 133739)
+            p.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+            have[#have + 1] = e
+        end
+        SFP._poiHave = have
+    end
     -- profession trainers and auctioneers
     if SFP.db.showServices ~= false and SFP.db.npcPos then
         for id, r in pairs(SFP.db.npcPos) do
@@ -348,7 +394,11 @@ local function update()
             elseif r.k and r.k.proftrainer then what, icon = r.prof or "Profession trainer", 133739 end
             if what and type(r.m) == "number" and r.x and r.y then
                 local x, y = convert(r.m, r.x, r.y, map)
-                if x then
+                local dup = false
+                for _, e in ipairs(SFP._poiHave or {}) do
+                    if x and math.abs(e.x - x) < 0.01 and math.abs(e.y - y) < 0.01 then dup = true end
+                end
+                if x and not dup then
                     local p = getServicePin()
                     p:SetSize(size * 2.6, size * 2.6)
                     p:ClearAllPoints()
