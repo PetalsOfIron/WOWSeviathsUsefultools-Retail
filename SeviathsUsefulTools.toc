@@ -153,6 +153,9 @@ Guides.lua
 Scanner.lua
 WorldMap.lua
 Treasures.lua
+ItemLoad.lua
+Premade.lua
+BestSkinning.lua
 PointsMenu.lua
 MapMenu.lua
 MaterialGuide.lua
