@@ -405,27 +405,42 @@ function SFP:TypicalPrice(itemID)
     end
 end
 
+-- Only BoEs of blue (rare) and purple (epic) quality, and only the ones of EXACTLY your level: the required level is your level (so the list changes by itself as you
+-- level, and at the level cap it is the items of the cap). An item whose data the game has not loaded yet is asked for and appears a
+-- moment later.
+local DEAL_LEVELS_BELOW = 0   -- exactly your level
 function SFP:BoeDeals()
     local out, nohist = {}, {}
+    local plevel = UnitLevel("player") or 1
     for id, info in pairs(self.Items or {}) do
         if info.kind == "boe" then
-            if C_Item and C_Item.RequestLoadItemDataByID and not (C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)) then
-                pcall(C_Item.RequestLoadItemDataByID, id)
+            local ok, name, _, quality, _, minLevel = pcall(C_Item.GetItemInfo, id)
+            if not (ok and name) then
+                if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+                quality = nil
             end
+            local eligible = quality and (quality == 3 or quality == 4) and minLevel and minLevel >= 1 and minLevel <= plevel and minLevel >= plevel - DEAL_LEVELS_BELOW
             -- now: our own scan, else Auctionator / TradeSkillMaster
-            local now = self:GetPrice(id)
+            local now = eligible and self:GetPrice(id)
             if now and now > 0 then
                 local typical, n, src = self:TypicalPrice(id)
                 if typical and typical > 0 then
-                    out[#out + 1] = { id = id, now = now, typical = typical, n = n, src = src, cut = 1 - now / typical }
+                    out[#out + 1] = { id = id, now = now, typical = typical, n = n, src = src, cut = 1 - now / typical, lvl = minLevel }
                 else
-                    nohist[#nohist + 1] = { id = id, now = now }
+                    nohist[#nohist + 1] = { id = id, now = now, lvl = minLevel }
                 end
             end
         end
     end
-    table.sort(out, function(a, b) return a.cut > b.cut end)
-    table.sort(nohist, function(a, b) return a.now > b.now end)
+    -- exactly your level first, then the cheapest compared with the typical price
+    table.sort(out, function(a, b)
+        if a.lvl ~= b.lvl then return a.lvl > b.lvl end
+        return a.cut > b.cut
+    end)
+    table.sort(nohist, function(a, b)
+        if a.lvl ~= b.lvl then return a.lvl > b.lvl end
+        return a.now > b.now
+    end)
     return out, nohist
 end
 
@@ -437,23 +452,23 @@ local function renderDeals(self)
         if i > 60 then break end
         local pct = math.floor(d.cut * 100 + 0.5)
         local color = pct >= 20 and "|cff40ff40" or (pct <= -20 and "|cffff6060" or "|cffffffff")
-        lines[#lines + 1] = ("%s%s%d%%|r  %s   now %s   typical %s  |cff808080(%s)|r"):format(
-            color, pct >= 0 and "-" or "+", math.abs(pct), self:ItemName(d.id), money(d.now), money(d.typical),
+        lines[#lines + 1] = ("%s%s%d%%|r  %s  |cff808080lvl %d|r   now %s   typical %s  |cff808080(%s)|r"):format(
+            color, pct >= 0 and "-" or "+", math.abs(pct), self:ItemName(d.id), d.lvl or 0, money(d.now), money(d.typical),
             d.src == "your scans" and (d.n .. " scans") or d.src)
     end
     if #lines > 0 then
-        table.insert(lines, 1, "|cff808080Green = cheaper than usual. Prices: your own scans, else Auctionator or TradeSkillMaster.|r\n")
+        table.insert(lines, 1, ("|cff808080Rare (blue) and better BoEs for level %d . Green = cheaper than usual. Prices: your own scans, else Auctionator or TradeSkillMaster.|r\n"):format(UnitLevel("player") or 1))
     end
     -- items that have a price now but nothing to compare with yet
     if #nohist > 0 then
         lines[#lines + 1] = (#lines > 0 and "\n" or "") .. "|cffffd100BoE prices now|r  |cff808080(no price history yet - the addon keeps one from now on, so this fills in over a few days)|r"
         for i, d in ipairs(nohist) do
             if i > 30 then break end
-            lines[#lines + 1] = ("  %s   %s"):format(self:ItemName(d.id), money(d.now))
+            lines[#lines + 1] = ("  %s  |cff808080lvl %d|r   %s"):format(self:ItemName(d.id), d.lvl or 0, money(d.now))
         end
     end
     if #lines == 0 then
-        lines[1] = "No BoE prices known yet. Scan the auction house (button below its window), or install Auctionator or TradeSkillMaster and scan there. Then open this list again."
+        lines[1] = "No blue or purple BoE of exactly your level has a known price yet. Scan the auction house (button below its window), or install Auctionator or TradeSkillMaster and scan there. Then open this list again."
     end
     dealWin:SetContent(table.concat(lines, "\n"))
 end
