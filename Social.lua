@@ -370,7 +370,7 @@ function S.MineDone()
     c.mine = c.mine or {}
     local m = c.mine[key]
     if not m then
-        m = { dungeon = {}, delve = {} }
+        m = { dungeon = {}, delve = {}, raid = {} }
         c.mine[key] = m
         if not c.mineSeeded then
             c.mineSeeded = true
@@ -381,6 +381,7 @@ function S.MineDone()
     end
     -- once: the dungeons of the list counted every dungeon entered; now only Mythic+ ones do, so the old entries are dropped and the list starts again
     if not m.dunMplus then m.dunMplus = true; m.dungeon = {} end
+    m.raid = m.raid or {}
     return m
 end
 
@@ -431,12 +432,14 @@ end
 -- a boss killed in a dungeon or raid is saved with the place (c.lib[kind][place].bosses[boss name] = kills, and the encounter ID)
 function S.NoteBoss(encounterID, bossName)
     if type(bossName) ~= "string" or secret(bossName) then return end
-    local ok, name, itype = pcall(GetInstanceInfo)
+    local ok, name, itype, diffID = pcall(GetInstanceInfo)
     if not ok or type(name) ~= "string" then return end
     local kind = (itype == "raid" and "raid") or (itype == "party" and "dungeon") or nil
     local c = S.Config()
     local rec = kind and c.lib and c.lib[kind] and c.lib[kind][name]
     if not rec then return end
+    -- a raid with a boss killed at the maximum level is a raid done (each raid once)
+    if kind == "raid" and atMaxLevel() and ((WOW_PROJECT_CAMELOT ~= nil and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT) or HEROIC_RAID[diffID]) then S.MineDone().raid[name:lower()] = true end
     rec.bosses = rec.bosses or {}
     local b = rec.bosses[bossName] or { n = 0 }
     b.n = b.n + 1
@@ -479,7 +482,7 @@ end
 --   keys:   this season's Mythic+ dungeons you have a run in (the game's own record, so past runs count) out of the season's dungeons
 --   raid:   the bosses killed in your raid lockouts this week out of the bosses in them
 function S.Progress()
-    local out = { delve = { 0, 0 }, key = { 0, 0 }, raid = { 0, 0 }, dun = { 0, 0 } }
+    local out = { delve = { 0, 0 }, key = { 0, 0 }, raid = { 0, 0 }, dun = { 0, 0 }, rd = { 0, 0 } }
     local cx = SFP_Module and select(2, SFP_Module("Codex"))
     local mineDone = S.MineDone()   -- this character's own list
     local done = mineDone.delve
@@ -567,6 +570,7 @@ function S.Progress()
                     local bosses = dr:GetBosses(inst)
                     if #bosses > 0 then
                         usedLibrary = true
+                        out.rd[2] = out.rd[2] + 1
                         out.raid[2] = out.raid[2] + #bosses
                         local killed = {}
                         for _, diff in ipairs({ "H", "M" }) do   -- from Heroic: Normal and the finder do not count
@@ -588,7 +592,22 @@ function S.Progress()
             end
         end
     end
+    for _ in pairs(mineDone.raid or {}) do out.rd[1] = out.rd[1] + 1 end
+    out.rd[2] = math.max(out.rd[2], out.rd[1])
     return out
+end
+
+-- the dungeons and raids this character finished at the maximum level (names), with the numbers, for the alt overview
+function S.AltDone()
+    local m = S.MineDone()
+    local function names(t)
+        local out = {}
+        for n in pairs(t or {}) do out[#out + 1] = n end
+        table.sort(out)
+        return out
+    end
+    local ok, pr = pcall(S.Progress)
+    return { dungeons = names(m.dungeon), raids = names(m.raid), dun = ok and pr and pr.dun or nil, rd = ok and pr and pr.rd or nil }
 end
 
 -- a delve was finished: it is marked as done (matched to the Codex list by name)
@@ -989,7 +1008,7 @@ local function sendProfile(channel, target)
     send(encode(S.MyProfile()), channel, target)
     -- done this week and in all of Midnight: dungeons and keys, raid bosses, delves ("W")
     local pr = S.Progress()
-    send(("V;%d;%d;%d;%d;%d;%d;%d;%d"):format(pr.delve[1], pr.delve[2], pr.key[1], pr.key[2], pr.raid[1], pr.raid[2], pr.dun[1], pr.dun[2]), channel, target)
+    send(("V;%d;%d;%d;%d;%d;%d;%d;%d;%d;%d"):format(pr.delve[1], pr.delve[2], pr.key[1], pr.key[2], pr.raid[1], pr.raid[2], pr.dun[1], pr.dun[2], pr.rd[1], pr.rd[2]), channel, target)
     local sum = mySummary()
     if sum and (sum.hero or sum.matchName) then
         local function clean(s) return (tostring(s or ""):gsub("[;]", ",")) end
@@ -2303,7 +2322,7 @@ ev:SetScript("OnEvent", function(_, event, a1, a2, a3, a4)
             local rec = peers[name] or peers[shortName(name)]
             if rec then
                 rec.prog = { delve = { tonumber(f[2]) or 0, tonumber(f[3]) or 0 }, key = { tonumber(f[4]) or 0, tonumber(f[5]) or 0 },
-                    raid = { tonumber(f[6]) or 0, tonumber(f[7]) or 0 }, dun = { tonumber(f[8]) or 0, tonumber(f[9]) or 0 } }
+                    raid = { tonumber(f[6]) or 0, tonumber(f[7]) or 0 }, dun = { tonumber(f[8]) or 0, tonumber(f[9]) or 0 }, rd = { tonumber(f[10]) or 0, tonumber(f[11]) or 0 } }
             end
         elseif kind == "W" then
             local f = split(a2, ";")
@@ -3172,4 +3191,15 @@ function S.RioShort(fullName)
         if rec and (rec.mplus or 0) > 0 then sc = rec.mplus; extra = extra or {}; extra.fromAddon = true end
     end
     return sc, raidText, prev, extra
+end
+
+-- /sutshare: whether the sharing of the profile works (who answered, who was asked)
+SLASH_SEVIATHSSHARE1 = "/sutshare"
+SlashCmdList["SEVIATHSSHARE"] = function()
+    local n, asked = 0, 0
+    for _ in pairs(peers) do n = n + 1 end
+    for _ in pairs(queried) do asked = asked + 1 end
+    SFP:Print(("sharing: %s; %d players asked, %d answered this session; prefix %s registered: %s"):format(S.Config().share and "ON" or "OFF", asked, n, PREFIX,
+        tostring(C_ChatInfo and C_ChatInfo.IsAddonMessagePrefixRegistered and C_ChatInfo.IsAddonMessagePrefixRegistered(PREFIX))))
+    for k, r in pairs(peers) do SFP:Print("  " .. k .. ": item level " .. tostring(r.ilvl)) end
 end
