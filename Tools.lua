@@ -414,12 +414,12 @@ function SFP:BoeDeals()
     local plevel = UnitLevel("player") or 1
     for id, info in pairs(self.Items or {}) do
         if info.kind == "boe" then
-            local ok, name, _, quality, _, minLevel = pcall(C_Item.GetItemInfo, id)
+            local ok, name, _, quality, _, minLevel, _, _, _, _, _, classID = pcall(C_Item.GetItemInfo, id)
             if not (ok and name) then
                 if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
                 quality = nil
             end
-            local eligible = quality and (quality == 3 or quality == 4) and minLevel and minLevel >= 1 and minLevel <= plevel and minLevel >= plevel - DEAL_LEVELS_BELOW
+            local eligible = (classID == 2 or classID == 4) and quality and (quality == 3 or quality == 4) and minLevel and minLevel >= 1 and minLevel <= plevel and minLevel >= plevel - DEAL_LEVELS_BELOW
             -- now: our own scan, else Auctionator / TradeSkillMaster
             local now = eligible and self:GetPrice(id)
             if now and now > 0 then
@@ -433,6 +433,31 @@ function SFP:BoeDeals()
         end
     end
     -- exactly your level first, then the cheapest compared with the typical price
+    -- every bind-on-equip weapon and armor piece of blue and purple quality at exactly your level that the last whole scan of the auction house priced
+    local seenIds = {}
+    for _, e in ipairs(out) do seenIds[e.id] = true end
+    for _, e in ipairs(nohist) do seenIds[e.id] = true end
+    local prices = self:AllPrices()
+    for id in pairs(prices or {}) do
+        if type(id) == "number" and not seenIds[id] then
+            local okI, name, _, quality, _, minLevel, _, _, _, _, _, _, classID, _, bindType = pcall(C_Item.GetItemInfo, id)
+            if okI and name == nil then
+                if C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end   -- not loaded yet: it is there a moment later
+            elseif okI and bindType == 2 and (classID == 2 or classID == 4) and (quality == 3 or quality == 4) and minLevel and minLevel >= 1
+                and minLevel <= plevel and minLevel >= plevel - DEAL_LEVELS_BELOW then
+                seenIds[id] = true
+                local now = self:GetPrice(id)
+                if now and now > 0 then
+                    local typical, n, src = self:TypicalPrice(id)
+                    if typical and typical > 0 then
+                        out[#out + 1] = { id = id, now = now, typical = typical, n = n, src = src, cut = 1 - now / typical, lvl = minLevel }
+                    else
+                        nohist[#nohist + 1] = { id = id, now = now, lvl = minLevel }
+                    end
+                end
+            end
+        end
+    end
     table.sort(out, function(a, b)
         if a.lvl ~= b.lvl then return a.lvl > b.lvl end
         return a.cut > b.cut
@@ -468,7 +493,7 @@ local function renderDeals(self)
         end
     end
     if #lines == 0 then
-        lines[1] = "No blue or purple BoE of exactly your level has a known price yet. Scan the auction house (button below its window), or install Auctionator or TradeSkillMaster and scan there. Then open this list again."
+        lines[1] = "No blue or purple BoE of exactly your level has a known price yet. Scan the auction house (button below its window): this list fills in by itself when the scan is done."
     end
     dealWin:SetContent(table.concat(lines, "\n"))
 end
