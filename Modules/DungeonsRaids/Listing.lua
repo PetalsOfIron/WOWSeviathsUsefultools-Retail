@@ -520,7 +520,7 @@ function ns:Passes(r, counts)
       if anyWanted and r.collect and not has then hiders = hiders + 1 end
     end
     -- Delves / dungeons / raids you ticked in the list (none ticked = all)
-    if o.picked and r.placeName and next(o.picked) and not o.picked[r.placeName] then hiders = hiders + 1 end
+    if o.picked and r.kind ~= "quest" and r.placeName and next(o.picked) and not o.picked[r.placeName] then hiders = hiders + 1 end
     -- Classes you ticked: the group needs at least one of them
     if o.classPicked and next(o.classPicked) and #r.memberList > 0 then
       local has = false

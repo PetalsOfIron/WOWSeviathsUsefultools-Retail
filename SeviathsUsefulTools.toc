@@ -85,6 +85,7 @@ collected\tools.objects.lua
 collected\tools.petInfo.lua
 collected\tools.petPrices.lua
 collected\tools.petSpots.lua
+collected\tools.premade.lua
 collected\tools.rareSeen.lua
 collected\tools.realmGroups.lua
 collected\tools.towns.lua
