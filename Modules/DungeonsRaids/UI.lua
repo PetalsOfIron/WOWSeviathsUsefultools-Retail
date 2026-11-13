@@ -457,7 +457,7 @@ local function BuildQuest(p)
   UI.Check(p, "Hide blocked leaders", o, "hideBlocked", COL2, -138)
   Legend(p, -176, "|cff40ff60ON QUEST|r in your log (sorted first)   |cff888888DONE|r already completed   |cffffd040WQ|r world quest\n|cffffd100HERE|r in your current zone\n" .. COMMON_TAGS)
   Footer(p, -276)
-  BuildPicker(p, "quest", -308, "Zones")
+  p.SDRHeight = 330   -- (no zone list: the questing groups are filtered by the switches above)
 end
 
 local function BuildDelve(p)
@@ -998,7 +998,6 @@ end
 
 local MORE_TEXT = {
   mplus = "Key list",
-  quest = "Zone list",
   raid = "Raid list",
   dungeon = "Dungeon list",
   delve = "Delve list",
