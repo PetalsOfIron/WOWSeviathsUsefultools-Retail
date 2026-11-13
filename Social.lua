@@ -521,7 +521,14 @@ function S.Progress()
             if l:find(key, 1, true) or key:find(l, 1, true) then return l end
         end
     end
-    for key in pairs(done) do local l = matchOne(key); if l then matched[l] = true end end
+    -- the delves done THIS WEEK (each once; the list starts again at the weekly reset)
+    local weekDone = {}
+    do
+        local cfg, w = S.Config(), weekStart()
+        local t = (cfg.wku and w and cfg.wku.t == w) and cfg.wku.delve
+        for k in pairs(t or {}) do weekDone[k] = true end
+    end
+    for key in pairs(weekDone) do local l = matchOne(key); if l then matched[l] = true end end
     for key in pairs(libDone) do local l = matchOne(key); if l then matched[l] = true end end
     for _ in pairs(names) do out.delve[2] = out.delve[2] + 1 end
     for _ in pairs(matched) do out.delve[1] = out.delve[1] + 1 end
