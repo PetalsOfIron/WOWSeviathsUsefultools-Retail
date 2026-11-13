@@ -586,7 +586,13 @@ function ns:FilterResults(results)
 end
 
 -- Blizzard rebuilds panel.results on every search/refresh; we filter a copy and redraw.
+-- The eye button of a world quest (or the group button of a quest in the tracker) lets the game search for a group of that quest and, when it finds none, start one
+-- itself. That search is left alone: changing its list of results made the game answer "one or more dungeons are not valid" when it tried to start the group.
+ns.skipFilterUntil = 0
+ns:RequestHook("LFGListUtil_FindQuestGroup", function() ns.skipFilterUntil = GetTime() + 30 end)
+
 local function FilterPanel(panel)
+  if GetTime() < (ns.skipFilterUntil or 0) then ns.hiddenCount = 0 return end
   if not ns.db or not panel or type(panel.results) ~= "table" then return end
   ns.originalResults = {}
   for i, id in ipairs(panel.results) do ns.originalResults[i] = id end
@@ -666,6 +672,7 @@ ns:RequestHook("LFGListSearchPanel_UpdateResultList", FilterPanel)
 
 -- Re-apply filters to the current list without a new search
 function ns:Refilter()
+  if GetTime() < (ns.skipFilterUntil or 0) then return false end   -- a quest group search of the game is left alone
   local panel = LFGListFrame and LFGListFrame.SearchPanel
   if not panel or InCombatLockdown() then return false end
   -- Same path as Blizzard's refresh: re-read the current results, run our filter
