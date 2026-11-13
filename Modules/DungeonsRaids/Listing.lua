@@ -600,9 +600,17 @@ local function FilterPanel(panel)
   if ns.UI and ns.UI.SyncTab then ns.UI:SyncTab() end
   if not ns.db.enabled then ns.cache = {} ns.hiddenCount = 0 return end
   local filtered = ns:FilterResults(ns.originalResults)
-  panel.results = filtered
-  panel.totalResults = #filtered
-  LFGListSearchPanel_UpdateResults(panel)
+  -- the list of the game is only touched when the filters change it (nothing hidden, same order: left exactly as it is, so the game's own code, like
+  -- starting a group of a key, never reads a list written by an addon)
+  local same = #filtered == #ns.originalResults
+  if same then
+    for i, id in ipairs(filtered) do if ns.originalResults[i] ~= id then same = false break end end
+  end
+  if not same then
+    panel.results = filtered
+    panel.totalResults = #filtered
+    LFGListSearchPanel_UpdateResults(panel)
+  end
   if ns.UI and ns.UI.UpdateStatus then ns.UI:UpdateStatus() end
 end
 
