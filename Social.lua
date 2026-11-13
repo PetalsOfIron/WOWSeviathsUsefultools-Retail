@@ -548,7 +548,13 @@ function S.Progress()
     -- dungeons: this expansion's dungeons (Adventure Guide) and the ones you have entered (collected when you walk in)
     if dr and dr.PlaceTier and dr.db and dr.db.dungeon and GetServerExpansionLevel then
         if dr.LoadEJPlaces then pcall(dr.LoadEJPlaces, dr, "dungeon") end
-        local cur, entered = GetServerExpansionLevel() + 1, mineDone.dungeon
+        local cur, entered = GetServerExpansionLevel() + 1, {}
+        -- the dungeons finished THIS WEEK (each once; the list starts again at the weekly reset)
+        do
+            local cfg, w = S.Config(), weekStart()
+            local t = (cfg.wku and w and cfg.wku.t == w) and cfg.wku.dungeon
+            for k in pairs(t or {}) do entered[k] = true end
+        end
         local list = {}
         for name in pairs(dr.db.dungeon.known or {}) do
             if dr:PlaceTier("dungeon", name) == cur then list[#list + 1] = name:lower() end
@@ -1512,19 +1518,19 @@ local function addProfileLines(tt, rec)
             return ("%s |cffffffff%d / %d|r"):format(label, n, math.max(p[2], n))
         end
         local out = {}
-        for _, e in ipairs({ pair("delves", rec.prog.delve, rec.dl), pair("dungeons", rec.prog.dun, rec.dw), pair("keys", rec.prog.key), pair("raid bosses", rec.prog.raid, rec.rw) }) do out[#out + 1] = e end
+        for _, e in ipairs({ pair("delves", rec.prog.delve, rec.dl), pair("dungeons", rec.prog.dun, rec.dw), pair("raid bosses", rec.prog.raid, rec.rw) }) do out[#out + 1] = e end
         l3 = table.concat(out, "   ")
     elseif rec.tot then
         -- done this week / done in all of Midnight (counted by the addon as they are done)
         local out = {}
-        for _, e in ipairs({ { "delves", rec.dl, rec.tot.delve }, { "dungeons and keys", rec.dw, rec.tot.dungeon }, { "raid bosses", rec.rw, rec.tot.raid } }) do
+        for _, e in ipairs({ { "delves", rec.dl, rec.tot.delve }, { "dungeons", rec.dw, rec.tot.dungeon }, { "raid bosses", rec.rw, rec.tot.raid } }) do
             local wk, tot = e[2] or 0, e[3] or 0
             -- always shown (also at 0 / 0), so you can see the counting works
             out[#out + 1] = ("%s |cffffffff%d / %d|r"):format(e[1], wk, math.max(wk, tot))
         end
         l3 = table.concat(out, "   ")
     else
-        l3 = parts({ { "dungeons and keys", rec.dw }, { "raid bosses", rec.rw }, { "delves", rec.dl } })
+        l3 = parts({ { "dungeons", rec.dw }, { "raid bosses", rec.rw }, { "delves", rec.dl } })
     end
     if l1 ~= "" then tt:AddLine(l1, 0.8, 0.8, 0.8) end
     -- the collections each on their own line: "Mounts: 131", "Battle pets: 40", "Housing decor: 225"
