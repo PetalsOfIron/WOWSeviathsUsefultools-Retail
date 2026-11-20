@@ -261,6 +261,44 @@ local function getNodePin()
     return p
 end
 
+-- Treasures that give profession knowledge are red (the others blue). An item gives knowledge when its tooltip says so ("... knowledge ..."); the answer for each item is kept
+-- in the saved data (db.knowledgeItem), so every treasure that was ever looted for such an item is red, and a new one is red from the moment its loot is recorded.
+local askedK, kRefresh = {}, false
+local function itemGivesKnowledge(id)
+    local db = SFP.db
+    if not db or type(id) ~= "number" then return false end
+    db.knowledgeItem = db.knowledgeItem or {}
+    local v = db.knowledgeItem[id]
+    if v ~= nil then return v end
+    local ok, data = pcall(function() return C_TooltipInfo and C_TooltipInfo.GetItemByID and C_TooltipInfo.GetItemByID(id) end)
+    if ok and type(data) == "table" and type(data.lines) == "table" and #data.lines >= 2 then
+        local found = false
+        for _, ln in ipairs(data.lines) do
+            local l = type(ln) == "table" and ln.leftText
+            if type(l) == "string" and not (issecretvalue and issecretvalue(l)) and l:lower():find("knowledge", 1, true) then found = true break end
+        end
+        db.knowledgeItem[id] = found
+        return found
+    end
+    -- the game has not got the item yet: asked once; the pins are drawn again a moment later
+    if not askedK[id] then
+        askedK[id] = true
+        if C_Item and C_Item.RequestLoadItemDataByID then pcall(C_Item.RequestLoadItemDataByID, id) end
+        if not kRefresh then
+            kRefresh = true
+            C_Timer.After(2, function() kRefresh = false; if SFP.RefreshTreasures then SFP.RefreshTreasures() end end)
+        end
+    end
+    return false
+end
+local function isKnowledgeTreasure(rec)
+    if type(rec) ~= "table" or type(rec.d) ~= "table" then return false end
+    for id in pairs(rec.d) do
+        if itemGivesKnowledge(id) then return true end
+    end
+    return false
+end
+
 local function getPin()
     used = used + 1
     local p = pins[used]
@@ -279,6 +317,7 @@ local function getPin()
             t:SetOwner(self, "ANCHOR_RIGHT")
             t:ClearLines()
             t:AddLine(tostring(self.rec.n or ("Treasure " .. tostring(self.id))), 0.9, 0.28, 0.24)
+            if self.knowledge then t:AddLine("Gives profession knowledge", 1, 0.25, 0.25) end
             if SFP.ObjectLootLines then SFP.ObjectLootLines(t, self.rec) end
             t:Show()
         end)
@@ -389,6 +428,15 @@ local function update()
         p:ClearAllPoints()
         p:SetPoint("CENTER", c, "TOPLEFT", t.x * w, -t.y * h)
         p.id, p.rec = t.id, t.rec
+        local k = isKnowledgeTreasure(t.rec)
+        p.knowledge = k
+        if k then
+            p.edge:SetColorTexture(0.18, 0.02, 0.02, 0.9)
+            p.fill:SetColorTexture(1, 0.15, 0.15, 0.95)
+        else
+            p.edge:SetColorTexture(0.02, 0.06, 0.16, 0.9)
+            p.fill:SetColorTexture(0.2, 0.55, 1, 0.95)
+        end
       end
     end
     -- services: auction houses, bankers and trainers (the points of interest of the map first, then the NPCs you spoke to or pointed at). Small icons; a hover says what it is.
